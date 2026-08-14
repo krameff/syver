@@ -1,6 +1,7 @@
 *.swp
 /main
 *.bak
+.vscode
 /goss
 /release
 /dist
