@@ -87,6 +87,25 @@ func (r Prometheus) Output(w io.Writer, results <-chan []resource.TestResult,
 	return 0
 }
 
+// MetricsRegistry returns the private registry that the prometheus outputter
+// records into, initialising it if it does not exist yet.
+//
+// It exists so `serve`'s /metrics endpoint can expose the same metrics the
+// prometheus output format produces. Previously serve.go handed /metrics the
+// default global registry, which these metrics are never registered into (they
+// go into the private registry created below), so /metrics could only ever
+// return zero occurrences of goss_tests_outcomes_total.
+//
+// Note the label cardinality is fixed by whichever caller initialises the
+// registry first — the same first-call-wins behaviour Output() already had.
+// Callers should pass the process-level OutputConfig so this is deterministic.
+func MetricsRegistry(outConfig util.OutputConfig) *prometheus.Registry {
+	if registry == nil {
+		setupMetrics(util.IsValueInList(foVerbose, outConfig.FormatOptions))
+	}
+	return registry
+}
+
 func setupMetrics(verbose bool) {
 	registry = prometheus.NewRegistry()
 	factory := promauto.With(registry)

@@ -29,7 +29,16 @@ func Serve(c *util.Config) error {
 		return err
 	}
 	http.Handle(endpoint, health)
-	http.Handle("/metrics", promhttp.Handler())
+	// Serve the outputs package's private registry, not the default global one.
+	// The goss_tests_* metrics are registered into the private registry via
+	// promauto.With(registry), so promhttp.Handler() (default registry) exposed
+	// none of them and /metrics always returned zero matches. Initialised eagerly
+	// with the process-level format options so label cardinality is deterministic
+	// rather than set by whichever request happens to arrive first.
+	http.Handle("/metrics", promhttp.HandlerFor(
+		outputs.MetricsRegistry(util.OutputConfig{FormatOptions: c.FormatOptions}),
+		promhttp.HandlerOpts{},
+	))
 	log.Printf("[INFO] Starting to listen on: %s", c.ListenAddress)
 	return http.ListenAndServe(c.ListenAddress, nil)
 }

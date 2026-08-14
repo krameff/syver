@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.7.0 based on v0.6.0
+
+- fix/metrics-registry branch
+  - `/metrics` now serves the `outputs` private registry, not the default global one
+  - added `outputs.MetricsRegistry()` accessor
+  - registry initialised eagerly at `serve` startup from process-level format options
+  - fixes `integration-tests/run-serve-tests.sh:102`; test assertion unchanged
+
+---
+
 ## [0.6.0] - 2026-07-26
 
 ### Updated
