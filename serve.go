@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"bytes"
@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/krameff/goss/outputs"
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/outputs"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 	"github.com/patrickmn/go-cache"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -47,7 +47,7 @@ func newHealthHandler(c *util.Config) (*healthHandler, error) {
 	color.NoColor = true
 	cache := cache.New(c.Cache, 30*time.Second)
 
-	cfg, err := getGossConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
+	cfg, err := getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -59,11 +59,11 @@ func newHealthHandler(c *util.Config) (*healthHandler, error) {
 
 	health := &healthHandler{
 		c:             c,
-		gossConfig:    *cfg,
+		syverConfig:   *cfg,
 		sys:           system.New(c.PackageManager),
 		outputer:      output,
 		cache:         cache,
-		gossMu:        &sync.Mutex{},
+		syverMu:       &sync.Mutex{},
 		maxConcurrent: c.MaxConcurrent,
 	}
 	return health, nil
@@ -75,11 +75,11 @@ type res struct {
 }
 type healthHandler struct {
 	c             *util.Config
-	gossConfig    GossConfig
+	syverConfig   SyverConfig
 	sys           *system.System
 	outputer      outputs.Outputer
 	cache         *cache.Cache
-	gossMu        *sync.Mutex
+	syverMu       *sync.Mutex
 	maxConcurrent int
 }
 
@@ -136,7 +136,7 @@ func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs
 func (h healthHandler) validate() [][]resource.TestResult {
 	h.sys = system.New(h.c.PackageManager)
 	res := make([][]resource.TestResult, 0)
-	tr, err := runValidation(h.sys, h.gossConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
+	tr, err := runValidation(h.sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
 	if err != nil {
 		return res
 	}

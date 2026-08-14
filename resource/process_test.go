@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 	"gotest.tools/v3/assert"
 )
 

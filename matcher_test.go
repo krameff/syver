@@ -1,6 +1,6 @@
 //go:build linux
 
-package goss
+package syver
 
 import (
 	"bytes"
@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 	"github.com/stretchr/testify/assert"
 )
 

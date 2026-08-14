@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"fmt"
@@ -12,25 +12,25 @@ import (
 	"github.com/fatih/color"
 	"github.com/onsi/gomega/format"
 
-	"github.com/krameff/goss/outputs"
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/outputs"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 )
 
-func getGossConfig(varsFiles []string, varsInline string, specFile string, discovered map[string]bool) (cfg *GossConfig, err error) {
-	return loadGossConfig(varsFiles, varsInline, specFile, discovered, false)
+func getSyverConfig(varsFiles []string, varsInline string, specFile string, discovered map[string]bool) (cfg *SyverConfig, err error) {
+	return loadSyverConfig(varsFiles, varsInline, specFile, discovered, false)
 }
 
-func getGossConfigPeek(varsFiles []string, varsInline string, specFile string) (*GossConfig, error) {
-	return loadGossConfig(varsFiles, varsInline, specFile, nil, true)
+func getSyverConfigPeek(varsFiles []string, varsInline string, specFile string) (*SyverConfig, error) {
+	return loadSyverConfig(varsFiles, varsInline, specFile, nil, true)
 }
 
-func loadGossConfig(varsFiles []string, varsInline string, specFile string, discovered map[string]bool, peek bool) (cfg *GossConfig, err error) {
+func loadSyverConfig(varsFiles []string, varsInline string, specFile string, discovered map[string]bool, peek bool) (cfg *SyverConfig, err error) {
 	// handle stdin
 	var fh *os.File
 	var path, source string
-	var gossConfig GossConfig
+	var syverConfig SyverConfig
 
 	if peek {
 		currentTemplateFilter, err = NewPeekTemplateFilter(varsFiles, varsInline)
@@ -53,7 +53,7 @@ func loadGossConfig(varsFiles []string, varsInline string, specFile string, disc
 			return nil, err
 		}
 
-		gossConfig, err = ReadJSONData(data, true)
+		syverConfig, err = ReadJSONData(data, true)
 		if err != nil {
 			return nil, err
 		}
@@ -65,22 +65,22 @@ func loadGossConfig(varsFiles []string, varsInline string, specFile string, disc
 			return nil, err
 		}
 
-		gossConfig, err = ReadJSON(specFile)
+		syverConfig, err = ReadJSON(specFile)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	gossConfig, err = mergeJSONData(gossConfig, 0, path)
+	syverConfig, err = mergeJSONData(syverConfig, 0, path)
 	if err != nil {
 		return nil, err
 	}
 
-	if len(gossConfig.Resources()) == 0 && gossConfig.Discovery.IsEmpty() {
+	if len(syverConfig.Resources()) == 0 && syverConfig.Discovery.IsEmpty() {
 		return nil, fmt.Errorf("found 0 tests, source: %v", source)
 	}
 
-	return &gossConfig, nil
+	return &syverConfig, nil
 }
 
 func getOutputer(c *bool, format string) (outputs.Outputer, error) {
@@ -97,14 +97,14 @@ func getOutputer(c *bool, format string) (outputs.Outputer, error) {
 // ValidateResults performs validation and provides programmatic access to validation results
 // no retries or outputs are supported
 func ValidateResults(c *util.Config) (results <-chan []resource.TestResult, err error) {
-	gossConfig, err := loadGossConfigWithDiscover(c)
+	syverConfig, err := loadSyverConfigWithDiscover(c)
 	if err != nil {
 		return nil, err
 	}
 
 	sys := system.New(c.PackageManager)
 
-	return runValidation(sys, *gossConfig, c.DisabledResourceTypes, c.MaxConcurrent)
+	return runValidation(sys, *syverConfig, c.DisabledResourceTypes, c.MaxConcurrent)
 }
 
 // Validate performs validation, writes formatted output to stdout by default
@@ -116,16 +116,16 @@ func Validate(c *util.Config) (code int, err error) {
 	if err != nil {
 		return 1, err
 	}
-	gossConfig, err := loadGossConfigWithDiscover(c)
+	syverConfig, err := loadSyverConfigWithDiscover(c)
 	if err != nil {
 		return 78, err
 	}
-	return ValidateConfig(c, gossConfig)
+	return ValidateConfig(c, syverConfig)
 }
 
-func ValidateConfig(c *util.Config, gossConfig *GossConfig) (code int, err error) {
+func ValidateConfig(c *util.Config, syverConfig *SyverConfig) (code int, err error) {
 	if c.OutputFormat == "discovery" {
-		return validateDiscoveryConfig(c, gossConfig)
+		return validateDiscoveryConfig(c, syverConfig)
 	}
 
 	// Needed for contains-elements
@@ -151,7 +151,7 @@ func ValidateConfig(c *util.Config, gossConfig *GossConfig) (code int, err error
 	i := 1
 	startTime := time.Now()
 	for {
-		out, err := runValidation(sys, *gossConfig, c.DisabledResourceTypes, c.MaxConcurrent)
+		out, err := runValidation(sys, *syverConfig, c.DisabledResourceTypes, c.MaxConcurrent)
 		if err != nil {
 			return 1, err
 		}
@@ -171,9 +171,9 @@ func ValidateConfig(c *util.Config, gossConfig *GossConfig) (code int, err error
 	}
 }
 
-func validateDiscoveryConfig(c *util.Config, gossConfig *GossConfig) (code int, err error) {
+func validateDiscoveryConfig(c *util.Config, syverConfig *SyverConfig) (code int, err error) {
 	sys := system.New(c.PackageManager)
-	discovered, err := validateDiscovery(sys, *gossConfig, c.MaxConcurrent)
+	discovered, err := validateDiscovery(sys, *syverConfig, c.MaxConcurrent)
 	if err != nil {
 		return 1, err
 	}
@@ -190,8 +190,8 @@ func validateDiscoveryConfig(c *util.Config, gossConfig *GossConfig) (code int, 
 	return discoveryOutput.Output(ofh, discovered, outputConfig), nil
 }
 
-func runValidation(sys *system.System, gossConfig GossConfig, skipList []string, maxConcurrent int) (<-chan []resource.TestResult, error) {
-	resources := gossConfig.Resources()
+func runValidation(sys *system.System, syverConfig SyverConfig, skipList []string, maxConcurrent int) (<-chan []resource.TestResult, error) {
+	resources := syverConfig.Resources()
 	applyDisabledTypes(resources, skipList)
 
 	if hasDependencies(resources) {

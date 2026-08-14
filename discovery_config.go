@@ -1,9 +1,9 @@
-package goss
+package syver
 
 import (
 	"fmt"
 
-	"github.com/krameff/goss/resource"
+	"github.com/krameff/syver/resource"
 )
 
 // DiscoveryConfig holds discovery-phase tests keyed by resource type.

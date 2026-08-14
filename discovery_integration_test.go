@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"fmt"
@@ -7,9 +7,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 )
 
 func TestValidateDiscoveryFormat(t *testing.T) {
@@ -275,7 +275,7 @@ file:
 	if err != nil {
 		t.Fatalf("peek config: %v", err)
 	}
-	peek, err := getGossConfigPeek(peekCfg.VarsFiles, peekCfg.VarsInline, peekCfg.Spec)
+	peek, err := getSyverConfigPeek(peekCfg.VarsFiles, peekCfg.VarsInline, peekCfg.Spec)
 	if err != nil {
 		t.Fatalf("peek load: %v", err)
 	}

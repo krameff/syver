@@ -3,7 +3,7 @@ package system
 import (
 	"context"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 	"github.com/lorenzosaino/go-sysctl"
 )
 

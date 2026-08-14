@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"encoding/json"
@@ -15,8 +15,8 @@ import (
 	yamlv2 "gopkg.in/yaml.v2"
 	"gopkg.in/yaml.v3"
 
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/util"
 )
 
 const (
@@ -59,11 +59,11 @@ func getStoreFormatFromData(data []byte) (int, error) {
 	return 0, errCannotDetermineFormat
 }
 
-// ReadJSON Reads json file returning GossConfig
-func ReadJSON(filePath string) (GossConfig, error) {
+// ReadJSON Reads json file returning SyverConfig
+func ReadJSON(filePath string) (SyverConfig, error) {
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		return GossConfig{}, fmt.Errorf("file error: %w", err)
+		return SyverConfig{}, fmt.Errorf("file error: %w", err)
 	}
 
 	return ReadJSONData(file, false)
@@ -182,13 +182,13 @@ func varsFromString(varsString string) (map[string]any, error) {
 	return vars, nil
 }
 
-// ReadJSONData Reads json byte array returning GossConfig
-func ReadJSONData(data []byte, detectFormat bool) (GossConfig, error) {
+// ReadJSONData Reads json byte array returning SyverConfig
+func ReadJSONData(data []byte, detectFormat bool) (SyverConfig, error) {
 	var err error
 	if currentTemplateFilter != nil {
 		data, err = currentTemplateFilter(data)
 		if err != nil {
-			return GossConfig{}, err
+			return SyverConfig{}, err
 		}
 		if debug {
 			fmt.Println("DEBUG: file after text/template render")
@@ -200,17 +200,17 @@ func ReadJSONData(data []byte, detectFormat bool) (GossConfig, error) {
 	if detectFormat {
 		format, err = getStoreFormatFromData(data)
 		if err != nil {
-			return GossConfig{}, err
+			return SyverConfig{}, err
 		}
 	}
 
-	gossConfig := NewGossConfig()
+	syverConfig := NewSyverConfig()
 	// Horrible, but will do for now
-	if err := unmarshal(data, gossConfig, format); err != nil {
-		return *gossConfig, err
+	if err := unmarshal(data, syverConfig, format); err != nil {
+		return *syverConfig, err
 	}
 
-	return *gossConfig, nil
+	return *syverConfig, nil
 }
 
 // RenderJSON reads json file recursively returning string
@@ -232,12 +232,12 @@ func RenderJSON(c *util.Config) (string, error) {
 		return "", err
 	}
 
-	gossConfig, err := mergeJSONData(j, 0, filepath.Dir(c.Spec))
+	syverConfig, err := mergeJSONData(j, 0, filepath.Dir(c.Spec))
 	if err != nil {
 		return "", err
 	}
 
-	b, err := marshal(gossConfig)
+	b, err := marshal(syverConfig)
 	if err != nil {
 		return "", fmt.Errorf("rendering failed: %w", err)
 	}
@@ -245,30 +245,30 @@ func RenderJSON(c *util.Config) (string, error) {
 	return string(b), nil
 }
 
-func mergeJSONData(gossConfig GossConfig, depth int, path string) (GossConfig, error) {
+func mergeJSONData(syverConfig SyverConfig, depth int, path string) (SyverConfig, error) {
 	depth++
 	if depth >= 50 {
-		return GossConfig{}, errMaxDepth
+		return SyverConfig{}, errMaxDepth
 	}
-	// Our return gossConfig
-	ret := *NewGossConfig()
-	ret = mergeGoss(ret, gossConfig)
+	// Our return syverConfig
+	ret := *NewSyverConfig()
+	ret = mergeSyver(ret, syverConfig)
 
 	// Sort the gossfiles to ensure consistent ordering
 	var keys []string
-	for k := range gossConfig.Gossfiles {
+	for k := range syverConfig.Syverfiles {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
 	// Merge gossfiles in sorted order
 	for _, k := range keys {
-		g := gossConfig.Gossfiles[k]
+		g := syverConfig.Syverfiles[k]
 		var fpath string
-		if strings.HasPrefix(g.GetGossfile(), "/") {
-			fpath = g.GetGossfile()
+		if strings.HasPrefix(g.GetSyverfile(), "/") {
+			fpath = g.GetSyverfile()
 		} else {
-			fpath = filepath.Join(path, g.GetGossfile())
+			fpath = filepath.Join(path, g.GetSyverfile())
 		}
 		if g.GetSkip() {
 			// Do not process gossfiles with the skip attribute
@@ -285,26 +285,26 @@ func mergeJSONData(gossConfig GossConfig, depth int, path string) (GossConfig, e
 			fdir := filepath.Dir(match)
 			j, err := ReadJSON(match)
 			if err != nil {
-				return GossConfig{}, fmt.Errorf("could not read json data in %s: %w", match, err)
+				return SyverConfig{}, fmt.Errorf("could not read json data in %s: %w", match, err)
 			}
 			j, err = mergeJSONData(j, depth, fdir)
 			if err != nil {
 				return ret, fmt.Errorf("could not write json data: %w", err)
 			}
-			ret = mergeGoss(ret, j)
+			ret = mergeSyver(ret, j)
 		}
 	}
 	return ret, nil
 }
 
-func WriteJSON(filePath string, gossConfig GossConfig) error {
-	jsonData, err := marshal(gossConfig)
+func WriteJSON(filePath string, syverConfig SyverConfig) error {
+	jsonData, err := marshal(syverConfig)
 	if err != nil {
 		return fmt.Errorf("failed to write %s: %w", filePath, err)
 	}
 
 	// check if the auto added json data is empty before writing to file.
-	emptyConfig := *NewGossConfig()
+	emptyConfig := *NewSyverConfig()
 	emptyData, err := marshal(emptyConfig)
 	if err != nil {
 		return fmt.Errorf("failed to write %s: %w", filePath, err)
@@ -331,12 +331,12 @@ func resourcePrint(fileName string, res resource.ResourceRead, announce bool) {
 	}
 }
 
-func marshal(gossConfig any) ([]byte, error) {
+func marshal(syverConfig any) ([]byte, error) {
 	switch outStoreFormat {
 	case JSON:
-		return marshalJSON(gossConfig)
+		return marshalJSON(syverConfig)
 	case YAML:
-		return marshalYAML(gossConfig)
+		return marshalYAML(syverConfig)
 	default:
 		return nil, errStoreFormatUnset
 	}
@@ -353,19 +353,19 @@ func unmarshal(data []byte, v any, storeFormat int) error {
 	}
 }
 
-func marshalJSON(gossConfig any) ([]byte, error) {
-	return json.MarshalIndent(gossConfig, "", "    ")
+func marshalJSON(syverConfig any) ([]byte, error) {
+	return json.MarshalIndent(syverConfig, "", "    ")
 }
 
 func unmarshalJSON(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-func marshalYAML(gossConfig any) ([]byte, error) {
+func marshalYAML(syverConfig any) ([]byte, error) {
 	// yaml.v3 always indents block sequences under their parent key; yaml.v2 uses
 	// indentless sequences, matching the format `goss add`-generated gossfiles have
 	// always had. Kept on v2 for writes only -- unmarshalYAML below still uses v3.
-	return yamlv2.Marshal(gossConfig)
+	return yamlv2.Marshal(syverConfig)
 }
 
 func unmarshalYAML(data []byte, v any) error {

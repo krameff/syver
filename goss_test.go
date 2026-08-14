@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"bytes"
@@ -6,9 +6,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/krameff/goss/outputs"
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/outputs"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/util"
 )
 
 func checkErr(t *testing.T, err error, format string, a ...any) {

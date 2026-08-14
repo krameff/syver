@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 )
 
 type File struct {

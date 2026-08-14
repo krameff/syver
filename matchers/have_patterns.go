@@ -23,7 +23,7 @@ type HavePatternsMatcher struct {
 	foundElements   []string
 }
 
-func HavePatterns(elements interface{}) GossMatcher {
+func HavePatterns(elements interface{}) SyverMatcher {
 	return &HavePatternsMatcher{
 		Elements: elements,
 	}

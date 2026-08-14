@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"log"
@@ -321,9 +321,9 @@ func TestStaticStoreErrors(t *testing.T) {
 	outStoreFormat = UNSET
 	t.Cleanup(func() { outStoreFormat = prev })
 
-	_, err = marshal(NewGossConfig())
+	_, err = marshal(NewSyverConfig())
 	assert.ErrorIs(t, err, errStoreFormatUnset)
 
-	err = unmarshal([]byte("{}"), NewGossConfig(), UNSET)
+	err = unmarshal([]byte("{}"), NewSyverConfig(), UNSET)
 	assert.ErrorIs(t, err, errStoreFormatUnset)
 }

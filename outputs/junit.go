@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/util"
 )
 
 type JUnit struct{}

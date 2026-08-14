@@ -6,10 +6,10 @@ import (
 
 type NotMatcher struct {
 	fakeOmegaMatcher
-	Matcher GossMatcher
+	Matcher SyverMatcher
 }
 
-func Not(matcher GossMatcher) GossMatcher {
+func Not(matcher SyverMatcher) SyverMatcher {
 	return &NotMatcher{Matcher: matcher}
 }
 

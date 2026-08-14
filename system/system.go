@@ -12,7 +12,7 @@ import (
 	"github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/process"
 
-	util2 "github.com/krameff/goss/util"
+	util2 "github.com/krameff/syver/util"
 )
 
 type Resource interface {
@@ -30,7 +30,7 @@ type System struct {
 	NewCommand     func(context.Context, string, *System, util2.Config) Command
 	NewDNS         func(context.Context, string, *System, util2.Config) DNS
 	NewProcess     func(context.Context, string, *System, util2.Config) Process
-	NewGossfile    func(context.Context, string, *System, util2.Config) Gossfile
+	NewSyverfile   func(context.Context, string, *System, util2.Config) Syverfile
 	NewKernelParam func(context.Context, string, *System, util2.Config) KernelParam
 	NewMount       func(context.Context, string, *System, util2.Config) Mount
 	NewInterface   func(context.Context, string, *System, util2.Config) Interface
@@ -71,7 +71,7 @@ func New(packageManager string) *System {
 		NewCommand:     NewDefCommand,
 		NewDNS:         NewDefDNS,
 		NewProcess:     NewDefProcess,
-		NewGossfile:    NewDefGossfile,
+		NewSyverfile:   NewDefSyverfile,
 		NewKernelParam: NewDefKernelParam,
 		NewMount:       NewDefMount,
 		NewInterface:   NewDefInterface,

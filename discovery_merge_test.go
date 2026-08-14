@@ -1,13 +1,13 @@
-package goss
+package syver
 
 import (
 	"testing"
 
-	"github.com/krameff/goss/resource"
+	"github.com/krameff/syver/resource"
 )
 
 func TestMergePreservesDiscovery(t *testing.T) {
-	incoming := GossConfig{
+	incoming := SyverConfig{
 		Discovery: DiscoveryConfig{
 			Files: map[string]*resource.File{
 				"/etc/hosts": {

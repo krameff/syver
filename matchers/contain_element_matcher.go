@@ -10,7 +10,7 @@ type ContainElementMatcher struct {
 	matchers.ContainElementMatcher
 }
 
-func ContainElement(element interface{}) GossMatcher {
+func ContainElement(element interface{}) SyverMatcher {
 	return &ContainElementMatcher{
 		matchers.ContainElementMatcher{
 			Element: element,

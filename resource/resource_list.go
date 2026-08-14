@@ -11,8 +11,8 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 )
 
 type AddrMap map[string]*Addr
@@ -419,12 +419,12 @@ func (ret *FileMap) UnmarshalYAML(unmarshal func(v interface{}) error) error {
 	return nil
 }
 
-type GossfileMap map[string]*Gossfile
+type SyverfileMap map[string]*Syverfile
 
-func (r GossfileMap) AppendSysResource(sr string, sys *system.System, config util.Config) (*Gossfile, error) {
+func (r SyverfileMap) AppendSysResource(sr string, sys *system.System, config util.Config) (*Syverfile, error) {
 	ctx := context.WithValue(context.Background(), idKey{}, sr)
-	sysres := sys.NewGossfile(ctx, sr, sys, config)
-	res, err := NewGossfile(sysres, config)
+	sysres := sys.NewSyverfile(ctx, sr, sys, config)
+	res, err := NewSyverfile(sysres, config)
 	if err != nil {
 		return nil, err
 	}
@@ -436,10 +436,10 @@ func (r GossfileMap) AppendSysResource(sr string, sys *system.System, config uti
 	return res, nil
 }
 
-func (r GossfileMap) AppendSysResourceIfExists(sr string, sys *system.System) (*Gossfile, system.Gossfile, bool, error) {
+func (r SyverfileMap) AppendSysResourceIfExists(sr string, sys *system.System) (*Syverfile, system.Syverfile, bool, error) {
 	ctx := context.WithValue(context.Background(), idKey{}, sr)
-	sysres := sys.NewGossfile(ctx, sr, sys, util.Config{})
-	res, err := NewGossfile(sysres, util.Config{})
+	sysres := sys.NewSyverfile(ctx, sr, sys, util.Config{})
+	res, err := NewSyverfile(sysres, util.Config{})
 	if err != nil {
 		return nil, nil, false, err
 	}
@@ -454,7 +454,7 @@ func (r GossfileMap) AppendSysResourceIfExists(sr string, sys *system.System) (*
 	return res, sysres, true, nil
 }
 
-func (ret *GossfileMap) UnmarshalJSON(data []byte) error {
+func (ret *SyverfileMap) UnmarshalJSON(data []byte) error {
 	// Curried json.Unmarshal
 	unmarshal := func(i interface{}) error {
 		if err := json.Unmarshal(data, i); err != nil {
@@ -464,7 +464,7 @@ func (ret *GossfileMap) UnmarshalJSON(data []byte) error {
 	}
 
 	// Validate configuration
-	zero := Gossfile{}
+	zero := Syverfile{}
 	whitelist, err := util.WhitelistAttrs(zero, util.JSON)
 	if err != nil {
 		return err
@@ -473,7 +473,7 @@ func (ret *GossfileMap) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	var tmp map[string]*Gossfile
+	var tmp map[string]*Syverfile
 	if err := unmarshal(&tmp); err != nil {
 		return err
 	}
@@ -491,9 +491,9 @@ func (ret *GossfileMap) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (ret *GossfileMap) UnmarshalYAML(unmarshal func(v interface{}) error) error {
+func (ret *SyverfileMap) UnmarshalYAML(unmarshal func(v interface{}) error) error {
 	// Validate configuration
-	zero := Gossfile{}
+	zero := Syverfile{}
 	whitelist, err := util.WhitelistAttrs(zero, util.YAML)
 	if err != nil {
 		return err
@@ -502,7 +502,7 @@ func (ret *GossfileMap) UnmarshalYAML(unmarshal func(v interface{}) error) error
 		return err
 	}
 
-	var tmp map[string]*Gossfile
+	var tmp map[string]*Syverfile
 	if err := unmarshal(&tmp); err != nil {
 		return err
 	}

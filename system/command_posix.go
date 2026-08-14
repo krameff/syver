@@ -3,7 +3,7 @@
 
 package system
 
-import "github.com/krameff/goss/util"
+import "github.com/krameff/syver/util"
 
 const linuxShell string = "sh"
 

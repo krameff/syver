@@ -10,7 +10,7 @@ type ContainSubstringMatcher struct {
 	matchers.ContainSubstringMatcher
 }
 
-func ContainSubstring(substr string, args ...interface{}) GossMatcher {
+func ContainSubstring(substr string, args ...interface{}) SyverMatcher {
 	return &ContainSubstringMatcher{
 		matchers.ContainSubstringMatcher{
 			Substr: substr,

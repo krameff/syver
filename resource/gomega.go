@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/krameff/goss/matchers"
+	"github.com/krameff/syver/matchers"
 	"github.com/samber/lo"
 )
 
 var errMissingRequiredAttribute = errors.New("syntax error: missing required attribute")
 
-func matcherToGomegaMatcher(matcher any) (matchers.GossMatcher, error) {
+func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 	// Default matchers
 	switch x := matcher.(type) {
 	case string:
@@ -157,7 +157,7 @@ func matcherToGomegaMatcher(matcher any) (matchers.GossMatcher, error) {
 		}
 		return matchers.BeSemverConstraint(v), nil
 	case "gjson":
-		var subMatchers []matchers.GossMatcher
+		var subMatchers []matchers.SyverMatcher
 		valueI, ok := value.(map[string]any)
 		if !ok {
 			return nil, invalidArgSyntaxError("gjson", "map", value)
@@ -177,12 +177,12 @@ func matcherToGomegaMatcher(matcher any) (matchers.GossMatcher, error) {
 	}
 }
 
-func sliceToGomega(value any, name string) ([]matchers.GossMatcher, error) {
+func sliceToGomega(value any, name string) ([]matchers.SyverMatcher, error) {
 	valueI, ok := value.([]any)
 	if !ok {
 		return nil, invalidArgSyntaxError(name, "array", value)
 	}
-	var subMatchers []matchers.GossMatcher
+	var subMatchers []matchers.SyverMatcher
 	for _, v := range valueI {
 		subMatcher, err := matcherToGomegaMatcher(v)
 		if err != nil {

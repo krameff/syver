@@ -10,7 +10,7 @@ type HaveLenMatcher struct {
 	matchers.HaveLenMatcher
 }
 
-func HaveLen(count int) GossMatcher {
+func HaveLen(count int) SyverMatcher {
 	return &HaveLenMatcher{
 		matchers.HaveLenMatcher{
 			Count: count,

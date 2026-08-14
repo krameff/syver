@@ -10,7 +10,7 @@ type EqualMatcher struct {
 	matchers.EqualMatcher
 }
 
-func Equal(element interface{}) GossMatcher {
+func Equal(element interface{}) SyverMatcher {
 	return &EqualMatcher{
 		matchers.EqualMatcher{
 			Expected: element,

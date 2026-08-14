@@ -16,7 +16,7 @@ type BeSemverConstraintMatcher struct {
 	Constraint any
 }
 
-func BeSemverConstraint(constraint any) GossMatcher {
+func BeSemverConstraint(constraint any) SyverMatcher {
 	return &BeSemverConstraintMatcher{
 		Constraint: constraint,
 	}

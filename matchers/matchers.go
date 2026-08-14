@@ -8,7 +8,7 @@ import (
 	"github.com/onsi/gomega/types"
 )
 
-type GossMatcher interface {
+type SyverMatcher interface {
 	// This is needed due to oMegaMatcher test in some of the GomegaMatcher logic
 	types.GomegaMatcher
 	//Match(actual interface{}) (success bool, err error)

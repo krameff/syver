@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"fmt"
@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 )
 
 type scheduledResource struct {

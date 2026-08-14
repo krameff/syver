@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/krameff/goss/system"
+	"github.com/krameff/syver/system"
 )
 
 type Resource interface {

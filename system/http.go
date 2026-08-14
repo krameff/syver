@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 const USER_AGENT_HEADER_PREFIX = "user-agent:"

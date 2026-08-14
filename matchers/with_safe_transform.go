@@ -11,14 +11,14 @@ type WithSafeTransformMatcher struct {
 
 	// input
 	Transform Transformer // must be a function of one parameter that returns one value
-	Matcher   GossMatcher
+	Matcher   SyverMatcher
 
 	// state
 	transformedValue interface{}
 	wasTransformed   bool
 }
 
-func WithSafeTransform(transform Transformer, matcher GossMatcher) GossMatcher {
+func WithSafeTransform(transform Transformer, matcher SyverMatcher) SyverMatcher {
 
 	return &WithSafeTransformMatcher{
 		Transform: transform,
@@ -55,7 +55,7 @@ func (m *WithSafeTransformMatcher) NegatedFailureResult(actual interface{}) Matc
 	return result
 }
 
-func (m *WithSafeTransformMatcher) getTransformerChainAndMatcher() (tchain []Transformer, matcher GossMatcher, tvalue interface{}) {
+func (m *WithSafeTransformMatcher) getTransformerChainAndMatcher() (tchain []Transformer, matcher SyverMatcher, tvalue interface{}) {
 	matcher = m
 	tvalue = m.transformedValue
 L:

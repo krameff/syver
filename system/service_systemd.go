@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 type ServiceSystemd struct {

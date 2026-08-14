@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 type Package interface {

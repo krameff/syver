@@ -1,4 +1,4 @@
-module github.com/krameff/goss
+module github.com/krameff/syver
 
 go 1.26
 

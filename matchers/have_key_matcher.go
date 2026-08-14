@@ -10,7 +10,7 @@ type HaveKeyMatcher struct {
 	matchers.HaveKeyMatcher
 }
 
-func HaveKey(key interface{}) GossMatcher {
+func HaveKey(key interface{}) SyverMatcher {
 	return &HaveKeyMatcher{
 		matchers.HaveKeyMatcher{
 			Key: key,

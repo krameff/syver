@@ -10,7 +10,7 @@ type HaveSuffixMatcher struct {
 	matchers.HaveSuffixMatcher
 }
 
-func HaveSuffix(prefix string, args ...interface{}) GossMatcher {
+func HaveSuffix(prefix string, args ...interface{}) SyverMatcher {
 	return &HaveSuffixMatcher{
 		matchers.HaveSuffixMatcher{
 			Suffix: prefix,

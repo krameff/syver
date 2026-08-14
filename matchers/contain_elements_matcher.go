@@ -14,7 +14,7 @@ type ContainElementsMatcher struct {
 	matchers.ContainElementsMatcher
 }
 
-func ContainElements(elements ...interface{}) GossMatcher {
+func ContainElements(elements ...interface{}) SyverMatcher {
 	return &ContainElementsMatcher{
 		matchers.ContainElementsMatcher{
 			Elements: elements,

@@ -6,13 +6,13 @@ import (
 
 type AndMatcher struct {
 	fakeOmegaMatcher
-	Matchers []GossMatcher
+	Matchers []SyverMatcher
 
 	// state
-	firstFailedMatcher GossMatcher
+	firstFailedMatcher SyverMatcher
 }
 
-func And(ms ...GossMatcher) GossMatcher {
+func And(ms ...SyverMatcher) SyverMatcher {
 	return &AndMatcher{Matchers: ms}
 }
 

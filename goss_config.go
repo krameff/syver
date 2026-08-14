@@ -1,13 +1,13 @@
-package goss
+package syver
 
 import (
 	"log"
 	"reflect"
 
-	"github.com/krameff/goss/resource"
+	"github.com/krameff/syver/resource"
 )
 
-type GossConfig struct {
+type SyverConfig struct {
 	Discovery    DiscoveryConfig         `json:"discovery,omitempty" yaml:"discovery,omitempty"`
 	Files        resource.FileMap        `json:"file,omitempty" yaml:"file,omitempty"`
 	Packages     resource.PackageMap     `json:"package,omitempty" yaml:"package,omitempty"`
@@ -19,7 +19,7 @@ type GossConfig struct {
 	Commands     resource.CommandMap     `json:"command,omitempty" yaml:"command,omitempty"`
 	DNS          resource.DNSMap         `json:"dns,omitempty" yaml:"dns,omitempty"`
 	Processes    resource.ProcessMap     `json:"process,omitempty" yaml:"process,omitempty"`
-	Gossfiles    resource.GossfileMap    `json:"gossfile,omitempty" yaml:"gossfile,omitempty"`
+	Syverfiles   resource.SyverfileMap   `json:"gossfile,omitempty" yaml:"gossfile,omitempty"`
 	KernelParams resource.KernelParamMap `json:"kernel-param,omitempty" yaml:"kernel-param,omitempty"`
 	Mounts       resource.MountMap       `json:"mount,omitempty" yaml:"mount,omitempty"`
 	Interfaces   resource.InterfaceMap   `json:"interface,omitempty" yaml:"interface,omitempty"`
@@ -28,8 +28,8 @@ type GossConfig struct {
 	Registries   resource.RegistryMap    `json:"registry,omitempty" yaml:"registry,omitempty"`
 }
 
-func NewGossConfig() *GossConfig {
-	return &GossConfig{
+func NewSyverConfig() *SyverConfig {
+	return &SyverConfig{
 		Discovery: DiscoveryConfig{
 			Files:        make(resource.FileMap),
 			Packages:     make(resource.PackageMap),
@@ -58,7 +58,7 @@ func NewGossConfig() *GossConfig {
 		Commands:     make(resource.CommandMap),
 		DNS:          make(resource.DNSMap),
 		Processes:    make(resource.ProcessMap),
-		Gossfiles:    make(resource.GossfileMap),
+		Syverfiles:   make(resource.SyverfileMap),
 		KernelParams: make(resource.KernelParamMap),
 		Mounts:       make(resource.MountMap),
 		Interfaces:   make(resource.InterfaceMap),
@@ -70,7 +70,7 @@ func NewGossConfig() *GossConfig {
 
 // Merge consumes all the resources in g2 into c, duplicate resources
 // will be overwritten with the ones in g2
-func (c *GossConfig) Merge(g2 GossConfig) {
+func (c *SyverConfig) Merge(g2 SyverConfig) {
 	c.Discovery.Merge(g2.Discovery)
 
 	for k, v := range g2.Files {
@@ -145,7 +145,7 @@ func mergeType[V any](m map[string]V, t, k string, v V) {
 	m[k] = v
 }
 
-func (c *GossConfig) Resources() []resource.Resource {
+func (c *SyverConfig) Resources() []resource.Resource {
 	var tests []resource.Resource
 
 	gm := genericConcatMaps(c.Commands,
@@ -199,8 +199,8 @@ func interfaceMap(slice any) map[string]any {
 	return ret
 }
 
-func mergeGoss(g1, g2 GossConfig) GossConfig {
-	g1.Gossfiles = nil
+func mergeSyver(g1, g2 SyverConfig) SyverConfig {
+	g1.Syverfiles = nil
 
 	g1.Merge(g2)
 

@@ -5,7 +5,7 @@ import (
 	"os/user"
 	"strconv"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 type User interface {

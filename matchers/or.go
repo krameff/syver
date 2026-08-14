@@ -7,13 +7,13 @@ import (
 type OrMatcher struct {
 	fakeOmegaMatcher
 
-	Matchers []GossMatcher
+	Matchers []SyverMatcher
 
 	// state
-	firstSuccessfulMatcher GossMatcher
+	firstSuccessfulMatcher SyverMatcher
 }
 
-func Or(ms ...GossMatcher) GossMatcher {
+func Or(ms ...SyverMatcher) SyverMatcher {
 	return &OrMatcher{Matchers: ms}
 }
 
@@ -42,7 +42,7 @@ func (m *OrMatcher) FailureResult(actual interface{}) MatcherResult {
 
 func (m *OrMatcher) NegatedFailureResult(actual interface{}) MatcherResult {
 	firstSuccessfulMatcher := getUnexported(m, "firstSuccessfulMatcher")
-	return firstSuccessfulMatcher.(GossMatcher).NegatedFailureResult(actual)
+	return firstSuccessfulMatcher.(SyverMatcher).NegatedFailureResult(actual)
 }
 
 func (m *OrMatcher) MarshalJSON() ([]byte, error) {

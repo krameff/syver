@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/krameff/goss/matchers"
+	"github.com/krameff/syver/matchers"
 )
 
 const (
@@ -145,7 +145,7 @@ func ValidateGomegaValue(res ResourceRead, property string, expectedValue any, a
 	}
 
 	var foundValue any
-	var gomegaMatcher matchers.GossMatcher
+	var gomegaMatcher matchers.SyverMatcher
 	var err error
 	switch f := actual.(type) {
 	case func() (bool, error):

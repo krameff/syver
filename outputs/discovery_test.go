@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 func TestDiscoveryOutput(t *testing.T) {

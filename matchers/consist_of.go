@@ -11,7 +11,7 @@ type ConsistOfMatcher struct {
 	matchers.ConsistOfMatcher
 }
 
-func ConsistOf(elements ...interface{}) GossMatcher {
+func ConsistOf(elements ...interface{}) SyverMatcher {
 	return &ConsistOfMatcher{
 		matchers.ConsistOfMatcher{
 			Elements: elements,

@@ -16,7 +16,7 @@ func TestBeSemverConstraint(t *testing.T) {
 	tests := []struct {
 		name string
 		args args
-		want GossMatcher
+		want SyverMatcher
 	}{
 		{
 			name: "sanity",

@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/util"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -10,7 +10,7 @@ type MatchRegexpMatcher struct {
 	matchers.MatchRegexpMatcher
 }
 
-func MatchRegexp(regexp string, args ...interface{}) GossMatcher {
+func MatchRegexp(regexp string, args ...interface{}) SyverMatcher {
 	return &MatchRegexpMatcher{
 		matchers.MatchRegexpMatcher{
 			Regexp: regexp,

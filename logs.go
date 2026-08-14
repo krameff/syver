@@ -1,4 +1,4 @@
-package goss
+package syver
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/logutils"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 func setLogLevel(c *util.Config) error {

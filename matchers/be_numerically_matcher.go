@@ -13,7 +13,7 @@ type BeNumericallyMatcher struct {
 	CompareTo  []interface{}
 }
 
-func BeNumerically(comparator string, compareTo ...interface{}) GossMatcher {
+func BeNumerically(comparator string, compareTo ...interface{}) SyverMatcher {
 	return &BeNumericallyMatcher{
 		Comparator: comparator,
 		CompareTo:  compareTo,

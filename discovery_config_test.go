@@ -1,13 +1,13 @@
-package goss
+package syver
 
 import (
 	"testing"
 
-	"github.com/krameff/goss/resource"
+	"github.com/krameff/syver/resource"
 )
 
 func TestDiscoveryConfigEntries(t *testing.T) {
-	cfg := GossConfig{
+	cfg := SyverConfig{
 		Discovery: DiscoveryConfig{
 			Files: resource.FileMap{
 				"/bin/clang": {
@@ -33,7 +33,7 @@ func TestDiscoveryConfigEntries(t *testing.T) {
 }
 
 func TestDiscoveryConfigRequiresRegister(t *testing.T) {
-	cfg := GossConfig{
+	cfg := SyverConfig{
 		Discovery: DiscoveryConfig{
 			Files: resource.FileMap{
 				"/bin/clang": {

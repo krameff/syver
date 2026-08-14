@@ -1,27 +1,27 @@
-package goss
+package syver
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/krameff/goss/system"
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/system"
+	"github.com/krameff/syver/util"
 )
 
 func runDiscoveryPhase(sys *system.System, discovery DiscoveryConfig, maxConcurrent int) (map[string]bool, error) {
-	cfg := GossConfig{Discovery: discovery}
+	cfg := SyverConfig{Discovery: discovery}
 	return validateDiscovery(sys, cfg, maxConcurrent)
 }
 
-func loadGossConfigWithDiscover(c *util.Config) (*GossConfig, error) {
+func loadSyverConfigWithDiscover(c *util.Config) (*SyverConfig, error) {
 	if c.OutputFormat == "discovery" {
-		return getGossConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
+		return getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
 	}
 
 	sys := system.New(c.PackageManager)
 
 	if c.DiscoverSpec != "" {
-		discoverCfg, err := getGossConfig(c.VarsFiles, c.VarsInline, c.DiscoverSpec, nil)
+		discoverCfg, err := getSyverConfig(c.VarsFiles, c.VarsInline, c.DiscoverSpec, nil)
 		if err != nil {
 			return nil, fmt.Errorf("discover gossfile: %w", err)
 		}
@@ -35,22 +35,22 @@ func loadGossConfigWithDiscover(c *util.Config) (*GossConfig, error) {
 		}
 
 		if c.Spec != "" {
-			peek, peekErr := getGossConfigPeek(c.VarsFiles, c.VarsInline, c.Spec)
+			peek, peekErr := getSyverConfigPeek(c.VarsFiles, c.VarsInline, c.Spec)
 			if peekErr == nil && !peek.Discovery.IsEmpty() {
 				log.Printf("[INFO] ignoring inline discovery: in %q; using --discover %q", c.Spec, c.DiscoverSpec)
 			}
 		}
 
-		return getGossConfig(c.VarsFiles, c.VarsInline, c.Spec, discovered)
+		return getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, discovered)
 	}
 
-	peek, err := getGossConfigPeek(c.VarsFiles, c.VarsInline, c.Spec)
+	peek, err := getSyverConfigPeek(c.VarsFiles, c.VarsInline, c.Spec)
 	if err != nil {
 		return nil, err
 	}
 
 	if peek.Discovery.IsEmpty() {
-		return getGossConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
+		return getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
 	}
 
 	discovered, err := runDiscoveryPhase(sys, peek.Discovery, c.MaxConcurrent)
@@ -58,5 +58,5 @@ func loadGossConfigWithDiscover(c *util.Config) (*GossConfig, error) {
 		return nil, fmt.Errorf("discover phase: %w", err)
 	}
 
-	return getGossConfig(c.VarsFiles, c.VarsInline, c.Spec, discovered)
+	return getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, discovered)
 }

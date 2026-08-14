@@ -11,7 +11,7 @@ import (
 
 	"golang.org/x/sys/windows/registry"
 
-	"github.com/krameff/goss/util"
+	"github.com/krameff/syver/util"
 )
 
 type defRegistryWindows struct {

@@ -1,16 +1,16 @@
-package goss
+package syver
 
 import (
 	"fmt"
 	"runtime"
 	"sync"
 
-	"github.com/krameff/goss/resource"
-	"github.com/krameff/goss/system"
+	"github.com/krameff/syver/resource"
+	"github.com/krameff/syver/system"
 )
 
-func validateDiscovery(sys *system.System, gossConfig GossConfig, maxConcurrent int) (map[string]bool, error) {
-	entries, err := gossConfig.Discovery.Entries()
+func validateDiscovery(sys *system.System, syverConfig SyverConfig, maxConcurrent int) (map[string]bool, error) {
+	entries, err := syverConfig.Discovery.Entries()
 	if err != nil {
 		return nil, err
 	}

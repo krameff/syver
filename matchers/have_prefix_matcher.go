@@ -10,7 +10,7 @@ type HavePrefixMatcher struct {
 	matchers.HavePrefixMatcher
 }
 
-func HavePrefix(prefix string, args ...interface{}) GossMatcher {
+func HavePrefix(prefix string, args ...interface{}) SyverMatcher {
 	return &HavePrefixMatcher{
 		matchers.HavePrefixMatcher{
 			Prefix: prefix,
