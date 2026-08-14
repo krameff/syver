@@ -2,11 +2,17 @@
 
 ## 0.7.0 based on v0.6.0
 
-- fix/metrics-registry branch
+- syver_initial branch
   - `/metrics` now serves the `outputs` private registry, not the default global one
   - added `outputs.MetricsRegistry()` accessor
   - registry initialised eagerly at `serve` startup from process-level format options
   - fixes `integration-tests/run-serve-tests.sh:102`; test assertion unchanged
+  - module path `github.com/krameff/goss` -> `github.com/krameff/syver`
+  - `package goss` -> `package syver`; 138 import lines across 85 files
+  - `GossConfig`/`GossMatcher`/`Gossfile` and compounds -> `Syver*`
+  - `cmd/goss/goss.go` -> `cmd/syver/syver.go`
+  - genny source `resource/resource_list_genny.go` updated, not the generated file
+  - wire contracts unchanged: nagios prefix, junit suite name, `goss_tests_*` metrics, `gossfile:` keys and struct tags, `GOSS_*` env vars, User-Agent, media type
 
 ---
 
