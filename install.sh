@@ -3,7 +3,7 @@
 {
 set -e
 
-LATEST_URL="https://github.com/krameff/goss/releases/latest"
+LATEST_URL="https://github.com/krameff/syver/releases/latest"
 LATEST_EFFECTIVE=$(curl -s -L -o /dev/null ${LATEST_URL} -w '%{url_effective}')
 LATEST=${LATEST_EFFECTIVE##*/}
 
@@ -18,7 +18,7 @@ if [ -z "$GOSS_VER" ]; then
     exit 1
 fi
 GOSS_DST=${GOSS_DST:-/usr/local/bin}
-INSTALL_LOC="${GOSS_DST%/}/goss"
+INSTALL_LOC="${GOSS_DST%/}/syver"
 DGOSS_INSTALL_LOC="${GOSS_DST%/}/dgoss"
 touch "$INSTALL_LOC" || { echo "ERROR: Cannot write to $GOSS_DST set GOSS_DST elsewhere or use sudo"; exit 1; }
 
@@ -45,16 +45,16 @@ case "$(uname -m)" in
         ;;
 esac
 
-url="https://github.com/krameff/goss/releases/download/$GOSS_VER/goss-linux-$arch"
+url="https://github.com/krameff/syver/releases/download/$GOSS_VER/syver-linux-$arch"
 
 echo "Downloading $url"
 curl -L "$url" -o "$INSTALL_LOC"
 chmod +x "$INSTALL_LOC"
-echo "Goss $GOSS_VER has been installed to $INSTALL_LOC"
-echo "goss --version"
+echo "Syver $GOSS_VER has been installed to $INSTALL_LOC"
+echo "syver --version"
 "$INSTALL_LOC" --version
 
-dgoss_url="https://raw.githubusercontent.com/krameff/goss/$DGOSS_VER/extras/dgoss/dgoss"
+dgoss_url="https://raw.githubusercontent.com/krameff/syver/$DGOSS_VER/extras/dgoss/dgoss"
 echo "Downloading $dgoss_url"
 curl -L "$dgoss_url" -o "$DGOSS_INSTALL_LOC"
 chmod +rx "$DGOSS_INSTALL_LOC"

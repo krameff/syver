@@ -1,7 +1,8 @@
 FROM alpine:3.24
 
 ARG TARGETPLATFORM
-COPY $TARGETPLATFORM/goss /usr/bin/
+COPY $TARGETPLATFORM/syver /usr/bin/
 
-RUN mkdir /goss
+RUN mkdir /syver /goss
+VOLUME /syver
 VOLUME /goss

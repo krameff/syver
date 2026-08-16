@@ -70,8 +70,8 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p linux/amd64 linux/arm64
-          cp dist/binaries_linux_amd64_*/goss linux/amd64/goss
-          cp dist/binaries_linux_arm64_*/goss linux/arm64/goss
+          cp dist/binaries_linux_amd64_*/syver linux/amd64/syver
+          cp dist/binaries_linux_arm64_*/syver linux/arm64/syver
 
       - name: Build main goss image
         if: github.ref_name == 'main'

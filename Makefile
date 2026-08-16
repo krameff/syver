@@ -1,8 +1,8 @@
 export GO15VENDOREXPERIMENT=1
 
-exe = github.com/krameff/goss/cmd/goss
+exe = github.com/krameff/syver/cmd/syver
 pkgs = $(shell ./novendor.sh)
-cmd = goss
+cmd = syver
 GO111MODULE=on
 GO_FILES = $(shell git ls-files -- '*.go' ':!:*vendor*_test.go')
 VENV := $(shell echo $${VIRTUAL_ENV-.venv})
@@ -15,9 +15,9 @@ all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256
 
 test-short-all: fmt lint vet test
 
-install: release/goss-linux-amd64
+install: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
-	cp release/$(cmd)-linux-amd64 $(GOPATH)/bin/goss
+	cp release/$(cmd)-linux-amd64 $(GOPATH)/bin/syver
 
 test:
 	$(info INFO: Starting build $@)
@@ -51,22 +51,22 @@ bench:
 	$(info INFO: Starting build $@)
 	go test -bench=.
 
-test-int-validate-%: release/goss-%
+test-int-validate-%: release/syver-%
 	$(info INFO: Starting build $@)
 	./integration-tests/run-validate-tests.sh $*
 
-test-int-serve-%: release/goss-%
+test-int-serve-%: release/syver-%
 	$(info INFO: Starting build $@)
 	./integration-tests/run-serve-tests.sh $*
 
-release/goss-%: $(GO_FILES)
+release/syver-%: $(GO_FILES)
 	./release-build.sh -p $* -v $(or $(RELEASE_TAG),$(shell git describe --tags --always 2>/dev/null),0.0.0)
 
 release:
 	$(MAKE) clean
 	$(MAKE) build
 
-build: release/goss-darwin-amd64 release/goss-darwin-arm64 release/goss-linux-amd64 release/goss-linux-arm release/goss-linux-arm64 release/goss-linux-s390x release/goss-linux-ppc64le release/goss-windows-amd64
+build: release/syver-darwin-amd64 release/syver-darwin-arm64 release/syver-linux-amd64 release/syver-linux-arm release/syver-linux-arm64 release/syver-linux-s390x release/syver-linux-ppc64le release/syver-windows-amd64
 
 gen:
 	$(info INFO: Starting build $@)
@@ -101,31 +101,31 @@ test-int-darwin-all: test-int-validate-darwin-amd64 test-int-serve-darwin-amd64 
 test-int-windows-all: test-int-validate-windows-amd64 test-int-serve-windows-amd64
 test-int-all: test-int-64
 
-centos7: release/goss-linux-amd64
+centos7: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh centos7 amd64
 .PHONY: rockylinux9
-rockylinux9: release/goss-linux-amd64
+rockylinux9: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh rockylinux9 amd64
 .PHONY: almalinux10
-almalinux10: release/goss-linux-amd64
+almalinux10: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh almalinux10 amd64
 .PHONY: bullseye
-bullseye: release/goss-linux-amd64
+bullseye: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh bullseye amd64
 .PHONY: jammy
-jammy: release/goss-linux-amd64
+jammy: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh jammy amd64
 .PHONY: alpine3
-alpine3: release/goss-linux-amd64
+alpine3: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh alpine3 amd64
 .PHONY: arch
-arch: release/goss-linux-amd64
+arch: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh arch amd64
 

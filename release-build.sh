@@ -58,7 +58,7 @@ if [[ "${segments[0]}" == "alpha" ]]; then
 fi
 
 if [[ -z "${output_fname}" ]]; then
-  output_fname="goss-${platform_spec}"
+  output_fname="syver-${platform_spec}"
 fi
 
 if [[ "${os}" == "windows" ]]; then
@@ -73,9 +73,9 @@ output(){
 build_pkg() {
     mkdir -p "${output_dir}"
   GOOS="${os}" GOARCH="${arch}" CGO_ENABLED=0 go build \
-    -ldflags "-X github.com/krameff/goss/util.Version=${version_stamp} -s -w" \
+    -ldflags "-X github.com/krameff/syver/util.Version=${version_stamp} -s -w" \
     -o "${output}" \
-    github.com/krameff/goss/cmd/goss
+    github.com/krameff/syver/cmd/syver
 
   chmod +x "${output}"
 }
