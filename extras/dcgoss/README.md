@@ -1,11 +1,15 @@
-# dcgoss
+# dcsyver
 
-dcgoss is a convenience wrapper around goss that aims to bring the simplicity of goss to docker-compose managed
-containers. It is based on `dgoss`.
+dcsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to docker-compose managed
+containers. It is based on `dsyver`.
+
+`dcgoss` is the previous name of this script and is kept as a thin forwarding
+shim for one major version -- it behaves identically to `dcsyver`. New scripts
+and documentation should use `dcsyver`.
 
 ## Usage
 
-`dcgoss [run|edit] <docker_run_params>`
+`dcsyver [run|edit] <docker_run_params>` (or `dcgoss [run|edit] <docker_run_params>`, the compat shim)
 
 ### Run
 
@@ -63,9 +67,9 @@ When running in debug mode, the tmp dir with the container output will not be cl
 
 #### GOSS_PATH
 
-Location of the goss binary to use.
+Location of the syver (or legacy goss) binary to use.
 
-**Default:** `$(which goss)`
+**Default:** `$(which syver)`, falls back to `$(which goss)`
 
 #### GOSS_OPTS
 

@@ -34,12 +34,40 @@ cleanup() {
     fi
 }
 
+# Echoes the first of the given basenames that exists under GOSS_FILES_PATH,
+# or nothing. Mirrors resolveSpecPath() in cmd/syver/syver.go: syver-named
+# files win over goss-named ones. Needed because `syver add` now defaults to
+# writing ./syver.yaml, so gating the copy on goss.yaml alone would silently
+# stage no spec at all for a project created with the current CLI.
+first_existing(){
+    local f
+    for f in "$@"; do
+        if [[ -e "${GOSS_FILES_PATH}/${f}" ]]; then
+            printf '%s\n' "${GOSS_FILES_PATH}/${f}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 run(){
-    # Copy in goss
-    cp "${GOSS_PATH}" "$tmp_dir/goss"
-    chmod 755 "$tmp_dir/goss"
-    [[ -e "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}" ]] && install -m ugo+rw "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}" "$tmp_dir"
-    [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]] && install -m ugo+rw "${GOSS_FILES_PATH}/goss_wait.yaml" "$tmp_dir"
+    # Copy in syver
+    cp "${GOSS_PATH}" "$tmp_dir/syver"
+    chmod 755 "$tmp_dir/syver"
+    # When GOSS_FILE is set it stays staged under its own basename, because the
+    # exec below reads /syver/${GOSS_FILE} -- changing that would break the
+    # explicit-override path. Only the unset case gains the syver.yaml probe,
+    # and it stages as goss.yaml to match the exec's ${GOSS_FILE:-goss.yaml} default.
+    local spec_src wait_src
+    if [[ -n "${GOSS_FILE}" ]]; then
+        spec_src="$(first_existing "${GOSS_FILE}")" || spec_src=""
+        [[ -n "$spec_src" ]] && install -m ugo+rw "$spec_src" "$tmp_dir"
+    else
+        spec_src="$(first_existing syver.yaml syver.yml goss.yaml goss.yml)" || spec_src=""
+        [[ -n "$spec_src" ]] && install -m ugo+rw "$spec_src" "$tmp_dir/goss.yaml"
+    fi
+    wait_src="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)" || wait_src=""
+    [[ -n "$wait_src" ]] && install -m ugo+rw "$wait_src" "$tmp_dir/goss_wait.yaml"
     [[ -n "${GOSS_VARS}" ]] && [[ -e "${GOSS_FILES_PATH}/${GOSS_VARS}" ]] && install -m ugo+rw "${GOSS_FILES_PATH}/${GOSS_VARS}" "$tmp_dir"
 
     # Switch between mount or cp files strategy
@@ -49,7 +77,7 @@ run(){
         info "Starting docker container"
         # NOTE: v1 `docker-compose` binary call, unverified locally -- see
         # the comment on the `docker-compose stop` call in cleanup() above.
-        docker-compose run -d -T --name "$service" -v "$tmp_dir:/goss" --rm "${@:2}"
+        docker-compose run -d -T --name "$service" -v "$tmp_dir:/syver" --rm "${@:2}"
         ;;
       cp)
         info "Creating docker container"
@@ -57,7 +85,7 @@ run(){
         # the comment on the `docker-compose stop` call in cleanup() above.
         docker-compose run -d -T --name "$service" --rm "${@:2}" > /dev/null
         info "Copy goss files into container"
-        docker cp "$tmp_dir/." "$service:/goss"
+        docker cp "$tmp_dir/." "$service:/syver"
         ;;
       *) error "Wrong goss files strategy used! Correct options are \"mount\" or \"cp\"."
     esac
@@ -110,14 +138,16 @@ case "$1" in
     run)
         run "$@"
         [[ "$GOSS_SLEEP" ]] && { info "Sleeping for $GOSS_SLEEP"; sleep "$GOSS_SLEEP"; }
-        if [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]]; then
-            info "Found goss_wait.yaml, waiting for it to pass before running tests"
+        # Gate on the same candidate set the copy step used, not on goss_wait.yaml
+        # alone -- otherwise a staged syver_wait.yaml would never be waited on.
+        if wait_found="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)"; then
+            info "Found $(basename "$wait_found"), waiting for it to pass before running tests"
             if [[ -z "${GOSS_VARS}" ]]; then
-                if ! docker exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
+                if ! docker exec "$service" sh -c "/syver/syver -g /syver/goss_wait.yaml render | /syver/syver -g - validate $GOSS_WAIT_OPTS"; then
                     error "goss_wait.yaml never passed"
                 fi
             else
-                if ! docker exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml --vars='/goss/${GOSS_VARS}' render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
+                if ! docker exec "$service" sh -c "/syver/syver -g /syver/goss_wait.yaml --vars='/syver/${GOSS_VARS}' render | /syver/syver -g - validate $GOSS_WAIT_OPTS"; then
                     error "goss_wait.yaml never passed"
                 fi
             fi
@@ -128,19 +158,19 @@ case "$1" in
         fi
         info "Running Tests"
         if [[ -z "${GOSS_VARS}" ]]; then
-            docker exec "$service" sh -c "/goss/goss -g /goss/${GOSS_FILE:-goss.yaml} render | /goss/goss -g - validate $GOSS_OPTS"
+            docker exec "$service" sh -c "/syver/syver -g /syver/${GOSS_FILE:-goss.yaml} render | /syver/syver -g - validate $GOSS_OPTS"
         else
-            docker exec "$service" sh -c "/goss/goss -g /goss/${GOSS_FILE:-goss.yaml} --vars='/goss/${GOSS_VARS}' render | /goss/goss -g - validate $GOSS_OPTS"
+            docker exec "$service" sh -c "/syver/syver -g /syver/${GOSS_FILE:-goss.yaml} --vars='/syver/${GOSS_VARS}' render | /syver/syver -g - validate $GOSS_OPTS"
         fi
         ;;
     edit)
         run "$@"
-        info "Run goss add/autoadd to add resources"
-        docker exec -it "$service" sh -c 'cd /goss; PATH="/goss:$PATH" exec sh'
-        [[ -n "${GOSS_FILE}" ]] && get_docker_file "/goss/${GOSS_FILE}"
-        get_docker_file "/goss/goss.yaml"
-        get_docker_file "/goss/goss_wait.yaml"
-        [[ -n "${GOSS_VARS}" ]] && get_docker_file "/goss/${GOSS_VARS}"
+        info "Run syver add/autoadd to add resources"
+        docker exec -it "$service" sh -c 'cd /syver; PATH="/syver:$PATH" exec sh'
+        [[ -n "${GOSS_FILE}" ]] && get_docker_file "/syver/${GOSS_FILE}"
+        get_docker_file "/syver/goss.yaml"
+        get_docker_file "/syver/goss_wait.yaml"
+        [[ -n "${GOSS_VARS}" ]] && get_docker_file "/syver/${GOSS_VARS}"
         ;;
     *)
         error "$USAGE"

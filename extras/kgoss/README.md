@@ -1,11 +1,15 @@
-# kgoss
+# ksyver
 
-kgoss is a wrapper for goss that aims to bring the simplicity of testing
-with goss to containers running in pods in Kubernetes.
+ksyver is a wrapper for syver that aims to bring the simplicity of testing
+with syver to containers running in pods in Kubernetes.
 
-kgoss is a script which when invoked copies and runs goss (the binary) within a
-Linux container. goss itself is only supported on Linux, but since it need only
-run in the target container, the kgoss script can be used from any
+`kgoss` is the previous name of this script and is kept as a thin forwarding
+shim for one major version -- it behaves identically to `ksyver`. New scripts
+and documentation should use `ksyver`.
+
+ksyver is a script which when invoked copies and runs syver (the binary) within a
+Linux container. syver itself is only supported on Linux, but since it need only
+run in the target container, the ksyver script can be used from any
 bash-compatible shell, including Terminal on Mac and git-bash on Windows. On
 Windows, [winpty][] is used for interactive connections to the pod under test.
 
@@ -84,7 +88,8 @@ export GOSS_PATH=${dest_dir}/goss
 
 ## Use
 
-`kgoss [run|edit] -i <image_url> [-p | -c "command to run" | -a "args to pass"] [-d "directory to include"]* [-e "k=v"]*`
+`ksyver [run|edit] -i <image_url> [-p | -c "command to run" | -a "args to pass"] [-d "directory to include"]* [-e "k=v"]*`
+(or `kgoss ...`, the compat shim)
 
 If none of `-p|-c|-a` are specified the container is run with its configured entry point.
 
@@ -137,7 +142,7 @@ The following environment variables effect the behavior of kgoss.
 
 Variable | Description | Default
 -------- | ----------- | -------
-GOSS\_PATH | Local location of a compatible goss binary to use in container | `$(which goss)`
+GOSS\_PATH | Local location of a compatible syver (or legacy goss) binary to use in container | `$(which syver)`, falls back to `$(which goss)`
 GOSS\_FILES\_PATH | Location of the goss yaml files | `.`
 GOSS\_KUBECTL\_BIN | Kubenetes client tool to use | `$(which kubectl)`
 GOSS\_KUBECTL\_OPTS | Options to inject more options such as "--namespace=default" | ""

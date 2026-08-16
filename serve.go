@@ -84,13 +84,16 @@ type healthHandler struct {
 }
 
 func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	outputFormat, outputer, err := h.negotiateResponseContentType(r)
+	outputFormat, outputer, matchedPrefix, err := h.negotiateResponseContentType(r)
 	if err != nil {
 		log.Printf("[DEBUG] Warn: Using process-level output-format. %s", err)
 		outputFormat = h.c.OutputFormat
 		outputer = h.outputer
+		// matchedPrefix is preserved from negotiateResponseContentType's
+		// error return (see comment there) -- it already reflects the
+		// client's attempted prefix family, or syver- if none.
 	}
-	negotiatedContentType := h.responseContentType(outputFormat)
+	negotiatedContentType := h.responseContentType(outputFormat, matchedPrefix)
 
 	log.Printf("[TRACE] %v: requesting health probe", r.RemoteAddr)
 	resp := h.processAndEnsureCached(negotiatedContentType, outputer)
@@ -161,36 +164,67 @@ func testResultArrayToChan(tra [][]resource.TestResult) <-chan []resource.TestRe
 
 const (
 	// https://en.wikipedia.org/wiki/Media_type
-	mediaTypePrefix = "application/vnd.goss-"
+	mediaTypePrefixGoss  = "application/vnd.goss-"
+	mediaTypePrefixSyver = "application/vnd.syver-"
 )
 
-func (h healthHandler) negotiateResponseContentType(r *http.Request) (string, outputs.Outputer, error) {
+// negotiateResponseContentType accepts both vnd.goss- and vnd.syver-
+// prefixed Accept headers and remembers which one the client actually
+// used, so responseContentType can echo it back rather than always
+// emitting one or the other.
+//
+// A client that sent no vendor-specific Accept header expressed no
+// preference, so there is nothing to echo. In that case we keep emitting
+// the legacy goss- prefix: PLAN section 4's compatibility table marks this
+// row "echo the client's" and does NOT mark it a hard break, and the most
+// common real caller (a health probe that never sets Accept at all) would
+// otherwise see its Content-Type change silently. Clients that do ask for
+// vnd.syver- still get vnd.syver- echoed back.
+func (h healthHandler) negotiateResponseContentType(r *http.Request) (string, outputs.Outputer, string, error) {
 	acceptHeader := r.Header[http.CanonicalHeaderKey("Accept")]
 	var outputer outputs.Outputer
 	outputName := ""
+	matchedPrefix := mediaTypePrefixGoss
 	for _, acceptCandidate := range acceptHeader {
 		acceptCandidate = strings.TrimSpace(acceptCandidate)
-		if strings.HasPrefix(acceptCandidate, mediaTypePrefix) {
-			outputName = strings.TrimPrefix(acceptCandidate, mediaTypePrefix)
-		} else if strings.EqualFold("application/json", acceptCandidate) || strings.EqualFold("text/json", acceptCandidate) {
+		switch {
+		case strings.HasPrefix(acceptCandidate, mediaTypePrefixGoss):
+			outputName = strings.TrimPrefix(acceptCandidate, mediaTypePrefixGoss)
+			matchedPrefix = mediaTypePrefixGoss
+		case strings.HasPrefix(acceptCandidate, mediaTypePrefixSyver):
+			outputName = strings.TrimPrefix(acceptCandidate, mediaTypePrefixSyver)
+			matchedPrefix = mediaTypePrefixSyver
+		case strings.EqualFold("application/json", acceptCandidate) || strings.EqualFold("text/json", acceptCandidate):
 			outputName = "json"
-		} else {
+			matchedPrefix = mediaTypePrefixGoss
+		default:
 			outputName = ""
+			matchedPrefix = mediaTypePrefixGoss
 		}
 		var err error
-		outputer, err = outputs.GetOutputer(outputName)
+		candidate, err := outputs.GetOutputer(outputName)
 		if err != nil {
+			// Do not clobber an outputer an earlier candidate already
+			// resolved -- a later invalid Accept value used to null it out
+			// and force a fallback even though a valid format was found.
 			continue
 		}
+		outputer = candidate
+		break
 	}
 	if outputer == nil {
-		return "", nil, fmt.Errorf("accept header on request missing or invalid")
+		// matchedPrefix still reflects whichever prefix family the client
+		// attempted (or the syver- default if none was recognizable at
+		// all), so a caller falling back to the process-level format can
+		// still echo the client's attempted family rather than always
+		// defaulting to syver-.
+		return "", nil, matchedPrefix, fmt.Errorf("accept header on request missing or invalid")
 	}
 
-	return outputName, outputer, nil
+	return outputName, outputer, matchedPrefix, nil
 }
 
-func (h healthHandler) responseContentType(outputName string) string {
+func (h healthHandler) responseContentType(outputName, matchedPrefix string) string {
 	if outputName == "json" {
 		return "application/json"
 	}
@@ -198,5 +232,5 @@ func (h healthHandler) responseContentType(outputName string) string {
 		return "text/plain; version=0.0.4"
 	}
 
-	return fmt.Sprintf("%s%s", mediaTypePrefix, outputName)
+	return fmt.Sprintf("%s%s", matchedPrefix, outputName)
 }

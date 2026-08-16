@@ -118,6 +118,9 @@ signs:
 release:
   extra_files:
     - glob: ./extras/*goss/*goss*
+    - glob: ./extras/dgoss/dsyver*
+    - glob: ./extras/dcgoss/dcsyver*
+    - glob: ./extras/kgoss/ksyver*
     - glob: ./krameff-goss-key.asc
 
 snapshot:

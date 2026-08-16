@@ -17,7 +17,7 @@ import (
 )
 
 const USER_AGENT_HEADER_PREFIX = "user-agent:"
-const DEFAULT_USER_AGENT_PREFIX = "goss/"
+const DEFAULT_USER_AGENT_PREFIX = "syver/"
 
 type HTTP interface {
 	HTTP() string

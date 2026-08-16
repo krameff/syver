@@ -1,6 +1,12 @@
-# dgoss
+# dsyver
 
-dgoss is a convenience wrapper around goss that aims to bring the simplicity of goss to containers.
+dsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to containers.
+
+`dgoss` is the previous name of this script and is kept as a thin forwarding
+shim for one major version -- it behaves identically to `dsyver`. New scripts
+and documentation should use `dsyver`. Everything below applies equally to
+both names unless noted otherwise; examples use `dgoss` in a few places for
+historical continuity, but `dsyver` works the same way.
 
 ## Examples and Tutorials
 
@@ -41,7 +47,7 @@ dgoss run ...
 
 ## Usage
 
-`dgoss [run|edit] <docker_run_params>`
+`dsyver [run|edit] <docker_run_params>` (or `dgoss [run|edit] <docker_run_params>`, the compat shim)
 
 ### Run
 
@@ -103,7 +109,7 @@ Note: Debug output of `dgoss` is from `dgoss` shell script and not debug output 
 
 #### GOSS_PATH
 
-Location of the goss binary to use. (Default: `$(which goss)`)
+Location of the syver (or legacy goss) binary to use. (Default: `$(which syver)`, falls back to `$(which goss)`)
 
 #### GOSS_FILE
 

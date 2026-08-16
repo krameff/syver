@@ -210,6 +210,20 @@ func ReadJSONData(data []byte, detectFormat bool) (SyverConfig, error) {
 		return *syverConfig, err
 	}
 
+	// Fold the syverfile: input alias into the canonical gossfile: map.
+	// gossfile:-tagged entries are already populated in Syverfiles by the
+	// unmarshal above, so on a key collision the gossfile: value wins --
+	// the loop below only ever adds a syverfile: entry when that key isn't
+	// already present.
+	for k, v := range syverConfig.SyverfileAlias {
+		if _, dup := syverConfig.Syverfiles[k]; dup {
+			log.Printf("[WARN] %q declared under both gossfile: and syverfile:", k)
+			continue
+		}
+		syverConfig.Syverfiles[k] = v
+	}
+	syverConfig.SyverfileAlias = nil
+
 	return *syverConfig, nil
 }
 

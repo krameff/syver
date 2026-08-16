@@ -28,10 +28,14 @@ tmp/
 /site
 
 
-# Generated at release time (make dgoss-sha256 dcgoss-sha256 kgoss-sha256)
+# Generated at release time (make dgoss-sha256 dcgoss-sha256 kgoss-sha256
+# dsyver-sha256 dcsyver-sha256 ksyver-sha256)
 /extras/dgoss/dgoss.sha256
 /extras/dcgoss/dcgoss.sha256
 /extras/kgoss/kgoss.sha256
+/extras/dgoss/dsyver.sha256
+/extras/dcgoss/dcsyver.sha256
+/extras/kgoss/ksyver.sha256
 
 # AI
 IMPROVEMENTS_PLAN.md

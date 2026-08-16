@@ -81,6 +81,12 @@ func TestServeNegotiatingContent(t *testing.T) {
 		expectedHTTPStatus  int
 		expectedContentType string
 	}{
+		// A blank/unrecognized Accept header expresses no preference, so
+		// there is nothing to echo. The fallback deliberately keeps the
+		// legacy goss- prefix: PLAN section 4 does not mark this row a hard
+		// break, and a health probe that never sets Accept must not see its
+		// Content-Type change. Clients that ask for vnd.syver- still get it
+		// echoed back -- see the two echo cases further down.
 		"accept {blank} returns process-level format-option": {
 			acceptHeader: []string{
 				"",
@@ -153,6 +159,60 @@ func TestServeNegotiatingContent(t *testing.T) {
 			specFile:            filepath.Join("testdata", "passing.goss.yaml"),
 			expectedHTTPStatus:  http.StatusOK,
 			expectedContentType: "application/json",
+		},
+		// §5.6: application/vnd.syver-json must now resolve (previously
+		// silently fell back to the process-level format with HTTP 200
+		// and no diagnostic).
+		"when accept is application/vnd.syver-json, return more widely known application/json": {
+			acceptHeader: []string{
+				"application/vnd.syver-json",
+			},
+			outputFormat:        "structured",
+			specFile:            filepath.Join("testdata", "passing.goss.yaml"),
+			expectedHTTPStatus:  http.StatusOK,
+			expectedContentType: "application/json",
+		},
+		"accept header contains vnd.syver- prefix, echoes vnd.syver-": {
+			acceptHeader: []string{
+				"application/vnd.syver-rspecish",
+			},
+			outputFormat:        "structured",
+			specFile:            filepath.Join("testdata", "passing.goss.yaml"),
+			expectedHTTPStatus:  http.StatusOK,
+			expectedContentType: "application/vnd.syver-rspecish",
+		},
+		"accept header contains vnd.goss- prefix, echoes vnd.goss- not vnd.syver-": {
+			acceptHeader: []string{
+				"application/vnd.goss-rspecish",
+			},
+			outputFormat:        "structured",
+			specFile:            filepath.Join("testdata", "passing.goss.yaml"),
+			expectedHTTPStatus:  http.StatusOK,
+			expectedContentType: "application/vnd.goss-rspecish",
+		},
+		// No Accept header AT ALL is a distinct case from a blank one: the
+		// negotiation loop never runs, so this asserts the initial value of
+		// matchedPrefix directly. This is the common health-probe shape and
+		// must keep emitting the legacy goss- prefix.
+		"no accept header at all keeps the legacy goss- prefix": {
+			acceptHeader:        nil,
+			outputFormat:        "structured",
+			specFile:            filepath.Join("testdata", "passing.goss.yaml"),
+			expectedHTTPStatus:  http.StatusOK,
+			expectedContentType: "application/vnd.goss-structured",
+		},
+		// A later invalid candidate must not discard a format an earlier
+		// candidate already resolved. Before the first-match break this
+		// fell all the way back to the process-level format ("structured").
+		"valid accept followed by nonsense still honours the valid one": {
+			acceptHeader: []string{
+				"application/vnd.goss-rspecish",
+				"application/vnd.goss-nonexistent",
+			},
+			outputFormat:        "structured",
+			specFile:            filepath.Join("testdata", "passing.goss.yaml"),
+			expectedHTTPStatus:  http.StatusOK,
+			expectedContentType: "application/vnd.goss-rspecish",
 		},
 	}
 	for testName := range tests {

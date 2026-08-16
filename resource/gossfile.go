@@ -21,6 +21,11 @@ const (
 
 func init() {
 	registerResource(SyverFileResourceKey, &Syverfile{})
+	// "syverfile" alias -- currently has no observed effect
+	// (resource.Resources() has zero callers in this tree as of v0.7.0);
+	// registered here so the step-12/§6.5 lint port doesn't need to
+	// rediscover this.
+	registerResource("syverfile", &Syverfile{})
 }
 
 func (g *Syverfile) ID() string       { return g.Path }

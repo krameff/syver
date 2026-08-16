@@ -38,12 +38,43 @@ cleanup() {
     fi
 }
 
+# Echoes the first of the given basenames that exists under GOSS_FILES_PATH,
+# or nothing. Mirrors resolveSpecPath() in cmd/syver/syver.go: syver-named
+# files win over goss-named ones. Needed because `syver add` now defaults to
+# writing ./syver.yaml, so gating the copy on goss.yaml alone would silently
+# stage no spec at all for a project created with the current CLI.
+first_existing(){
+    local f
+    for f in "$@"; do
+        if [[ -e "${GOSS_FILES_PATH}/${f}" ]]; then
+            printf '%s\n' "${GOSS_FILES_PATH}/${f}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 run(){
-    # Copy in goss
-    cp "${GOSS_PATH}" "$tmp_dir/goss"
-    chmod 755 "$tmp_dir/goss"
-    [[ -e "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}" ]] && cp "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}" "$tmp_dir/goss.yaml" && chmod 644 "$tmp_dir/goss.yaml"
-    [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]] && cp "${GOSS_FILES_PATH}/goss_wait.yaml" "$tmp_dir" && chmod 644 "$tmp_dir/goss_wait.yaml"
+    # Copy in syver
+    cp "${GOSS_PATH}" "$tmp_dir/syver"
+    chmod 755 "$tmp_dir/syver"
+    # GOSS_FILE, when set, is an explicit user choice and is the only candidate --
+    # matching resolveSpecPath()'s `c.IsSet("syverfile")` short-circuit.
+    local spec_src wait_src
+    if [[ -n "${GOSS_FILE}" ]]; then
+        spec_src="$(first_existing "${GOSS_FILE}")" || spec_src=""
+    else
+        spec_src="$(first_existing syver.yaml syver.yml goss.yaml goss.yml)" || spec_src=""
+    fi
+    # Always staged as goss.yaml: the in-container filename is private to this
+    # script and the exec below hardcodes it, so it must not vary with the host name.
+    if [[ -n "$spec_src" ]]; then
+        cp "$spec_src" "$tmp_dir/goss.yaml" && chmod 644 "$tmp_dir/goss.yaml"
+    fi
+    wait_src="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)" || wait_src=""
+    if [[ -n "$wait_src" ]]; then
+        cp "$wait_src" "$tmp_dir/goss_wait.yaml" && chmod 644 "$tmp_dir/goss_wait.yaml"
+    fi
     [[ -n "${GOSS_VARS}" ]] && [[ -e "${GOSS_FILES_PATH}/${GOSS_VARS}" ]] && cp "${GOSS_FILES_PATH}/${GOSS_VARS}" "$tmp_dir" && chmod 644 "$tmp_dir/${GOSS_VARS}"
     if [ -n "$GOSS_ADDITIONAL_COPY_PATH" ]; then
         for dir in "$(echo "$GOSS_ADDITIONAL_COPY_PATH" | sed 's/:/ /g')"; do
@@ -58,16 +89,16 @@ run(){
       mount)
         info "Starting $CONTAINER_RUNTIME container"
         if [ "$CONTAINER_RUNTIME" == "podman" -a $# == 2 ]; then
-            id=$($CONTAINER_RUNTIME run -d -v "$tmp_dir:/goss:z" "${@:2}" sleep infinity)
+            id=$($CONTAINER_RUNTIME run -d -v "$tmp_dir:/syver:z" "${@:2}" sleep infinity)
         else
-            id=$($CONTAINER_RUNTIME run -d -v "$tmp_dir:/goss:z" "${@:2}")
+            id=$($CONTAINER_RUNTIME run -d -v "$tmp_dir:/syver:z" "${@:2}")
         fi
         ;;
       cp)
         info "Creating $CONTAINER_RUNTIME container"
         id=$($CONTAINER_RUNTIME create "${@:2}")
         info "Copy goss files into container"
-        $CONTAINER_RUNTIME cp "$tmp_dir/." "$id:/goss"
+        $CONTAINER_RUNTIME cp "$tmp_dir/." "$id:/syver"
         info "Starting $CONTAINER_RUNTIME container"
         $CONTAINER_RUNTIME start "$id" > /dev/null
         ;;
@@ -111,15 +142,17 @@ GOSS_SLEEP=${GOSS_SLEEP:-0.2}
 case "$1" in
     run)
         run "$@"
-        if [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]]; then
-            info "Found goss_wait.yaml, waiting for it to pass before running tests"
+        # Gate on the same candidate set the copy step used, not on goss_wait.yaml
+        # alone -- otherwise a staged syver_wait.yaml would never be waited on.
+        if wait_found="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)"; then
+            info "Found $(basename "$wait_found"), waiting for it to pass before running tests"
             if [[ -z "${GOSS_VARS}" ]]; then
-                if ! $CONTAINER_RUNTIME exec "$id" sh -c "/goss/goss -g /goss/goss_wait.yaml validate $GOSS_WAIT_OPTS"; then
+                if ! $CONTAINER_RUNTIME exec "$id" sh -c "/syver/syver -g /syver/goss_wait.yaml validate $GOSS_WAIT_OPTS"; then
                     $CONTAINER_RUNTIME logs "$id" >&2
                     error "goss_wait.yaml never passed"
                 fi
             else
-                if ! $CONTAINER_RUNTIME exec "$id" sh -c "/goss/goss -g /goss/goss_wait.yaml --vars='/goss/${GOSS_VARS}' validate $GOSS_WAIT_OPTS"; then
+                if ! $CONTAINER_RUNTIME exec "$id" sh -c "/syver/syver -g /syver/goss_wait.yaml --vars='/syver/${GOSS_VARS}' validate $GOSS_WAIT_OPTS"; then
                     $CONTAINER_RUNTIME logs "$id" >&2
                     error "goss_wait.yaml never passed"
                 fi
@@ -133,19 +166,19 @@ case "$1" in
         fi
         info "Running Tests"
         if [[ -z "${GOSS_VARS}" ]]; then
-            $CONTAINER_RUNTIME exec "$id" sh -c "/goss/goss -g /goss/goss.yaml validate $GOSS_OPTS"
+            $CONTAINER_RUNTIME exec "$id" sh -c "/syver/syver -g /syver/goss.yaml validate $GOSS_OPTS"
         else
-            $CONTAINER_RUNTIME exec "$id" sh -c "/goss/goss -g /goss/goss.yaml --vars='/goss/${GOSS_VARS}' validate $GOSS_OPTS"
+            $CONTAINER_RUNTIME exec "$id" sh -c "/syver/syver -g /syver/goss.yaml --vars='/syver/${GOSS_VARS}' validate $GOSS_OPTS"
         fi
         ;;
     edit)
         run "$@"
-        info "Run goss add/autoadd to add resources"
-        $CONTAINER_RUNTIME exec -it "$id" sh -c 'cd /goss; PATH="/goss:$PATH" exec sh'
-        get_docker_file "$id" "/goss/goss.yaml" "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}"
-        get_docker_file "$id" "/goss/goss_wait.yaml" "${GOSS_FILES_PATH}/goss_wait.yaml"
+        info "Run syver add/autoadd to add resources"
+        $CONTAINER_RUNTIME exec -it "$id" sh -c 'cd /syver; PATH="/syver:$PATH" exec sh'
+        get_docker_file "$id" "/syver/goss.yaml" "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}"
+        get_docker_file "$id" "/syver/goss_wait.yaml" "${GOSS_FILES_PATH}/goss_wait.yaml"
         if [[ -n "${GOSS_VARS}" ]]; then
-            get_docker_file "$id" "/goss/${GOSS_VARS}" "${GOSS_FILES_PATH}/${GOSS_VARS}"
+            get_docker_file "$id" "/syver/${GOSS_VARS}" "${GOSS_FILES_PATH}/${GOSS_VARS}"
         fi
         ;;
     *)

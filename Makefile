@@ -11,7 +11,7 @@ DOCS_DEPS := $(VENV)/.docs.dependencies
 
 .PHONY: all build install test release bench fmt lint vet test-int-all gen centos7
 
-all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256
+all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256
 
 test-short-all: fmt lint vet test
 
@@ -137,6 +137,15 @@ dcgoss-sha256:
 
 kgoss-sha256:
 	cd extras/kgoss/ && sha256sum kgoss > kgoss.sha256
+
+dsyver-sha256:
+	cd extras/dgoss/ && sha256sum dsyver > dsyver.sha256
+
+dcsyver-sha256:
+	cd extras/dcgoss/ && sha256sum dcsyver > dcsyver.sha256
+
+ksyver-sha256:
+	cd extras/kgoss/ && sha256sum ksyver > ksyver.sha256
 
 .PHONY: lint-yaml
 lint-yaml:

@@ -19,6 +19,43 @@ import (
 	"github.com/urfave/cli/v3"
 )
 
+// specFilenameCandidates is the probe order used by resolveSpecPath when
+// the user didn't explicitly pass --syverfile/--gossfile/-g.
+var specFilenameCandidates = []string{"syver.yaml", "syver.yml", "goss.yaml", "goss.yml"}
+
+// resolveSpecPath returns the effective config file path for this
+// invocation: whatever the user explicitly passed via --syverfile/
+// --gossfile/-g, or (if unset) the first of specFilenameCandidates that
+// exists in the current directory, or (if none exist) "./syver.yaml" as
+// the default target for a brand-new file. Warns if more than one
+// candidate exists simultaneously, since that's an ambiguous state the
+// user should resolve themselves.
+//
+// Every one of the ~18 c.String("gossfile") read call sites in this file
+// was replaced with resolveSpecPath(c), and it's also the fileName
+// argument passed to AddResources/AutoAddResources (the write path,
+// add.go:14-42) -- so read and write are structurally guaranteed to
+// resolve to the same file, with no separate write-target decision
+// needed.
+func resolveSpecPath(c *cli.Command) string {
+	if c.IsSet("syverfile") {
+		return c.String("syverfile")
+	}
+	var found []string
+	for _, candidate := range specFilenameCandidates {
+		if _, err := os.Stat(candidate); err == nil {
+			found = append(found, candidate)
+		}
+	}
+	if len(found) == 0 {
+		return "./syver.yaml"
+	}
+	if len(found) > 1 {
+		log.Printf("[WARN] multiple config files present (%s) — using %q, remove the others to avoid ambiguity", strings.Join(found, ", "), found[0])
+	}
+	return found[0]
+}
+
 // converts a cli context into a goss Config
 func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 	cfg := &util.Config{
@@ -40,7 +77,7 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 		RetryTimeout:      c.Duration("retry-timeout"),
 		Server:            c.String("server"),
 		Sleep:             c.Duration("sleep"),
-		Spec:              c.String("gossfile"),
+		Spec:              resolveSpecPath(c),
 		Timeout:           c.Duration("timeout"),
 		Username:          c.String("username"),
 		VarsFiles:         c.StringSlice("vars"),
@@ -66,15 +103,14 @@ func timeoutFlag(value time.Duration) *cli.DurationFlag {
 	}
 }
 
-func main() {
-	cli.VersionPrinter = func(cmd *cli.Command) {
-		fmt.Fprintf(cmd.Root().Writer, "%v version %v\nKrameff Solutions Ltd\n", cmd.Name, cmd.Version)
-	}
-
-	app := &cli.Command{
+// newApp builds the syver CLI command tree. Split out from main() so
+// tests can inspect the command tree (Name, flags, subcommand aliases)
+// without invoking app.Run / os.Exit.
+func newApp() *cli.Command {
+	return &cli.Command{
 		EnableShellCompletion: true,
 		Version:               util.Version,
-		Name:                  "goss",
+		Name:                  "syver",
 		Usage:                 "Quick and Easy server validation",
 		Flags: []cli.Flag{
 			&cli.StringFlag{
@@ -82,24 +118,26 @@ func main() {
 				Aliases: []string{"loglevel", "L", "l"},
 				Value:   "INFO",
 				Usage:   "Goss log verbosity level",
-				Sources: cli.EnvVars("GOSS_LOGLEVEL"),
+				Sources: nonEmptyEnvVars("SYVER_LOGLEVEL", "GOSS_LOGLEVEL"),
 			},
 			&cli.StringFlag{
-				Name:    "gossfile",
-				Aliases: []string{"g"},
-				Value:   "./goss.yaml",
-				Usage:   "Goss file to read from / write to",
-				Sources: cli.EnvVars("GOSS_FILE"),
+				Name:    "syverfile",
+				Aliases: []string{"gossfile", "g"},
+				// Value intentionally omitted -- see resolveSpecPath, which
+				// distinguishes "not set" from "set to a real value" via
+				// c.IsSet, so the default can be resolved post-parse.
+				Usage:   "Syver file to read from / write to",
+				Sources: nonEmptyEnvVars("SYVER_FILE", "GOSS_FILE"),
 			},
 			&cli.StringSliceFlag{
 				Name:    "vars",
 				Usage:   "json/yaml file containing variables for template. Can be specified multiple times. Later files override overlapping keys.",
-				Sources: cli.EnvVars("GOSS_VARS"),
+				Sources: nonEmptyEnvVars("SYVER_VARS", "GOSS_VARS"),
 			},
 			&cli.StringFlag{
 				Name:    "vars-inline",
 				Usage:   "json/yaml string containing variables for template (overwrites vars)",
-				Sources: cli.EnvVars("GOSS_VARS_INLINE"),
+				Sources: nonEmptyEnvVars("SYVER_VARS_INLINE", "GOSS_VARS_INLINE"),
 			},
 			&cli.StringFlag{
 				Name:  "package",
@@ -117,48 +155,48 @@ func main() {
 						Aliases: []string{"f"},
 						Value:   "rspecish",
 						Usage:   fmt.Sprintf("Format to output in, valid options: %s", outputs.Outputers()),
-						Sources: cli.EnvVars("GOSS_FMT"),
+						Sources: nonEmptyEnvVars("SYVER_FMT", "GOSS_FMT"),
 					},
 					&cli.StringSliceFlag{
 						Name:    "format-options",
 						Aliases: []string{"o"},
 						Usage:   fmt.Sprintf("Extra options passed to the formatter, valid options: %s", outputs.FormatOptions()),
-						Sources: cli.EnvVars("GOSS_FMT_OPTIONS"),
+						Sources: nonEmptyEnvVars("SYVER_FMT_OPTIONS", "GOSS_FMT_OPTIONS"),
 					},
 					&cli.BoolFlag{
 						Name:    "color",
 						Usage:   "Force color on",
-						Sources: cli.EnvVars("GOSS_COLOR"),
+						Sources: nonEmptyEnvVars("SYVER_COLOR", "GOSS_COLOR"),
 					},
 					&cli.BoolFlag{
 						Name:    "no-color",
 						Usage:   "Force color off",
-						Sources: cli.EnvVars("GOSS_NOCOLOR"),
+						Sources: nonEmptyEnvVars("SYVER_NOCOLOR", "GOSS_NOCOLOR"),
 					},
 					&cli.DurationFlag{
 						Name:    "sleep",
 						Aliases: []string{"s"},
 						Usage:   "Time to sleep between retries, only active when -r is set",
 						Value:   1 * time.Second,
-						Sources: cli.EnvVars("GOSS_SLEEP"),
+						Sources: nonEmptyEnvVars("SYVER_SLEEP", "GOSS_SLEEP"),
 					},
 					&cli.DurationFlag{
 						Name:    "retry-timeout",
 						Aliases: []string{"r"},
 						Usage:   "Retry on failure so long as elapsed + sleep time is less than this",
 						Value:   0,
-						Sources: cli.EnvVars("GOSS_RETRY_TIMEOUT"),
+						Sources: nonEmptyEnvVars("SYVER_RETRY_TIMEOUT", "GOSS_RETRY_TIMEOUT"),
 					},
 					&cli.IntFlag{
 						Name:    "max-concurrent",
 						Usage:   "Max number of tests to run concurrently",
 						Value:   50,
-						Sources: cli.EnvVars("GOSS_MAX_CONCURRENT"),
+						Sources: nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
 					},
 					&cli.StringFlag{
 						Name:    "discover",
 						Usage:   "Syverfile with discovery: tests to run before the main -g gossfile",
-						Sources: cli.EnvVars("GOSS_DISCOVER"),
+						Sources: nonEmptyEnvVars("SYVER_DISCOVER", "GOSS_DISCOVER"),
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
@@ -182,40 +220,40 @@ func main() {
 						Aliases: []string{"f"},
 						Value:   "rspecish",
 						Usage:   fmt.Sprintf("Format to output in, valid options: %s", outputs.Outputers()),
-						Sources: cli.EnvVars("GOSS_FMT"),
+						Sources: nonEmptyEnvVars("SYVER_FMT", "GOSS_FMT"),
 					},
 					&cli.StringSliceFlag{
 						Name:    "format-options",
 						Aliases: []string{"o"},
 						Usage:   fmt.Sprintf("Extra options passed to the formatter, valid options: %s", outputs.FormatOptions()),
-						Sources: cli.EnvVars("GOSS_FMT_OPTIONS"),
+						Sources: nonEmptyEnvVars("SYVER_FMT_OPTIONS", "GOSS_FMT_OPTIONS"),
 					},
 					&cli.DurationFlag{
 						Name:    "cache",
 						Aliases: []string{"c"},
 						Usage:   "Time to cache the results",
 						Value:   5 * time.Second,
-						Sources: cli.EnvVars("GOSS_CACHE"),
+						Sources: nonEmptyEnvVars("SYVER_CACHE", "GOSS_CACHE"),
 					},
 					&cli.StringFlag{
 						Name:    "listen-addr",
 						Aliases: []string{"l"},
 						Value:   ":8080",
 						Usage:   "Address to listen on [ip]:port",
-						Sources: cli.EnvVars("GOSS_LISTEN"),
+						Sources: nonEmptyEnvVars("SYVER_LISTEN", "GOSS_LISTEN"),
 					},
 					&cli.StringFlag{
 						Name:    "endpoint",
 						Aliases: []string{"e"},
 						Value:   "/healthz",
 						Usage:   "Endpoint to expose",
-						Sources: cli.EnvVars("GOSS_ENDPOINT"),
+						Sources: nonEmptyEnvVars("SYVER_ENDPOINT", "GOSS_ENDPOINT"),
 					},
 					&cli.IntFlag{
 						Name:    "max-concurrent",
 						Usage:   "Max number of tests to run concurrently",
 						Value:   50,
-						Sources: cli.EnvVars("GOSS_MAX_CONCURRENT"),
+						Sources: nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
@@ -252,7 +290,7 @@ func main() {
 				Usage:   "automatically add all matching resource to the test suite",
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					return syver.AutoAddResources(c.String("gossfile"), c.Args().Slice(), newRuntimeConfigFromCLI(c))
+					return syver.AutoAddResources(resolveSpecPath(c), c.Args().Slice(), newRuntimeConfigFromCLI(c))
 				},
 			},
 			{
@@ -271,7 +309,7 @@ func main() {
 						Usage: "add new package",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.PackageResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.PackageResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -279,7 +317,7 @@ func main() {
 						Usage: "add new file",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.FileResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.FileResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -290,7 +328,7 @@ func main() {
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.AddResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.AddResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -298,7 +336,7 @@ func main() {
 						Usage: "add new listening [protocol]:port - ex: 80 or udp:123",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.PortResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.PortResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -306,7 +344,7 @@ func main() {
 						Usage: "add new service",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.ServiceResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.ServiceResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -314,7 +352,7 @@ func main() {
 						Usage: "add new user",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.UserResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.UserResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -322,7 +360,7 @@ func main() {
 						Usage: "add new group",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.GroupResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.GroupResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -333,7 +371,7 @@ func main() {
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.CommandResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.CommandResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -348,7 +386,7 @@ func main() {
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.DNSResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.DNSResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -356,7 +394,7 @@ func main() {
 						Usage: "add new process name",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.ProcessResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.ProcessResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -390,15 +428,16 @@ func main() {
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.HTTPResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.HTTPResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
-						Name:  "goss",
-						Usage: "add new goss file, it will be imported from this one",
+						Name:    "syver",
+						Aliases: []string{"goss"},
+						Usage:   "add new syver file, it will be imported from this one",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.SyverFileResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.SyverFileResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 
 						},
 					},
@@ -407,7 +446,7 @@ func main() {
 						Usage: "add new goss kernel param",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.KernelParamResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.KernelParamResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -418,7 +457,7 @@ func main() {
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.MountResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.MountResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -426,7 +465,7 @@ func main() {
 						Usage: "add new interface",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.InterfaceResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.InterfaceResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
@@ -434,13 +473,21 @@ func main() {
 						Usage: "add new registry key",
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(c.String("gossfile"), resource.RegistryResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.RegistryResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 				},
 			},
 		},
 	}
+}
+
+func main() {
+	cli.VersionPrinter = func(cmd *cli.Command) {
+		fmt.Fprintf(cmd.Root().Writer, "%v version %v\nKrameff Solutions Ltd\n", cmd.Name, cmd.Version)
+	}
+
+	app := newApp()
 
 	addAlphaFlagIfNeeded(app)
 	err := app.Run(context.Background(), os.Args)
@@ -454,7 +501,7 @@ func addAlphaFlagIfNeeded(cmd *cli.Command) {
 		cmd.Flags = append(cmd.Flags, &cli.StringFlag{
 			Name:    "use-alpha",
 			Usage:   "goss on macOS/Windows is alpha-quality. Set to 1 to use anyway.",
-			Sources: cli.EnvVars("GOSS_USE_ALPHA"),
+			Sources: nonEmptyEnvVars("SYVER_USE_ALPHA", "GOSS_USE_ALPHA"),
 			Value:   "0",
 		})
 	}

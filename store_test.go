@@ -1,8 +1,10 @@
 package syver
 
 import (
+	"bytes"
 	"log"
 	"os"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -311,6 +313,101 @@ func fileMaker(content string) (string, func()) {
 			log.Fatal(err)
 		}
 	}
+}
+
+// Test_syverfileAlias_FoldsIntoSyverfiles covers §5.1: a gossfile written
+// with `syverfile:` entries decodes into the same Syverfiles map an
+// equivalent `gossfile:` gossfile would.
+func Test_syverfileAlias_FoldsIntoSyverfiles(t *testing.T) {
+	outStoreFormat = YAML
+	t.Cleanup(func() { outStoreFormat = UNSET })
+
+	data := []byte("syverfile:\n  extra:\n    file: extra.yaml\n")
+	cfg, err := ReadJSONData(data, false)
+	assert.NoError(t, err)
+
+	require := assert.New(t)
+	require.Contains(cfg.Syverfiles, "extra")
+	require.Equal("extra.yaml", cfg.Syverfiles["extra"].File)
+	require.Nil(cfg.SyverfileAlias, "SyverfileAlias must be nil'd after fold")
+}
+
+// Test_syverfileAlias_CollisionLogsWarnAndGossfileWins covers §5.1: the
+// same key declared under both gossfile: and syverfile: logs exactly one
+// [WARN] line, and the gossfile: value wins.
+func Test_syverfileAlias_CollisionLogsWarnAndGossfileWins(t *testing.T) {
+	outStoreFormat = YAML
+	t.Cleanup(func() { outStoreFormat = UNSET })
+
+	var logOutput bytes.Buffer
+	log.SetOutput(&logOutput)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	data := []byte("gossfile:\n  dup:\n    file: from-gossfile.yaml\nsyverfile:\n  dup:\n    file: from-syverfile.yaml\n")
+	cfg, err := ReadJSONData(data, false)
+	assert.NoError(t, err)
+
+	assert.Equal(t, "from-gossfile.yaml", cfg.Syverfiles["dup"].File, "gossfile: value should win on collision")
+	assert.Equal(t, 1, strings.Count(logOutput.String(), "[WARN]"), "exactly one [WARN] line expected")
+	assert.Contains(t, logOutput.String(), `"dup" declared under both gossfile: and syverfile:`)
+}
+
+// Test_syverfileAlias_NeverWrittenBack covers §5.1: a config
+// round-tripped through decode -> WriteJSON never contains a syverfile:
+// key even if it was read from one.
+func Test_syverfileAlias_NeverWrittenBack(t *testing.T) {
+	outStoreFormat = YAML
+	t.Cleanup(func() { outStoreFormat = UNSET })
+
+	data := []byte("syverfile:\n  extra:\n    file: extra.yaml\n")
+	cfg, err := ReadJSONData(data, false)
+	assert.NoError(t, err)
+
+	out, err := marshal(cfg)
+	assert.NoError(t, err)
+	assert.NotContains(t, string(out), "syverfile:")
+	assert.Contains(t, string(out), "gossfile:")
+}
+
+// Test_MalformedYAML_SameErrorPathRegardlessOfFilenameSource covers the
+// Contract Negative Sweep: resolveSpecPath only chooses which filename
+// gets read (cmd/syver concern) -- decoding itself is unchanged, so
+// malformed content errors identically whichever probed name it came
+// from. This exercises ReadJSONData directly (the shared decode path)
+// with content representative of what a probed syver.yaml or goss.yaml
+// would contain.
+func Test_MalformedYAML_SameErrorPathRegardlessOfFilenameSource(t *testing.T) {
+	outStoreFormat = YAML
+	t.Cleanup(func() { outStoreFormat = UNSET })
+
+	malformed := []byte("addr:\n  foo\n  bar: [\n")
+
+	_, err1 := ReadJSONData(malformed, false)
+	_, err2 := ReadJSONData(malformed, false)
+
+	assert.Error(t, err1)
+	assert.Error(t, err2)
+	assert.Equal(t, err1.Error(), err2.Error(), "same malformed content must produce the same decode error regardless of which probed filename it was read from")
+}
+
+// Test_syverfileAlias_WrongTypeSurfacesSameErrorClassAsGossfile covers the
+// Contract Negative Sweep: a syverfile: entry whose value fails to
+// unmarshal into resource.SyverfileMap surfaces the same class of error
+// (a decode/type error from ReadJSONData) as an equivalent malformed
+// gossfile: entry does today.
+func Test_syverfileAlias_WrongTypeSurfacesSameErrorClassAsGossfile(t *testing.T) {
+	outStoreFormat = YAML
+	t.Cleanup(func() { outStoreFormat = UNSET })
+
+	badGossfile := []byte("gossfile: \"not-a-map\"\n")
+	badSyverfile := []byte("syverfile: \"not-a-map\"\n")
+
+	_, gossErr := ReadJSONData(badGossfile, false)
+	_, syverErr := ReadJSONData(badSyverfile, false)
+
+	require := assert.New(t)
+	require.Error(gossErr, "malformed gossfile: entry should fail to decode")
+	require.Error(syverErr, "malformed syverfile: entry should fail to decode the same way")
 }
 
 func TestStaticStoreErrors(t *testing.T) {

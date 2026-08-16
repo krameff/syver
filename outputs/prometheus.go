@@ -24,6 +24,15 @@ var (
 	testDurations *prometheus.CounterVec
 	runOutcomes   *prometheus.CounterVec
 	runDuration   *prometheus.CounterVec
+
+	// syver-namespaced mirrors of the goss_* metrics above, dual-emitted
+	// alongside them for one major version per the compatibility contract
+	// (plan §4/§5.6). Same labels, same values, populated at every point
+	// the goss_* counters are.
+	testOutcomesSyver  *prometheus.CounterVec
+	testDurationsSyver *prometheus.CounterVec
+	runOutcomesSyver   *prometheus.CounterVec
+	runDurationSyver   *prometheus.CounterVec
 )
 
 // Prometheus renders metrics in prometheus.io text-format https://prometheus.io/docs/instrumenting/exposition_formats/#text-based-format
@@ -58,9 +67,13 @@ func (r Prometheus) Output(w io.Writer, results <-chan []resource.TestResult,
 				resId := tr.ResourceId
 				testOutcomes.WithLabelValues(resType, outcome, resId).Inc()
 				testDurations.WithLabelValues(resType, outcome, resId).Add(float64(tr.Duration.Milliseconds()))
+				testOutcomesSyver.WithLabelValues(resType, outcome, resId).Inc()
+				testDurationsSyver.WithLabelValues(resType, outcome, resId).Add(float64(tr.Duration.Milliseconds()))
 			} else {
 				testOutcomes.WithLabelValues(resType, outcome).Inc()
 				testDurations.WithLabelValues(resType, outcome).Add(float64(tr.Duration.Milliseconds()))
+				testOutcomesSyver.WithLabelValues(resType, outcome).Inc()
+				testDurationsSyver.WithLabelValues(resType, outcome).Add(float64(tr.Duration.Milliseconds()))
 			}
 			if i == 0 || canChangeOverallOutcome(overallOutcome, outcome) {
 				overallOutcome = outcome
@@ -70,6 +83,8 @@ func (r Prometheus) Output(w io.Writer, results <-chan []resource.TestResult,
 
 	runOutcomes.WithLabelValues(overallOutcome).Inc()
 	runDuration.WithLabelValues(overallOutcome).Add(float64(time.Since(startTime).Milliseconds()))
+	runOutcomesSyver.WithLabelValues(overallOutcome).Inc()
+	runDurationSyver.WithLabelValues(overallOutcome).Add(float64(time.Since(startTime).Milliseconds()))
 
 	metricsFamilies, err := registry.Gather()
 	if err != nil {
@@ -137,6 +152,31 @@ func setupMetrics(verbose bool) {
 	}, []string{labelOutcome})
 	runDuration = factory.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "goss",
+		Subsystem: "tests",
+		Name:      "run_duration_milliseconds",
+		Help:      "The end-to-end duration of this run.",
+	}, []string{labelOutcome})
+
+	testOutcomesSyver = factory.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "syver",
+		Subsystem: "tests",
+		Name:      "outcomes_total",
+		Help:      "The number of test-outcomes from this run.",
+	}, testLabels)
+	testDurationsSyver = factory.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "syver",
+		Subsystem: "tests",
+		Name:      "outcomes_duration_milliseconds",
+		Help:      "The duration of tests from this run. Note; tests run concurrently.",
+	}, testLabels)
+	runOutcomesSyver = factory.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "syver",
+		Subsystem: "tests",
+		Name:      "run_outcomes_total",
+		Help:      "The outcomes of this run as a whole.",
+	}, []string{labelOutcome})
+	runDurationSyver = factory.NewCounterVec(prometheus.CounterOpts{
+		Namespace: "syver",
 		Subsystem: "tests",
 		Name:      "run_duration_milliseconds",
 		Help:      "The end-to-end duration of this run.",
