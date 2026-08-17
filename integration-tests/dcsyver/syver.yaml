@@ -1,0 +1,21 @@
+# Spec staged into the compose service by dcsyver / dcgoss.
+#
+# Named syver.yaml on purpose: dcsyver's first_existing() probes
+# syver.yaml, syver.yml, goss.yaml, goss.yml in that order, so this exercises
+# the syver-first probe added by FEAT-001. It is staged into the container as
+# goss.yaml regardless, to match the exec's ${GOSS_FILE:-goss.yaml} default.
+#
+# Assertions are deliberately minimal and alpine-specific: enough to prove the
+# binary was staged, ran inside the service, and reported real results.
+file:
+  /etc/alpine-release:
+    exists: true
+    filetype: file
+
+command:
+  echo-from-container:
+    exec: "echo syver-dcgoss-ok"
+    exit-status: 0
+    stdout:
+      - syver-dcgoss-ok
+    stderr: []
