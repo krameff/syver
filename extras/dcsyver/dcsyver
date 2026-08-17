@@ -139,7 +139,7 @@ fi
 
 # Compose provider: prefer the v2 plugin ("docker compose"), fall back to
 # the legacy v1 binary ("docker-compose") if the plugin is absent. Two
-# words, so this is a bash array, not a scalar -- see extras/dcgoss/dcsyver
+# words, so this is a bash array, not a scalar -- see extras/dcsyver/dcsyver
 # (FEAT-004) for why.
 #
 # Deliberately placed after the compose-file existence check above (not

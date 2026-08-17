@@ -67,7 +67,7 @@ echo "Syver $SYVER_VER has been installed to $INSTALL_LOC"
 echo "syver --version"
 "$INSTALL_LOC" --version
 
-dsyver_url="https://raw.githubusercontent.com/krameff/syver/$WRAPPER_REF/extras/dgoss/dsyver"
+dsyver_url="https://raw.githubusercontent.com/krameff/syver/$WRAPPER_REF/extras/dsyver/dsyver"
 echo "Downloading $dsyver_url"
 curl -L "$dsyver_url" -o "$DSYVER_INSTALL_LOC"
 chmod +rx "$DSYVER_INSTALL_LOC"
@@ -75,7 +75,7 @@ echo "dsyver $WRAPPER_REF has been installed to $DSYVER_INSTALL_LOC"
 
 # The goss-named wrapper is still shipped as a working shim for one major
 # version, matching the compatibility promise the rest of the project makes.
-dgoss_url="https://raw.githubusercontent.com/krameff/syver/$WRAPPER_REF/extras/dgoss/dgoss"
+dgoss_url="https://raw.githubusercontent.com/krameff/syver/$WRAPPER_REF/extras/dsyver/dgoss"
 echo "Downloading $dgoss_url"
 curl -L "$dgoss_url" -o "$DGOSS_INSTALL_LOC"
 chmod +rx "$DGOSS_INSTALL_LOC"

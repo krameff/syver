@@ -117,10 +117,12 @@ signs:
 
 release:
   extra_files:
-    - glob: ./extras/*goss/*goss*
-    - glob: ./extras/dgoss/dsyver*
-    - glob: ./extras/dcgoss/dcsyver*
-    - glob: ./extras/kgoss/ksyver*
+    # Directories are now *syver; the goss-named wrappers inside them are the
+    # compatibility shims and keep their filenames.
+    - glob: ./extras/*syver/*goss*
+    - glob: ./extras/dsyver/dsyver*
+    - glob: ./extras/dcsyver/dcsyver*
+    - glob: ./extras/ksyver/ksyver*
     - glob: ./krameff-syver-key.asc
 
 snapshot:

@@ -22,9 +22,9 @@
 <a href="https://asciinema.org/a/4suhr8p42qcn6r7crfzt6cc3e?autoplay=1" target="_blank"><img src="https://cloud.githubusercontent.com/assets/6783261/17330426/ce7ad066-5894-11e6-84ea-29fd4207af58.gif" alt="asciicast"></a>
 <!-- markdownlint-enable line-length no-inline-html -->
 
-**Note:** For testing containers see the [dgoss](extras/dgoss/README.md) wrapper.
-Also, user submitted wrapper scripts for Kubernetes [kgoss](extras/kgoss/README.md)
-and Docker Compose [dcgoss](extras/dcgoss/README.md).
+**Note:** For testing containers see the [dgoss](extras/dsyver/README.md) wrapper.
+Also, user submitted wrapper scripts for Kubernetes [kgoss](extras/ksyver/README.md)
+and Docker Compose [dcgoss](extras/dcsyver/README.md).
 
 **Note:** For some Docker/Kubernetes healthcheck, health endpoint, and
 container ordering examples, see the
@@ -59,7 +59,7 @@ the single intentional breaking change.
 
 Build from source or install release binaries — see [installation](docs/installation.md).
 
-This will install syver and [dgoss](extras/dgoss/README.md).
+This will install syver and [dgoss](extras/dsyver/README.md).
 
 <!-- --8<-- [end:intro] -->
 <!-- --8<-- [start:install] -->

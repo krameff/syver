@@ -94,6 +94,6 @@ watch:
   - README.md
   - LICENSE
   - .github/CONTRIBUTING.md
-  - extras/dcgoss/README.md
-  - extras/dgoss/README.md
-  - extras/kgoss/README.md
+  - extras/dcsyver/README.md
+  - extras/dsyver/README.md
+  - extras/ksyver/README.md
