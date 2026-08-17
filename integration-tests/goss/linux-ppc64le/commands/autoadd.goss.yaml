@@ -2,7 +2,7 @@
 command:
   "autoadd /home/runner":
     exit-status: 0
-    exec: "release/goss-linux-ppc64le autoadd /home/runner"
+    exec: "release/syver-linux-ppc64le autoadd /home/runner"
     stdout:
       - 'file:'
       - '  exists: true'

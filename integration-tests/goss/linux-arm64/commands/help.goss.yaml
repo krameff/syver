@@ -2,7 +2,7 @@
 command:
   help:
     exit-status: 0
-    exec: "release/goss-linux-arm64 help"
+    exec: "release/syver-linux-arm64 help"
     stdout:
       - validate
     stderr: []

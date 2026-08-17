@@ -2,7 +2,7 @@
 command:
   "validate":
     exit-status: 0
-    exec: "release/goss-linux-arm64 -g integration-tests/goss/linux-arm64/commands/validate-input.yaml validate"
+    exec: "release/syver-linux-arm64 -g integration-tests/goss/linux-arm64/commands/validate-input.yaml validate"
     stdout:
       - 'Count: 1'
       - 'Failed: 0'

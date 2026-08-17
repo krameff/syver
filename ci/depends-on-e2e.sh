@@ -5,19 +5,21 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 EXAMPLES="${ROOT}/integration-tests/goss/examples/depends-on"
 GOSS_ARGS=()
 
-# shellcheck source=lib/goss-e2e-steps.sh
-source "${ROOT}/ci/lib/goss-e2e-steps.sh"
+# shellcheck source=lib/syver-e2e-steps.sh
+source "${ROOT}/ci/lib/syver-e2e-steps.sh"
 
 if [[ -n "${GOSS_BINARY:-}" ]]; then
   GOSS="${GOSS_BINARY}"
 elif [[ "$(uname -s)" == "Linux" ]]; then
-  GOSS="${ROOT}/release/goss-linux-amd64"
+  GOSS="${ROOT}/release/syver-linux-amd64"
   if [[ ! -x "${GOSS}" ]]; then
-    make -C "${ROOT}" release/goss-linux-amd64
+    make -C "${ROOT}" release/syver-linux-amd64
   fi
 else
   GOSS="$(mktemp -t goss-depends-on-e2e.XXXXXX)"
-  go build -o "${GOSS}" "${ROOT}/cmd/goss/goss.go"
+  # Build the package, not the single file: syver.go alone no longer compiles
+  # because env_source.go (nonEmptyEnvVars) is a sibling in the same package.
+  go build -o "${GOSS}" "${ROOT}/cmd/syver"
   export GOSS_USE_ALPHA=1
   GOSS_ARGS=(--use-alpha=1)
 fi

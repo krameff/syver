@@ -7,9 +7,9 @@ ARCH=$2
 [[ $3 == "-q" ]] && args=("--exclude-attr" "*")
 
 goss() {
-  $SCRIPT_DIR/$OS/goss-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml "$@"
+  $SCRIPT_DIR/$OS/syver-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml "$@"
   # Validate that duplicates are ignored
-  $SCRIPT_DIR/$OS/goss-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml "$@"
+  $SCRIPT_DIR/$OS/syver-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml "$@"
 }
 
 rm -f $SCRIPT_DIR/${OS}/goss*generated*-$ARCH.yaml
@@ -18,8 +18,8 @@ for x in /etc/passwd /tmp/goss/foobar;do
   goss a "${args[@]}" file $x
 done
 
-[[ $OS == "centos7" || $OS == "rockylinux9" || $OS == "almalinux10" ]] && package="httpd" || package="apache2"
-[[ $OS == "centos7" || $OS == "rockylinux9" || $OS == "almalinux10" ]] && user="apache" || user="www-data"
+[[ $OS == "rockylinux9" || $OS == "almalinux10" ]] && package="httpd" || package="apache2"
+[[ $OS == "rockylinux9" || $OS == "almalinux10" ]] && user="apache" || user="www-data"
 goss a "${args[@]}" package $package foobar vim-tiny
 
 goss a "${args[@]}" addr --timeout 1s httpbin:80 httpbin:22
@@ -75,16 +75,16 @@ goss a "${args[@]}" http https://www.apple.com -x http://127.0.0.1:8888
 
 # Auto-add
 # Validate that empty configs don't get created
-$SCRIPT_DIR/$OS/goss-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa nosuchresource
+$SCRIPT_DIR/$OS/syver-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa nosuchresource
 if [[ -f $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml ]]
 then
   echo "Error! Empty config file exists!" && exit 1
 fi
-$SCRIPT_DIR/$OS/goss-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa $package
+$SCRIPT_DIR/$OS/syver-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa $package
 # Validate that duplicates are ignored
-$SCRIPT_DIR/$OS/goss-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa $package
+$SCRIPT_DIR/$OS/syver-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa $package
 # Validate that we can aa none existent resources without destroying the file
-$SCRIPT_DIR/$OS/goss-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa nosuchresource
+$SCRIPT_DIR/$OS/syver-linux-$ARCH -g $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml aa nosuchresource
 
 if [[ ! -f $SCRIPT_DIR/${OS}/goss-aa-generated-$ARCH.yaml ]]
 then

@@ -49,7 +49,7 @@ cleanup() {
 trap cleanup EXIT
 
 repo_root="$(git rev-parse --show-toplevel)"
-export GOSS_BINARY="${repo_root}/release/goss-${platform_spec}"
+export GOSS_BINARY="${repo_root}/release/syver-${platform_spec}"
 log_info "Using: '${GOSS_BINARY}', cwd: '$(pwd)'"
 
 export GOSS_USE_ALPHA=1

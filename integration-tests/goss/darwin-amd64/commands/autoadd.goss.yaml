@@ -2,7 +2,7 @@
 command:
   "autoadd /Users/runner":
     exit-status: 0
-    exec: "release/goss-darwin-amd64 autoadd /Users/runner"
+    exec: "release/syver-darwin-amd64 autoadd /Users/runner"
     stdout:
       - 'file:'
       - '  exists: true'

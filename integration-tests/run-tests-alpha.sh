@@ -14,7 +14,7 @@ if [[ "${segments[0]}" == "alpha" ]]; then
 fi
 
 repo_root="$(git rev-parse --show-toplevel)"
-export GOSS_BINARY="${repo_root}/release/goss-${platform_spec}"
+export GOSS_BINARY="${repo_root}/release/syver-${platform_spec}"
 log_info "Using: '${GOSS_BINARY}', cwd: '$(pwd)', os: ${os}"
 readarray -t goss_test_files < <(find integration-tests -type f -name "*.goss.yaml" | grep "${os}" | sort | uniq)
 

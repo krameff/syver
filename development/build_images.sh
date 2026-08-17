@@ -7,7 +7,7 @@ INTEGRATION_TEST_DIR="$SCRIPT_DIR/../integration-tests/"
 CONTAINER_REPOSITORY="ghcr.io/krameff"
 
 LABEL_DATE=$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')
-LABEL_URL="https://github.com/krameff/goss"
+LABEL_URL="https://github.com/krameff/syver"
 LABEL_REVISION=$(git rev-parse HEAD)
 
 for docker_file in $INTEGRATION_TEST_DIR/Dockerfile_*; do
