@@ -4,38 +4,41 @@
 
 ```console
 NAME:
-   goss - Quick and Easy server validation
+   syver - Quick and Easy server validation
 
 USAGE:
-   goss [global options] command [command options] [arguments...]
-
-VERSION:
-   0.0.0
+   syver [global options] [command [command options]]
 
 COMMANDS:
-     validate, v  Validate system
-     serve, s     Serve a health endpoint
-     render, r    render gossfile after imports
-     autoadd, aa  automatically add all matching resource to the test suite
-     add, a       add a resource to the test suite
-     help, h      Shows a list of commands or help for one command
+   validate, v  Validate system
+   serve, s     Serve a health endpoint
+   render, r    render gossfile after imports
+   autoadd, aa  automatically add all matching resource to the test suite
+   add, a       add a resource to the test suite
+   help, h      Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --gossfile value, -g value  Goss file to read from / write to (default: "./goss.yaml") [$GOSS_FILE]
-   --vars value                json/yaml file containing variables for template. Can be specified multiple times. Later files override overlapping keys. [$GOSS_VARS]
-   --vars-inline value         json/yaml string containing variables for template (overwrites vars) [$GOSS_VARS_INLINE]
-   --package value             Package type to use [rpm, deb, apk, pacman]
-   --help, -h                  show help
-   --version, -v               print the version
+   --log-level string, --loglevel string, -L string, -l string  Goss log verbosity level (default: "INFO") [$SYVER_LOGLEVEL, $GOSS_LOGLEVEL]
+   --syverfile string, --gossfile string, -g string              Syver file to read from / write to [$SYVER_FILE, $GOSS_FILE]
+   --vars string [ --vars string ]                               json/yaml file containing variables for template. Can be specified multiple times. Later files override overlapping keys. [$SYVER_VARS, $GOSS_VARS]
+   --vars-inline string                                          json/yaml string containing variables for template (overwrites vars) [$SYVER_VARS_INLINE, $GOSS_VARS_INLINE]
+   --package string                                              Package type to use [apk, dpkg, pacman, rpm]
+   --help, -h                                                    show help
 ```
 
 !!! note
     Most flags can be set by using environment variables, see `--help` for more info.
+    `SYVER_*` variables are checked first; the legacy `GOSS_*` variables are
+    still honored as a fallback for one major version.
 
 ## Global options
 
-`--gossfile/-g <gossfile>`
-:   The file to use when reading/writing tests. Use `--gossfile -` or `-g -` to read from `STDIN`.
+`--syverfile/--gossfile/-g <syverfile>`
+:   The file to use when reading/writing tests (`gossfile:` is the alias kept for
+    backwards compatibility). Use `--syverfile -`, `--gossfile -`, or `-g -` to
+    read from `STDIN`. When unset, the first of `syver.yaml`, `syver.yml`,
+    `goss.yaml`, `goss.yml` found in the current directory is used; if none
+    exist, `add`/`autoadd` create `./syver.yaml`.
 
     Valid formats:
     * `yaml` *(default)*
@@ -56,26 +59,26 @@ GLOBAL OPTIONS:
     Valid options are:
 
     * `apk`
-    * `deb`
+    * `dpkg`
     * `pacman`
     * `rpm`
 
 ## Commands
 
-Commands are the actions goss can run.
+Commands are the actions syver can run.
 * [add](#add): add a single test for a resource
 * [autoadd](#autoadd): automatically add multiple tests for a resource
 * [render](#render): renders and outputs the gossfile, importing all included gossfiles
 * [serve](#serve): serves the gossfile validation as an HTTP endpoint on a specified address and port,
     so you can use your gossfile as a health report for the host
-* [validate](#validate): runs the goss test suite on your server
+* [validate](#validate): runs the syver test suite on your server
 
 ### `add`
 
 !!! abstract "Add system resource to test suite"
     ```console
-    goss add [--exclude-attr <pattern>] <test> [<test>]
-    goss a [--exclude-attr <pattern>] <test> [<test>]
+    syver add [--exclude-attr <pattern>] <test> [<test>]
+    syver a [--exclude-attr <pattern>] <test> [<test>]
     ```
 
 This will add a test for a resource. Non existent resources will add a test to ensure they do not exist on the system.
@@ -87,10 +90,10 @@ A sub-command *resource type* has to be provided when running `add`.
 
 !!! example
     ```console
-    goss add file /etc/passwd
-    goss a user nobody
-    goss add --exclude-attr home --exclude-attr shell user nobody
-    goss a --exclude-attr '*' user nobody
+    syver add file /etc/passwd
+    syver a user nobody
+    syver add --exclude-attr home --exclude-attr shell user nobody
+    syver a --exclude-attr '*' user nobody
     ```
 
 #### Resources types
@@ -101,7 +104,7 @@ A sub-command *resource type* has to be provided when running `add`.
 | [`command`](gossfile.md#command)           | Run a [command](gossfile.md#command) and validate the exit status and/or output                                                 |
 | [`dns`](gossfile.md#dns)                   | Resolves a [dns](gossfile.md#dns) name and validates the addresses                                                              |
 | [`file`](gossfile.md#file)                 | Validate a [file](gossfile.md#file) existence, permissions, stats (size, etc) and contents                                      |
-| [`goss`](gossfile.md#gossfile)             | Includes the contents of another [gossfile](gossfile.md)                                                                        |
+| [`syver`](gossfile.md#gossfile)            | Includes the contents of another [gossfile](gossfile.md) (alias: `goss`)                                                        |
 | [`group`](gossfile.md#group)               | can validate the existence and values of a [group](gossfile.md#group) on the system                                             |
 | [`http`](gossfile.md#http)                 | Validate the HTTP response code, headers, and content of a URI                                                                  |
 | [`interface`](gossfile.md#interface)       | Validate the existence and values (es. the addresses) of a network interface                                                    |
@@ -117,8 +120,8 @@ A sub-command *resource type* has to be provided when running `add`.
 
 !!! abstract "Auto add all matching resources to test suite"
     ```console
-    goss autoadd [arguments...]
-    goss aa [arguments...]
+    syver autoadd [arguments...]
+    syver aa [arguments...]
     ```
 
 Automatically [adds](#add) all **existing** resources matching the provided argument.
@@ -143,7 +146,7 @@ Will **NOT** automatically add:
 
 !!! example
     ```console
-    goss autoadd sshd
+    syver autoadd sshd
     ```
 
     Generates the following `goss.yaml`
@@ -192,8 +195,8 @@ Will **NOT** automatically add:
 
 !!! abstract "Render gossfile after importing all referenced gossfiles"
     ```
-    goss render
-    goss r
+    syver render
+    syver r
     ```
 
 This command allows you to keep your tests separated and render a single, valid, gossfile,
@@ -229,7 +232,7 @@ by including them with the `gossfile` directive.
       goss_httpd_service.yaml: {}
       goss_nginx_service-NO.yaml: {}
 
-    $ goss -g goss.yaml render
+    $ syver -g goss.yaml render
     package:
       httpd:
         installed: true
@@ -248,11 +251,11 @@ by including them with the `gossfile` directive.
 
 !!! abstract "Serve a health endpoint"
     ```console
-    goss serve [<opts>...]
-    goss s [<opts>...]
+    syver serve [<opts>...]
+    syver s [<opts>...]
     ```
 
-`serve` exposes the goss test suite as a health endpoint on your server.
+`serve` exposes the syver test suite as a health endpoint on your server.
 The end-point will return the stest results in the format requested and an http status of 200 or 503.
 
 `serve` will look for a test suite in the same order as [validate](#validate)
@@ -273,24 +276,24 @@ The end-point will return the stest results in the format requested and an http 
 :   Goss logging verbosity level (default: `INFO`).
     Lower levels of tracing include all upper levels traces also (ie. `INFO` include `WARN` and `ERROR`).
     `level` can be one of:
-    - `ERROR` - Critical errors that halt goss or significantly affect its functionality, requiring immediate intervention.
+    - `ERROR` - Critical errors that halt syver or significantly affect its functionality, requiring immediate intervention.
     - `WARN` - Non-critical issues that may require attention, such as overwritten keys or deprecated features.
-    - `INFO` - General operational messages, useful for tasks where a more structured output is needed (e.g. goss serve).
-    - `DEBUG` - Information useful for the goss user to debug.
-    - `TRACE` - Detailed internal system activities useful for goss developers to debug.
+    - `INFO` - General operational messages, useful for tasks where a more structured output is needed (e.g. syver serve).
+    - `DEBUG` - Information useful for the syver user to debug.
+    - `TRACE` - Detailed internal system activities useful for syver developers to debug.
 
 `--max-concurrent <num>`
 :   Max number of tests to run concurrently
 
 !!! example
     ```console
-    $ goss serve &
+    $ syver serve &
     $ curl http://localhost:8080/healthz
     # JSON endpoint
-    $ goss serve --format json &
+    $ syver serve --format json &
     $ curl localhost:8080/healthz
     # rspecish output format in response via content negotiation
-    goss serve --format json &
+    syver serve --format json &
     curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
     ```
 
@@ -302,11 +305,11 @@ You can also `Accept: application/json` to get back `application/json`.
 
 !!! abstract "Validate the system"
     ```console
-    goss validate [<opts>...]
-    goss v [<opts>...]
+    syver validate [<opts>...]
+    syver v [<opts>...]
     ```
 
-`validate` runs the goss test suite on your server. Prints an rspec-like (by default) output of test results.
+`validate` runs the syver test suite on your server. Prints an rspec-like (by default) output of test results.
 Exits with status 0 on success, non-0 otherwise.
 
 `--format <format>`, `-f <format>`
@@ -365,21 +368,21 @@ Exits with status 0 on success, non-0 otherwise.
 !!! example
 
     ```console
-    $ goss validate --format documentation
+    $ syver validate --format documentation
     File: /etc/hosts: exists: matches expectation: [true]
     DNS: localhost: resolvable: matches expectation: [true]
     [...]
     Total Duration: 0.002s
     Count: 10, Failed: 2, Skipped: 0
 
-    $ goss validate -g goss.yml --discover discovery.yaml --format documentation
+    $ syver validate -g goss.yml --discover discovery.yaml --format documentation
     File: /etc/hosts: exists: matches expectation: true
     File: /etc/hosts: contents: matches expectation: ["localhost"]
     [...]
     Total Duration: 0.000s
     Count: 2, Failed: 0, Skipped: 0
 
-    $ goss --vars <(goss validate -g discovery.yaml --format discovery) \
+    $ syver --vars <(syver validate -g discovery.yaml --format discovery) \
         validate -g goss.yml --format documentation
     File: /etc/hosts: exists: matches expectation: true
     File: /etc/hosts: contents: matches expectation: ["localhost"]
@@ -387,19 +390,19 @@ Exits with status 0 on success, non-0 otherwise.
     Total Duration: 0.000s
     Count: 2, Failed: 0, Skipped: 0
 
-    $ curl -s https://static/or/dynamic/goss.json | goss validate
+    $ curl -s https://static/or/dynamic/goss.json | syver validate
     ...F.F
     [...]
     Total Duration: 0.002s
     Count: 6, Failed: 2, Skipped: 0
 
-    $ goss render | ssh remote-host 'goss -g - validate'
+    $ syver render | ssh remote-host 'syver -g - validate'
     ......
 
     Total Duration: 0.002s
     Count: 6, Failed: 0, Skipped: 0
 
-    $ goss validate --format nagios -o verbose -o perfdata
+    $ syver validate --format nagios -o verbose -o perfdata
     GOSS CRITICAL - Count: 76, Failed: 1, Skipped: 0, Duration: 1.009s|total=76 failed=1 skipped=0 duration=1.009s
     Fail 1 - DNS: localhost: addrs: doesn't match, expect: [["127.0.0.1","::1"]] found: [["127.0.0.1"]]
     $ echo $?

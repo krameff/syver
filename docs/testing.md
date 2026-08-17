@@ -1,8 +1,8 @@
 # Testing
 
-This page describes how to run the Goss test suite locally and how those checks map to CI.
+This page describes how to run the Syver test suite locally and how those checks map to CI.
 
-Last verified: 2026-07-12 — **283** Go test cases passing, discovery E2E passing, markdown lint clean.
+Last verified: 2026-08-16 — **317** Go test cases passing, discovery E2E passing, markdown lint clean.
 
 ## Quick start (local)
 
@@ -37,8 +37,8 @@ make lint-markdown
 make test-security
 ```
 
-On macOS/Windows, `make test-discovery-e2e` builds a temporary goss binary and uses
-`GOSS_USE_ALPHA=1` automatically. On Linux CI it uses `release/goss-linux-amd64`.
+On macOS/Windows, `make test-discovery-e2e` builds a temporary syver binary and uses
+`GOSS_USE_ALPHA=1` automatically. On Linux CI it uses `release/syver-linux-amd64`.
 
 ## Make targets
 
@@ -125,7 +125,7 @@ Steps performed:
 Script: [`integration-tests/test.sh`](../integration-tests/test.sh)
 
 Each distro target (`make rockylinux9`, `make jammy`, etc.) runs the main gossfile validate suite, then
-reuses the same steps as the host E2E scripts via [`ci/lib/goss-e2e-steps.sh`](../ci/lib/goss-e2e-steps.sh):
+reuses the same steps as the host E2E scripts via [`ci/lib/syver-e2e-steps.sh`](../ci/lib/syver-e2e-steps.sh):
 
 * `run_discovery_e2e_steps` — `--format discovery`, `--discover`, inline `discovery:`, discover+depends-on
 * `run_depends_on_e2e_steps` — pure `depends-on` skip semantics
@@ -133,9 +133,9 @@ reuses the same steps as the host E2E scripts via [`ci/lib/goss-e2e-steps.sh`](.
 Fixtures live under [`integration-tests/goss/examples/`](../integration-tests/goss/examples/) and are
 mounted at `/goss/examples/` inside the test container.
 
-## Go unit and integration tests (283 cases)
+## Go unit and integration tests (317 cases)
 
-### Package `github.com/krameff/goss` (root)
+### Package `github.com/krameff/syver` (root)
 
 | Test | File | Covers |
 | --- | --- | --- |
@@ -152,9 +152,9 @@ mounted at `/goss/examples/` inside the test container.
 | `TestValidateDependsOnSkipsDependent` | `discovery_integration_test.go` | `depends-on` skip semantics |
 | `TestTemplateDiscoveredVars` | `discovery_integration_test.go` | Template `.Discovered` rendering |
 | `TestMergePreservesDiscovery` | `discovery_merge_test.go` | Discovery survives gossfile merge |
-| `TestConfigMerge` | `goss_test.go` | Config merge behaviour |
-| `TestUseAsPackage` | `goss_test.go` | Programmatic validate API |
-| `TestSkipResourcesByType` | `goss_test.go` | Disabled resource types |
+| `TestConfigMerge` | `syver_test.go` | Config merge behaviour |
+| `TestUseAsPackage` | `syver_test.go` | Programmatic validate API |
+| `TestSkipResourcesByType` | `syver_test.go` | Disabled resource types |
 | `TestServeWithNoContentNegotiation` | `serve_test.go` | Health endpoint output |
 | `TestServeNegotiatingContent` | `serve_test.go` | Accept header negotiation |
 | `TestServeCacheWithNoContentNegotiation` | `serve_test.go` | Serve cache behaviour |
@@ -234,7 +234,7 @@ mounted at `/goss/examples/` inside the test container.
 | `TestWithVarsFile` | `config_test.go` | Single vars file |
 | `TestWithVarsData` | `config_test.go` | Vars data helper |
 
-### Package `cmd/goss`
+### Package `cmd/syver`
 
 No Go tests — behaviour covered by root package API tests and integration tests.
 
@@ -280,7 +280,7 @@ Locally, Trivy runs via the `trivy` binary if installed, otherwise via Docker
 `SECURITY_STRICT=1` (always set in CI).
 
 Docker image scanning (Alpine packages and compiled binary) continues to run in
-[`.github/workflows/docker-goss.yaml`](../.github/workflows/docker-goss.yaml) and
+[`.github/workflows/docker-syver.yaml`](../.github/workflows/docker-syver.yaml) and
 [`.github/workflows/trivy-schedule.yaml`](../.github/workflows/trivy-schedule.yaml).
 
 ## CodeQL
@@ -303,7 +303,7 @@ cannot run together and will produce "configuration not found" warnings on pull 
   [`integration-tests/goss/examples/discovery/`](../integration-tests/goss/examples/discovery/)
 * **Output formats**: add to `outputs/*_test.go`
 * **Resource types**: add to `resource/validate_test.go` and platform integration gossfiles
-* **CLI behaviour**: prefer root `goss_test.go` or integration command gossfiles under
+* **CLI behaviour**: prefer root `syver_test.go` or integration command gossfiles under
   `integration-tests/goss/<platform>/commands/`
 
 PRs should include automated tests; discovery changes should keep `make test-discovery-e2e` passing.

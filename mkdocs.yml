@@ -1,9 +1,9 @@
-site_name: Goss
-site_description: Goss is a YAML based serverspec alternative tool for validating a server’s configuration.
-site_author: Goss team
+site_name: Syver
+site_description: Syver is a YAML based serverspec alternative tool for validating a server’s configuration.
+site_author: Syver team
 site_url: https://goss.readthedocs.io/
-repo_url: https://github.com/krameff/goss
-repo_name: krameff/goss
+repo_url: https://github.com/krameff/syver
+repo_name: krameff/syver
 edit_uri: edit/master/docs/
 
 
@@ -73,7 +73,7 @@ markdown_extensions:
       repo_url_shorthand: true
       social_url_shorthand: true
       user: krameff
-      repo: goss
+      repo: syver
   - pymdownx.snippets:
       base_path:
         - .
@@ -86,7 +86,7 @@ copyright: Copyright &copy; 2015 - 2024 Ahmed Elsabbahy
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/krameff/goss
+      link: https://github.com/krameff/syver
     - icon: fontawesome/brands/medium
       link: https://medium.com/@aelsabbahy
 

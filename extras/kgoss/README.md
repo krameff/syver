@@ -27,12 +27,12 @@ You can manually install kgoss and goss by going through the Web UI, getting
 the files and putting them in the right path. To get each of them:
 
 * **kgoss**: Run `curl -sSLO
-  https://raw.githubusercontent.com/krameff/goss/master/extras/kgoss/kgoss`.
+  https://raw.githubusercontent.com/krameff/syver/main/extras/kgoss/kgoss`.
 * **goss**: Download a release archive such as `goss_0.5.0_linux_x86_64.tar.gz`
-  from <https://github.com/krameff/goss/releases>, extract it, and rename the
+  from <https://github.com/krameff/syver/releases>, extract it, and rename the
   binary `goss`. Place it in your HOME directory, e.g. `C:\Users\<username>` on
   Windows; or set the environment variable `GOSS_PATH` to its path. Or run
-  `curl -fsSL https://goss.rocks/install | sh`.
+  `curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh`.
 
 ### Automatic / CLI
 
@@ -52,7 +52,7 @@ username=$(whoami)
 dest_dir=${HOME}/bin
 
 host=raw.githubusercontent.com
-repo=krameff/goss
+repo=krameff/syver
 # for private repos, replace:
 # host=github.yourcompany.com
 # repo=org-name/goss

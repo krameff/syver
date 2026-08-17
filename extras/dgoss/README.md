@@ -20,7 +20,7 @@ container images
 
 ### Linux
 
-Follow the goss [installation instructions](https://github.com/krameff/goss#installation)
+Follow the goss [installation instructions](https://github.com/krameff/syver#installation)
 
 ### Mac OSX
 
@@ -28,11 +28,11 @@ Since goss runs on the target container, dgoss can be used on a Mac OSX system b
 
 ```shell
 # Install dgoss
-curl -L https://raw.githubusercontent.com/krameff/goss/master/extras/dgoss/dgoss -o /usr/local/bin/dgoss
+curl -L https://raw.githubusercontent.com/krameff/syver/main/extras/dgoss/dgoss -o /usr/local/bin/dgoss
 chmod +rx /usr/local/bin/dgoss
 
 # Download desired goss version to your preferred location (e.g. v0.5.0)
-curl -L "https://github.com/krameff/goss/releases/download/v0.5.0/goss_0.5.0_linux_x86_64.tar.gz" \
+curl -L "https://github.com/krameff/syver/releases/download/v0.5.0/goss_0.5.0_linux_x86_64.tar.gz" \
   | tar xz -C ~/Downloads
 # Set your GOSS_PATH to the extracted binary
 export GOSS_PATH=~/Downloads/goss

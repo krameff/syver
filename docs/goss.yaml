@@ -130,7 +130,7 @@ matching:
         - have-key: baz
 
 # TODO: sprig syntax fails to accept upper block below
-# https://github.com/krameff/goss/blob/master/docs/manual.md#examples-2
+# https://github.com/krameff/syver/blob/main/docs/manual.md#examples-2
 #  sping_basic:
 #    content: { { "hello!" | upper | repeat 5 }}
 #                 matches:
@@ -153,7 +153,7 @@ package:
     versions:
       - "2.1"
     skip: false
-# https://github.com/krameff/goss/blob/master/README.md#manually-editing-goss-files    
+# https://github.com/krameff/syver/blob/main/README.md#manually-editing-goss-files    
   kernel:
     installed: true
     versions:
@@ -215,4 +215,4 @@ user:
           - /var/empty/sshd
           - /var/run/sshd
 
-# https://github.com/krameff/goss/blob/master/README.md#manually-editing-goss-files
+# https://github.com/krameff/syver/blob/main/README.md#manually-editing-goss-files

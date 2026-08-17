@@ -8,19 +8,19 @@ For macOS and Windows platform notes, see [platforms](platforms.md).
 make build
 ```
 
-Platform binaries are written under `release/` (for example `release/goss-linux-amd64`).
+Platform binaries are written under `release/` (for example `release/syver-linux-amd64`).
 
 Install a built binary on your `PATH`:
 
 ```bash
-cp release/goss-linux-amd64 /usr/local/bin/goss   # adjust OS/arch as needed
-chmod +rx /usr/local/bin/goss
+cp release/syver-linux-amd64 /usr/local/bin/syver   # adjust OS/arch as needed
+chmod +rx /usr/local/bin/syver
 ```
 
 Build a single platform target:
 
 ```bash
-make release/goss-linux-amd64
+make release/syver-linux-amd64
 ```
 
 Alternatively, build with [GoReleaser](https://goreleaser.com/):
@@ -42,7 +42,7 @@ The binary is written under `dist/` (for example `dist/goss_linux_amd64_v1/goss`
 The supported install path is:
 
 ```bash
-curl -fsSL https://goss.rocks/install | sh
+curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh
 ```
 
 Release assets are raw, uncompressed binaries named `goss-<os>-<arch>`
@@ -51,7 +51,7 @@ To install manually from a GitHub release:
 
 ```bash
 GOSS_VER=v0.5.0
-curl -L "https://github.com/krameff/goss/releases/download/${GOSS_VER}/goss-linux-amd64" \
+curl -L "https://github.com/krameff/syver/releases/download/${GOSS_VER}/goss-linux-amd64" \
   -o /tmp/goss
 sudo mv /tmp/goss /usr/local/bin/goss
 chmod +rx /usr/local/bin/goss
@@ -74,7 +74,7 @@ attached to every release).
 GOSS_VER=v0.5.0
 
 # import the signing key once
-curl -fsSL https://raw.githubusercontent.com/krameff/goss/main/krameff-goss-key.asc | gpg --import
+curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-goss-key.asc | gpg --import
 
 # download the checksum file and its signature from the release page, then:
 gpg --verify goss_${GOSS_VER#v}_SHA256SUMS.sig goss_${GOSS_VER#v}_SHA256SUMS
