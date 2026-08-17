@@ -78,13 +78,13 @@ else
 fi
 
 goss_bin="/goss/$os/syver-linux-$arch"
-goss_runner() {
+syver_runner() {
   docker_exec "${goss_bin}" "$@"
 }
 
-run_discovery_e2e_steps "/goss/examples/discovery" goss_runner \
+run_discovery_e2e_steps "/goss/examples/discovery" syver_runner \
   "${REPO_ROOT}/integration-tests/goss/examples/discovery"
-run_depends_on_e2e_steps "/goss/examples/depends-on" goss_runner \
+run_depends_on_e2e_steps "/goss/examples/depends-on" syver_runner \
   "${REPO_ROOT}/integration-tests/goss/examples/depends-on"
 
 if [[ ! $os == "arch" ]]; then
