@@ -18,15 +18,17 @@ container_repository="ghcr.io/krameff"
 cd integration-tests
 
 cp "../release/syver-linux-$arch" "goss/$os/"
-# Run build if Dockerfile has changed but hasn't been pushed to dockerhub
-if ! md5sum -c "Dockerfile_${os}.md5"; then
-  $DOCKER_BIN build -t "$container_repository/goss_${os}:latest" --file "Dockerfile_$os" .
-# Pull if image doesn't exist locally
-elif ! $DOCKER_BIN images | grep "$container_repository/goss_$os";then
-  $DOCKER_BIN pull "$container_repository/goss_$os"
-fi
+# Always build. This was previously gated on `md5sum -c "Dockerfile_${os}.md5"`
+# with a pull branch behind an elif, but no Dockerfile_*.md5 file has ever
+# existed in this tree: development/build_images.sh records the digest as an
+# image LABEL (rocks.syver.dockerfile-md5), never as a file on disk, so the two
+# halves of that cache scheme were never connected. The check therefore always
+# failed, the build branch always won, and the pull branch was unreachable.
+# Behaviour is unchanged; this just drops the dead branch and the confusing
+# "No such file or directory" printed on every run.
+$DOCKER_BIN build -t "$container_repository/syver_${os}:latest" --file "Dockerfile_$os" .
 
-container_name="goss_int_test_${os}_${arch}"
+container_name="syver_int_test_${os}_${arch}"
 docker_exec() {
   $DOCKER_BIN exec "$container_name" "$@"
 }
@@ -49,11 +51,11 @@ fi
 
 # Setup local httbin
 # FIXME: this is a quick hack to fix intermittent CI issues
-network=goss-test
+network=syver-test
 $DOCKER_BIN network create --driver bridge --subnet '172.19.0.0/16' $network
 $DOCKER_BIN run -d --name httpbin --network $network docker.io/kennethreitz/httpbin
 opts=(--env OS=$os --cap-add SYS_ADMIN -v "$PWD/goss:/goss" -d --name "$container_name" --security-opt seccomp:unconfined --security-opt label:disable --privileged)
-id=$($DOCKER_BIN run "${opts[@]}" --network $network "$container_repository/goss_$os" /sbin/init)
+id=$($DOCKER_BIN run "${opts[@]}" --network $network "$container_repository/syver_$os" /sbin/init)
 # Newer Docker (verified: 29.7.2) no longer populates the legacy top-level
 # .NetworkSettings.IPAddress field for a container attached to a
 # non-default (custom) network at creation time -- only the per-network
@@ -103,4 +105,4 @@ if [[ ! $os == "arch" ]]; then
            <(docker_exec cat "/goss/${os}/goss-generated-$arch.yaml" | strip_versions)
 fi
 
-#docker rm -vf goss_int_test_$os
+#docker rm -vf syver_int_test_$os

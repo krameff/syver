@@ -11,7 +11,10 @@ DGOSS_VER=$GOSS_VER
 
 if [ -z "$GOSS_VER" ]; then
     GOSS_VER=${GOSS_VER:-$LATEST}
-    DGOSS_VER='master'
+    # This repo's default branch is `main`. It was `master` upstream, and that
+    # stale value made the wrapper download below 404 for anyone who had not
+    # pinned GOSS_VER.
+    DGOSS_VER='main'
 fi
 if [ -z "$GOSS_VER" ]; then
     echo "ERROR: Could not automatically detect latest version, set GOSS_VER env var and re-run"
@@ -19,6 +22,7 @@ if [ -z "$GOSS_VER" ]; then
 fi
 GOSS_DST=${GOSS_DST:-/usr/local/bin}
 INSTALL_LOC="${GOSS_DST%/}/syver"
+DSYVER_INSTALL_LOC="${GOSS_DST%/}/dsyver"
 DGOSS_INSTALL_LOC="${GOSS_DST%/}/dgoss"
 touch "$INSTALL_LOC" || { echo "ERROR: Cannot write to $GOSS_DST set GOSS_DST elsewhere or use sudo"; exit 1; }
 
@@ -54,9 +58,17 @@ echo "Syver $GOSS_VER has been installed to $INSTALL_LOC"
 echo "syver --version"
 "$INSTALL_LOC" --version
 
+dsyver_url="https://raw.githubusercontent.com/krameff/syver/$DGOSS_VER/extras/dgoss/dsyver"
+echo "Downloading $dsyver_url"
+curl -L "$dsyver_url" -o "$DSYVER_INSTALL_LOC"
+chmod +rx "$DSYVER_INSTALL_LOC"
+echo "dsyver $DGOSS_VER has been installed to $DSYVER_INSTALL_LOC"
+
+# The goss-named wrapper is still shipped as a working shim for one major
+# version, matching the compatibility promise the rest of the project makes.
 dgoss_url="https://raw.githubusercontent.com/krameff/syver/$DGOSS_VER/extras/dgoss/dgoss"
 echo "Downloading $dgoss_url"
 curl -L "$dgoss_url" -o "$DGOSS_INSTALL_LOC"
 chmod +rx "$DGOSS_INSTALL_LOC"
-echo "dgoss $DGOSS_VER has been installed to $DGOSS_INSTALL_LOC"
+echo "dgoss $DGOSS_VER has been installed to $DGOSS_INSTALL_LOC (compatibility shim)"
 }
