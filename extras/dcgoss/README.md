@@ -1,6 +1,6 @@
 # dcsyver
 
-dcsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to docker-compose managed
+dcsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to compose-managed
 containers. It is based on `dsyver`.
 
 `dcgoss` is the previous name of this script and is kept as a thin forwarding
@@ -13,8 +13,9 @@ and documentation should use `dcsyver`.
 
 ### Run
 
-Run is used to validate a docker container defined in `docker-compose.yml`. It expects both a `docker-compose.yml`
-and `goss.yaml` file to exist in the directory it was invoked from.
+Run is used to validate a docker container defined in a Compose file (`compose.yaml`, `compose.yml`,
+`docker-compose.yaml`, or `docker-compose.yml`). It expects both a Compose file and a `goss.yaml` file to exist
+in the directory it was invoked from.
 
 If the file `./goss_wait.yaml` exists in the current directory, goss regularly
 checks whether the conditions in the file are met. Only then does goss start the
@@ -25,7 +26,11 @@ Container configuration is used from the compose file, for example:
 
 **run:**
 
-`docker-compose up db`
+`docker compose up db`
+
+(the legacy v1 `docker-compose up db` still works as a fallback if that binary is installed and no v2
+`docker compose` plugin is found; the `COMPOSE_BIN` environment variable can also force a specific compose
+binary explicitly)
 
 **test:**
 
@@ -33,7 +38,7 @@ Container configuration is used from the compose file, for example:
 
 `dcgoss run` will do the following:
 
-* Start the container as defined in `docker-compose.yml`
+* Start the container as defined in the Compose file
 * Stream the containers log output into the container as `/goss/docker_output.log`
     * This allows writing tests or waits against the docker output
 * (optional) Run `goss` with `$GOSS_WAIT_OPTS` if `./goss_wait.yaml` file exists in the current dir
