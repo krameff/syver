@@ -16,7 +16,7 @@ service:
     running: true
 {{ if .Env.OS | regexMatch "alpine3" }}
     runlevels: ["sysinit"]
-{{ else if .Env.OS | regexMatch "centos7|rockylinux9|almalinux10|jammy|bullseye" }}
+{{ else if .Env.OS | regexMatch "rockylinux9|almalinux10|jammy|bullseye" }}
     runlevels: []
 {{end}}
   skippable:

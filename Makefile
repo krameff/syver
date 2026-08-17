@@ -9,7 +9,7 @@ VENV := $(shell echo $${VIRTUAL_ENV-.venv})
 PYTHON := $(VENV)/bin/python
 DOCS_DEPS := $(VENV)/.docs.dependencies
 
-.PHONY: all build install test release bench fmt lint vet test-int-all gen centos7
+.PHONY: all build install test release bench fmt lint vet test-int-all gen
 
 all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256
 
@@ -101,9 +101,6 @@ test-int-darwin-all: test-int-validate-darwin-amd64 test-int-serve-darwin-amd64 
 test-int-windows-all: test-int-validate-windows-amd64 test-int-serve-windows-amd64
 test-int-all: test-int-64
 
-centos7: release/syver-linux-amd64
-	$(info INFO: Starting build $@)
-	cd integration-tests/ && ./test.sh centos7 amd64
 .PHONY: rockylinux9
 rockylinux9: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
