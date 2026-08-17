@@ -37,8 +37,8 @@ We will keep you informed of progress throughout. If a vulnerability requires mo
 
 The following are in scope:
 
-- The `goss` binary and its releases
-- The published Docker image (`ghcr.io/uk-bolly/goss`)
+- The `syver` binary and its releases
+- The published Docker image (`ghcr.io/krameff/syver`)
 - Integration test infrastructure where a vulnerability could affect users
 
 The following are out of scope:
@@ -51,7 +51,7 @@ The following are out of scope:
 
 Static analysis uses the advanced CodeQL workflow at
 [`.github/workflows/codeql.yml`](workflows/codeql.yml). Container and dependency
-scanning uses Trivy (see workflows `docker-goss.yaml`, `trivy-schedule.yaml`, and
+scanning uses Trivy (see workflows `docker-syver.yaml`, `trivy-schedule.yaml`, and
 `ci/security-scan.sh`).
 
 Repository maintainers: if **CodeQL Default setup** is enabled under **Settings → Code

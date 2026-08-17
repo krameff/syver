@@ -21,5 +21,5 @@ https://stackoverflow.com/help/minimal-reproducible-example -->
 <!-- A clear and concise description of what actually happened. -->
 
 **Environment:**
- - Version of goss
+ - Version of syver
  - OS/Distribution version (if applicable)

@@ -1,6 +1,6 @@
 ---
 name: Question
-about: Ask a question about goss
+about: Ask a question about syver
 title: ''
 labels: question
 assignees: 'uk-bolly'
