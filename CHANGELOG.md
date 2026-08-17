@@ -13,6 +13,28 @@
   - `cmd/goss/goss.go` -> `cmd/syver/syver.go`
   - genny source `resource/resource_list_genny.go` updated, not the generated file
   - wire contracts unchanged: nagios prefix, junit suite name, `goss_tests_*` metrics, `gossfile:` keys and struct tags, `GOSS_*` env vars, User-Agent, media type
+  - `Makefile` `release/goss-%` -> `release/syver-%`; `make build` works again
+  - `.goreleaser.yaml` gains `project_name: syver`; binary, main, ldflags and image repo renamed
+  - second archives entry `archives-legacy` still emits `goss-<os>-<arch>`
+  - `Dockerfile` installs `syver`; `/goss` kept as a second volume
+  - `install.sh` and `release-build.sh` repointed at `krameff/syver`
+  - `syverfile:` accepted as an input alias for `gossfile:`, never emitted on write
+  - `gossfile:` wins on collision, with one warning
+  - config filename probe: `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml`
+  - `add` writes back to whichever file the read resolved to
+  - CLI name `syver`; `--syverfile` aliases `gossfile`/`g`; `add syver` aliases `add goss`
+  - 16 `SYVER_*` env vars paired with `GOSS_*`; an exported-empty one no longer shadows
+  - `syver_tests_*` metrics emitted alongside `goss_tests_*`
+  - `vnd.goss-` and `vnd.syver-` both accepted, the client's own prefix echoed back
+  - no Accept header still answers `vnd.goss-`
+  - first valid Accept candidate honoured, not discarded by a later invalid one
+  - User-Agent -> `syver/` (intended break)
+  - new wrappers `dsyver`, `dcsyver`, `ksyver`; `dgoss`, `dcgoss`, `kgoss` kept as shims
+  - wrappers resolve the binary as `which syver` then `which goss`
+  - wrappers stage `syver.yaml` before `goss.yaml`, wait step gated on the same set
+  - `ksyver` in-pod exec pointed at the files it actually stages
+  - tests 282 -> 317
+  - renamed docs, site branding (mkdocs.yml), and repo-hygiene references from goss to Syver
 
 ---
 
