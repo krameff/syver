@@ -1,10 +1,13 @@
 package syver
 
 import (
+	"bytes"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/krameff/syver/resource"
@@ -289,6 +292,231 @@ file:
 	}
 	if code != 0 {
 		t.Fatalf("expected exit code 0 when --discover supplies from_flag, got %d", code)
+	}
+}
+
+// TestValidateStdinMatchesFile covers BUG-001 Symptom 1: this is the actual
+// reported bug. `validate -g -` (stdin) must produce the same result count
+// as `validate -g <file>` on the equivalent file. Before the fix, stdin
+// always failed with "found 0 tests, source: STDIN" because
+// loadSyverConfigWithDiscover decodes the spec twice (peek, then the real
+// load) and a naive double-read of os.Stdin returns the real bytes once and
+// 0 bytes on the second call.
+func TestValidateStdinMatchesFile(t *testing.T) {
+	dir := t.TempDir()
+	sentinel := filepath.ToSlash(filepath.Join(dir, "sentinel"))
+	if err := os.WriteFile(filepath.FromSlash(sentinel), []byte("present"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+
+	content := []byte(fmt.Sprintf(`file:
+  sentinel:
+    path: %s
+    exists: true
+`, sentinel))
+
+	spec := filepath.Join(dir, "goss.yml")
+	if err := os.WriteFile(spec, content, 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	fileCfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config (file): %v", err)
+	}
+	fileResults, err := ValidateResults(fileCfg)
+	if err != nil {
+		t.Fatalf("validate (file): %v", err)
+	}
+	fileCount := 0
+	for group := range fileResults {
+		fileCount += len(group)
+	}
+	if fileCount == 0 {
+		t.Fatal("expected at least one result from the file-based baseline")
+	}
+
+	resetStdinOnce(t)
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdin = r
+	go func() {
+		_, _ = w.Write(content)
+		_ = w.Close()
+	}()
+
+	stdinCfg, err := util.NewConfig(util.WithSpecFile("-"), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config (stdin): %v", err)
+	}
+	stdinResults, err := ValidateResults(stdinCfg)
+	if err != nil {
+		t.Fatalf("validate (stdin): %v", err)
+	}
+	stdinCount := 0
+	for group := range stdinResults {
+		stdinCount += len(group)
+	}
+
+	if stdinCount != fileCount {
+		t.Fatalf("stdin validate produced %d results, expected %d to match the file-based run (this is the original BUG-001 symptom -- 'found 0 tests, source: STDIN')", stdinCount, fileCount)
+	}
+}
+
+// TestValidateStdinWithDiscoverySection covers Acceptance Criterion 2: the
+// same stdin fix must also hold for a spec with a non-empty discovery:
+// section, which exercises the runDiscoveryPhase branch in
+// loadSyverConfigWithDiscover -- a different code path that also peeks
+// before the final load.
+func TestValidateStdinWithDiscoverySection(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("discovery fixture asserts on /etc/hosts, linux only")
+	}
+
+	// Deliberately plain YAML with no {{ }} templating: for a "-" spec,
+	// outStoreFormat is detected from the RAW bytes (getStoreFormatFromData,
+	// before any template rendering happens), so templated content like the
+	// goss-inline.yml example fixture uses would fail format detection here
+	// with "unable to determine format from content" -- a real, separate,
+	// pre-existing limitation of stdin format-detection, not part of
+	// BUG-001's double-decode fix. Keeping this fixture template-free
+	// isolates the test to the thing BUG-001 actually fixes.
+	content := []byte(`discovery:
+  file:
+    /etc/hosts:
+      register: hosts_exists
+      exists: true
+file:
+  /etc/hosts:
+    exists: true
+`)
+
+	resetStdinOnce(t)
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdin = r
+	go func() {
+		_, _ = w.Write(content)
+		_ = w.Close()
+	}()
+
+	cfg, err := util.NewConfig(
+		util.WithSpecFile("-"),
+		util.WithOutputFormat("documentation"),
+		util.WithNoColor(),
+	)
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+
+	code, err := Validate(cfg)
+	if err != nil {
+		t.Fatalf("validate inline discovery via stdin: %v", err)
+	}
+	if code != 0 {
+		t.Fatalf("expected exit code 0, got %d", code)
+	}
+}
+
+// TestValidateStdinEmptySpecStillErrors is the regression check for
+// Acceptance Criterion 3: a genuinely empty spec piped via stdin must still
+// correctly error with "found 0 tests, source: STDIN" -- the fix must not
+// suppress this real error case.
+func TestValidateStdinEmptySpecStillErrors(t *testing.T) {
+	resetStdinOnce(t)
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdin = r
+	go func() {
+		_, _ = w.Write([]byte("file: {}\n"))
+		_ = w.Close()
+	}()
+
+	cfg, err := util.NewConfig(util.WithSpecFile("-"), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+
+	_, err = Validate(cfg)
+	if err == nil {
+		t.Fatal("expected 'found 0 tests' error for a genuinely empty stdin spec")
+	}
+	if !strings.Contains(err.Error(), "found 0 tests, source: STDIN") {
+		t.Fatalf("expected 'found 0 tests, source: STDIN' error, got: %v", err)
+	}
+}
+
+// TestValidateCollisionWarnLogsOnce covers BUG-001 Symptom 2: a real
+// gossfile:/syverfile: alias collision must log its WARN exactly once, not
+// once per decode. loadSyverConfigWithDiscover decodes every spec at least
+// twice (peek, then the real load); quietDecode (set from loadSyverConfig's
+// own peek parameter) suppresses ReadJSONData's alias-collision WARN during
+// the peek pass, since the peek's SyverConfig result is never observed by
+// the caller -- only the real load's WARN should reach the user. Unlike
+// Test_syverfileAlias_CollisionLogsWarnAndGossfileWins in store_test.go
+// (which calls ReadJSONData directly, once, and so never exercises the
+// double-decode path at all), this test goes through the real
+// loadSyverConfigWithDiscover call path where the duplication would occur
+// without quietDecode.
+func TestValidateCollisionWarnLogsOnce(t *testing.T) {
+	dir := t.TempDir()
+	sentinel := filepath.ToSlash(filepath.Join(dir, "sentinel"))
+	if err := os.WriteFile(filepath.FromSlash(sentinel), []byte("present"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+
+	imported := filepath.Join(dir, "imported.yaml")
+	if err := os.WriteFile(imported, []byte(fmt.Sprintf(`file:
+  sentinel:
+    path: %s
+    exists: true
+`, sentinel)), 0o644); err != nil {
+		t.Fatalf("write imported spec: %v", err)
+	}
+
+	spec := filepath.Join(dir, "same.yaml")
+	content := fmt.Sprintf("gossfile:\n  dup:\n    file: %s\nsyverfile:\n  dup:\n    file: %s\n", filepath.Base(imported), filepath.Base(imported))
+	if err := os.WriteFile(spec, []byte(content), 0o644); err != nil {
+		t.Fatalf("write spec: %v", err)
+	}
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+
+	// Call loadSyverConfigWithDiscover directly, not Validate(): Validate()
+	// calls setLogLevel() first, which unconditionally re-points the log
+	// package's output at os.Stderr (via logutils), clobbering any
+	// log.SetOutput a test installs beforehand. loadSyverConfigWithDiscover
+	// is the actual site of the peek-then-load double decode this test
+	// targets, so calling it directly is both necessary to observe the log
+	// output and a faithful exercise of the real bug path.
+	var logOutput bytes.Buffer
+	log.SetOutput(&logOutput)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	syverConfig, err := loadSyverConfigWithDiscover(cfg)
+	if err != nil {
+		t.Fatalf("load: %v", err)
+	}
+	if len(syverConfig.Resources()) == 0 {
+		t.Fatal("expected at least one resource from the imported gossfile")
+	}
+	// gossfile: still wins the collision (unchanged) -- see
+	// Test_syverfileAlias_CollisionLogsWarnAndGossfileWins in store_test.go
+	// for the direct ReadJSONData-level assertion of this. Here we only need
+	// to confirm the *count* of WARN lines through the real double-decode path.
+
+	warnCount := strings.Count(logOutput.String(), "[WARN]")
+	if warnCount != 1 {
+		t.Fatalf("expected exactly 1 [WARN] line for the collision, got %d:\n%s", warnCount, logOutput.String())
 	}
 }
 

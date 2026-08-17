@@ -27,8 +27,12 @@ func getSyverConfigPeek(varsFiles []string, varsInline string, specFile string) 
 }
 
 func loadSyverConfig(varsFiles []string, varsInline string, specFile string, discovered map[string]bool, peek bool) (cfg *SyverConfig, err error) {
-	// handle stdin
-	var fh *os.File
+	// quietDecode suppresses the alias-collision WARN during peek passes --
+	// see the quietDecode declaration in store.go for why. Reset via defer
+	// so it never leaks into a later, non-peek call.
+	quietDecode = peek
+	defer func() { quietDecode = false }()
+
 	var path, source string
 	var syverConfig SyverConfig
 
@@ -43,8 +47,12 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 
 	if specFile == "-" {
 		source = "STDIN"
-		fh = os.Stdin
-		data, err := io.ReadAll(fh)
+		// os.Stdin is a non-seekable stream -- loadSyverConfig runs twice per
+		// validate invocation (peek, then the real load), so a naive
+		// io.ReadAll(os.Stdin) here would exhaust the stream on the first call
+		// and return 0 bytes on the second. readStdinOnce buffers it once and
+		// replays the same bytes to every caller -- see BUG-001.
+		data, err := readStdinOnce()
 		if err != nil {
 			return nil, err
 		}
