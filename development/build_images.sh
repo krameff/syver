@@ -20,9 +20,9 @@ for docker_file in $INTEGRATION_TEST_DIR/Dockerfile_*; do
         --label "org.opencontainers.image.licenses=Apache-2.0" \
         --label "org.opencontainers.image.revision=$LABEL_REVISION" \
         --label "org.opencontainers.image.source=$LABEL_URL" \
-        --label "org.opencontainers.image.title=goss" \
+        --label "org.opencontainers.image.title=syver" \
         --label "org.opencontainers.image.url=$LABEL_URL" \
         --label "org.opencontainers.image.version=manual" \
-        --label "rocks.goss.dockerfile-md5"=$md5 \
-        -t "$CONTAINER_REPOSITORY/goss_${os}:latest" - < "$docker_file"
+        --label "rocks.syver.dockerfile-md5"=$md5 \
+        -t "$CONTAINER_REPOSITORY/syver_${os}:latest" - < "$docker_file"
 done
