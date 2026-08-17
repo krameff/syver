@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Shared discovery and depends-on E2E assertion steps.
-# Callers define a goss_runner function, then invoke:
-#   run_discovery_e2e_steps <examples-dir> goss_runner [fixture-check-dir]
-#   run_depends_on_e2e_steps <examples-dir> goss_runner [fixture-check-dir]
+# Callers define a syver_runner function, then invoke:
+#   run_discovery_e2e_steps <examples-dir> syver_runner [fixture-check-dir]
+#   run_depends_on_e2e_steps <examples-dir> syver_runner [fixture-check-dir]
 #
-# examples-dir is passed to goss_runner (e.g. /goss/examples/discovery in Docker).
+# examples-dir is passed to syver_runner (e.g. /goss/examples/discovery in Docker).
 # fixture-check-dir defaults to examples-dir; set it to the host checkout path when
 # examples-dir is only valid inside the test container.
 
