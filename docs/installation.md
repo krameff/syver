@@ -69,7 +69,7 @@ from the repository **Releases** page. Until then, use [build from source](#buil
 ## Verifying release signatures
 
 Each release's `SHA256SUMS` checksum file is GPG-signed with the project's
-signing key (fingerprint `xxxxxxxxxxxx`, published
+signing key (fingerprint `326F2A906EBB641DF88929D0306DF3B80A0667CD`, published
 as [`krameff-syver-key.asc`](../krameff-syver-key.asc) at the repo root and
 attached to every release).
 
@@ -77,7 +77,7 @@ attached to every release).
 SYVER_VER=v0.5.0
 
 # import the signing key once
-curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-goss-key.asc | gpg --import
+curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-syver-key.asc | gpg --import
 
 # download the checksum file and its signature from the release page, then:
 gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.sig syver_${SYVER_VER#v}_SHA256SUMS

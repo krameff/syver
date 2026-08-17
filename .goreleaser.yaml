@@ -121,7 +121,7 @@ release:
     - glob: ./extras/dgoss/dsyver*
     - glob: ./extras/dcgoss/dcsyver*
     - glob: ./extras/kgoss/ksyver*
-    - glob: ./krameff-goss-key.asc
+    - glob: ./krameff-syver-key.asc
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

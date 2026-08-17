@@ -57,6 +57,9 @@
   - an exported-but-empty `SYVER_VER` falls through to `GOSS_VER` rather than shadowing it
   - `docs/installation.md` manual-install block now names the `syver-<os>-<arch>` assets
   - signing key updates
+  - new release signing key, fingerprint `326F2A906EBB641DF88929D0306DF3B80A0667CD`
+  - key file `krameff-goss-key.asc` -> `krameff-syver-key.asc`; import the new one to verify 0.7.0+
+  - `.goreleaser.yaml` and `docs/installation.md` repointed at the new filename
 
 ---
 
