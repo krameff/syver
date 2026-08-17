@@ -140,6 +140,13 @@ on a regular machine.
 
 The following environment variables effect the behavior of kgoss.
 
+Every `GOSS_*` variable below also has a `SYVER_*` twin — `SYVER_FILES_PATH`,
+`SYVER_OPTS`, and so on. The `SYVER_*` name wins when it is set to a non-empty
+value; otherwise the `GOSS_*` name is used, so existing setups keep working
+unchanged. An exported-but-empty `SYVER_*` is treated as unset and never
+shadows a real `GOSS_*`. This matches the dual-prefix scheme the `syver`
+binary itself uses for its own environment variables.
+
 Variable | Description | Default
 -------- | ----------- | -------
 GOSS\_PATH | Local location of a compatible syver (or legacy goss) binary to use in container | `$(which syver)`, falls back to `$(which goss)`

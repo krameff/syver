@@ -3,6 +3,23 @@
 set -e
 [ "$DEBUG" ] && set -x
 
+# --- SYVER_*/GOSS_* env pairing -------------------------------------------
+# Fold any SYVER_* variable into the GOSS_* name this script already uses, so
+# the wrappers honour the same dual-prefix contract the binary does. A SYVER_*
+# value wins only when it is set AND non-empty, so an exported-but-empty
+# SYVER_X can never shadow a real GOSS_X -- this mirrors nonEmptyEnvVars() in
+# cmd/syver/env_source.go. Assignment is deliberately not an export: it makes
+# the result identical to the user having set the GOSS_* name themselves, and
+# cannot newly leak a variable into a child process.
+for _syver_var in FILES_PATH FILE VARS OPTS WAIT_OPTS SLEEP PATH FILES_STRATEGY; do
+    _syver_src="SYVER_${_syver_var}"
+    if [[ -n "${!_syver_src:-}" ]]; then
+        printf -v "GOSS_${_syver_var}" '%s' "${!_syver_src}"
+    fi
+done
+unset _syver_var _syver_src
+# --------------------------------------------------------------------------
+
 USAGE="USAGE: $(basename "$0") [run|edit] <docker-compose-service>"
 GOSS_FILES_PATH="${GOSS_FILES_PATH:-.}"
 
