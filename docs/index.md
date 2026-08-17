@@ -1,8 +1,8 @@
-# Goss - Quick and Easy server validation
+# Syver - Quick and Easy server validation
 
 <!-- markdownlint-disable no-inline-html -->
 <p align="center">
-  <img src="images/goss-logo.svg" alt="Goss - by Krameff Solutions Ltd" width="200">
+  <img src="images/syver-logo.svg" alt="Syver - by Krameff Solutions Ltd" width="200">
 </p>
 <!-- markdownlint-enable no-inline-html -->
 
@@ -11,9 +11,9 @@
 
 ## Documentation
 
-* [Installation](installation.md) — install goss, dgoss, and the other wrappers
+* [Installation](installation.md) — install syver, dgoss, and the other wrappers
 * [Quickstart](quickstart.md) — write and run your first gossfile
-* [Container image](container_image.md) — run goss from the published container image
+* [Container image](container_image.md) — run syver from the published container image
 * [Command reference](cli.md) — CLI flags for `validate`, `serve`, `add`, and friends
 * [The gossfile](gossfile.md) — full resource and matcher reference, including
   [discovery](gossfile.md#discovery) and

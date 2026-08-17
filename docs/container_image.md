@@ -1,16 +1,16 @@
-# Goss container image
+# Syver container image
 
 ## Dockerfiles
 
-* [latest](https://github.com/krameff/goss/blob/master/Dockerfile)
+* [latest](https://github.com/krameff/syver/blob/main/Dockerfile)
 
 Release images are published to GitHub Container Registry as
-`ghcr.io/<owner>/goss` (for example `ghcr.io/krameff/goss:latest` on tagged
-releases, or `ghcr.io/<your-fork-owner>/goss:main` for branch builds).
+`ghcr.io/<owner>/syver` (for example `ghcr.io/krameff/syver:latest` on tagged
+releases, or `ghcr.io/<your-fork-owner>/syver:main` for branch builds).
 
 ## Using the base image
 
-This is a simple alpine image with Goss preinstalled on it.
+This is a simple alpine image with Syver preinstalled on it.
 Can be used as a base image for your projects to allow for easy health checking.
 
 ### Mount example
@@ -18,28 +18,28 @@ Can be used as a base image for your projects to allow for easy health checking.
 Create the container
 
 ```sh
-docker run --name goss ghcr.io/krameff/goss goss
+docker run --name syver ghcr.io/krameff/syver syver
 ```
 
-Create your container and mount goss
+Create your container and mount syver
 
 ```sh
-docker run --rm -it --volumes-from goss --name weby nginx
+docker run --rm -it --volumes-from syver --name weby nginx
 ```
 
-Run goss inside your container
+Run syver inside your container
 
 ```sh
-docker exec weby /goss/goss autoadd nginx
+docker exec weby /syver/syver autoadd nginx
 ```
 
 ### HEALTHCHECK example
 
 ```dockerfile
-FROM ghcr.io/krameff/goss:latest
+FROM ghcr.io/krameff/syver:latest
 
-COPY goss/ /goss/
-HEALTHCHECK --interval=1s --timeout=6s CMD goss -g /goss/goss.yaml validate
+COPY syver/ /syver/
+HEALTHCHECK --interval=1s --timeout=6s CMD syver -g /syver/syver.yaml validate
 
 # your stuff..
 ```
@@ -47,11 +47,11 @@ HEALTHCHECK --interval=1s --timeout=6s CMD goss -g /goss/goss.yaml validate
 ### Startup delay example
 
 ```dockerfile
-FROM ghcr.io/krameff/goss:latest
+FROM ghcr.io/krameff/syver:latest
 
-COPY goss/ /goss/
+COPY syver/ /syver/
 
 # Alternatively, the -r option can be set
-# using the GOSS_RETRY_TIMEOUT env variable
-CMD goss -g /goss/goss.yaml validate -r 5m && exec real_comand..
+# using the SYVER_RETRY_TIMEOUT env variable (GOSS_RETRY_TIMEOUT also works)
+CMD syver -g /syver/syver.yaml validate -r 5m && exec real_comand..
 ```

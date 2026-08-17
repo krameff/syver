@@ -1,8 +1,8 @@
-# Goss - Quick and Easy server validation
+# Syver - Quick and Easy server validation
 
 <!-- markdownlint-disable no-inline-html -->
 <p align="center">
-  <img src="images/goss-logo.svg" alt="Goss - by Krameff Solutions Ltd" width="200">
+  <img src="images/syver-logo.svg" alt="Syver - by Krameff Solutions Ltd" width="200">
 </p>
 <!-- markdownlint-enable no-inline-html -->
 
@@ -16,7 +16,7 @@
 
 <!-- --8<-- [start:intro] -->
 
-## Goss in 45 seconds
+## Syver in 45 seconds
 
 <!-- markdownlint-disable line-length no-inline-html-->
 <a href="https://asciinema.org/a/4suhr8p42qcn6r7crfzt6cc3e?autoplay=1" target="_blank"><img src="https://cloud.githubusercontent.com/assets/6783261/17330426/ce7ad066-5894-11e6-84ea-29fd4207af58.gif" alt="asciicast"></a>
@@ -32,17 +32,17 @@ container ordering examples, see the
 
 ## Introduction
 
-### What is Goss?
+### What is Syver?
 
-Goss is a YAML based [serverspec](http://serverspec.org/) alternative tool for validating a server's configuration.
+Syver is a YAML based [serverspec](http://serverspec.org/) alternative tool for validating a server's configuration.
 It eases the process of writing tests by allowing the user to generate tests from the current system state.
 Once the test suite is written they can be executed, waited-on, or served as a health endpoint.
 
-### Why use Goss?
+### Why use Syver?
 
-* Goss is EASY! - [Goss in 45 seconds](#goss-in-45-seconds)
-* Goss is FAST! - small-medium test suites are near instantaneous
-* Goss is SMALL! - <10MB single self-contained binary
+* Syver is EASY! - [Syver in 45 seconds](#syver-in-45-seconds)
+* Syver is FAST! - small-medium test suites are near instantaneous
+* Syver is SMALL! - <10MB single self-contained binary
 
 ## Installation
 
@@ -50,7 +50,7 @@ Once the test suite is written they can be executed, waited-on, or served as a h
 
 Build from source or install release binaries — see [installation](docs/installation.md).
 
-This will install goss and [dgoss](extras/dgoss/README.md).
+This will install syver and [dgoss](extras/dgoss/README.md).
 
 <!-- --8<-- [end:intro] -->
 <!-- --8<-- [start:install] -->
@@ -96,7 +96,7 @@ $ goreleaser build --clean --single-target --snapshot
   • build prerequisites
   • building binaries
   • partial build match=target=linux_arm64_v8.0
-  • building paths=cmd/goss binaries=goss target=linux_arm64_v8.0
+  • building paths=cmd/syver binaries=syver target=linux_arm64_v8.0
   • took: 31s
   • writing artifacts metadata
   • build succeeded after 31s
@@ -105,7 +105,7 @@ $ tree dist
 dist
 ├── artifacts.json
 ├── binaries_linux_arm64_v8.0
-│   └── goss <- your binary
+│   └── syver <- your binary
 ├── config.yaml
 └── metadata.json
 
@@ -120,7 +120,7 @@ dist
 
 ## Using the container image
 
-[Using the Goss container image](docs/container_image.md)
+[Using the Syver container image](docs/container_image.md)
 
 ## Quick start
 
@@ -135,7 +135,7 @@ Let's write a simple sshd test using autoadd.
 
 ```txt
 # Running it as root will allow it to also detect ports
-$ sudo goss autoadd sshd
+$ sudo syver autoadd sshd
 ```
 
 Generated `goss.yaml`:
@@ -185,7 +185,7 @@ Now that we have a test suite, we can:
 * Run it once
 
 ```console
-$ goss validate
+$ syver validate
 ...............
 
 Total Duration: 0.021s # <- yeah, it's that fast..
@@ -195,33 +195,33 @@ Count: 15, Failed: 0
 * Edit it to use [templates](docs/gossfile.md#templates), and run with a vars file
 
 ```console
-goss --vars vars.yaml validate
+syver --vars vars.yaml validate
 ```
 
 * keep running it until the system enters a valid state or we timeout
 
 ```console
-goss validate --retry-timeout 30s --sleep 1s
+syver validate --retry-timeout 30s --sleep 1s
 ```
 
 * serve the tests as a health endpoint
 
 ```console
-$ goss serve &
+$ syver serve &
 $ curl localhost:8080/healthz
 
 # JSON endpoint
-$ goss serve --format json &
+$ syver serve --format json &
 $ curl localhost:8080/healthz
 
 # rspecish response via content negotiation
-$ goss serve --format json &
+$ syver serve --format json &
 $ curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
 ```
 
-### Manually editing Goss files
+### Manually editing Syver files
 
-Goss files can be manually edited to improve readability and expressiveness of tests.
+Syver files can be manually edited to improve readability and expressiveness of tests.
 
 A [Json draft 7 schema](https://github.com/json-schema-org/json-schema-spec/blob/draft-07/schema.json) in
 [docs/schema.yaml](docs/schema.yaml) makes it easier to edit simple goss.yaml files in IDEs,
@@ -235,12 +235,12 @@ with arguments such as:
 * `schema version=Json schema version 7`
 * `file path pattern=*/goss.yaml`
 
-In addition, Goss files can also be further manually edited (without yet full json support) to use:
+In addition, Syver files can also be further manually edited (without yet full json support) to use:
 
 * [Matchers and patterns](docs/gossfile.md#matchers)
 * [Advanced Matchers](docs/gossfile.md#advanced-matchers)
 * [Templates](docs/gossfile.md#templates)
-* `title` and `meta` (arbitrary data) attributes are persisted when adding other resources with `goss add`
+* `title` and `meta` (arbitrary data) attributes are persisted when adding other resources with `syver add`
 
 Some examples:
 
@@ -285,11 +285,11 @@ package:
 ```
 
 Goss.yaml files with templates can still be validated through the Json schema after being rendered
-using the `goss render` command. See example below
+using the `syver render` command. See example below
 
 ```console
 $ cd docs
-$ goss --vars ./vars.yaml render > rendered_goss.yaml
+$ syver --vars ./vars.yaml render > rendered_goss.yaml
 # proceed with json schema validation of rendered_goss.yaml in your favorite IDE
 # or in one of the Json schema validator listed in https://json-schema.org/implementations.html
 # The following example is for a Linux AMD64 host
@@ -317,13 +317,13 @@ Run lightweight discovery checks before the main suite and use the results in te
 
 ```bash
 # Pre-run discovery, then validate main gossfile (preferred)
-goss validate -g goss.yml --discover discovery.yaml
+syver validate -g goss.yml --discover discovery.yaml
 
 # Or inline discovery: in the same gossfile
-goss validate -g goss-inline.yml
+syver validate -g goss-inline.yml
 
 # Export discovery results for external tooling (unchanged)
-goss validate -g discovery.yaml --format discovery
+syver validate -g discovery.yaml --format discovery
 ```
 
 Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/examples/discovery/)
@@ -347,7 +347,7 @@ Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/
 * mount - add new mount
 * interface - add new network interface
 * http - add new network http url with proxy support
-* goss - add new goss file, it will be imported from this one
+* syver (alias: goss) - add new syver file, it will be imported from this one
 * matching - test for matches in supplied content
 
 ## Supported output formats
@@ -375,7 +375,7 @@ Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/
 
 ## Limitations
 
-`goss` works well on Linux, but support on Windows & macOS is alpha. See [platform support](docs/platforms.md).
+`syver` works well on Linux, but support on Windows & macOS is alpha. See [platform support](docs/platforms.md).
 
 The following tests have limitations.
 
@@ -398,7 +398,7 @@ Port:
 * Port state is only implemented on Linux, where it's read from
   `/proc/net/{tcp,udp,tcp6,udp6}`. It is not implemented on macOS or Windows --
   see [platform support](docs/platforms.md).
-* On Linux, if one of those files exists but contains a line goss can't parse
+* On Linux, if one of those files exists but contains a line syver can't parse
   (an unexpected IP/port/uid encoding, typically from a non-standard procfs,
   e.g. inside certain containers or network namespaces), the affected `port`
   resource now fails with an explicit `Error:` block in the output instead of

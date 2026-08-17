@@ -1,9 +1,9 @@
-$id: "https://goss.rocks/schema.yaml"
+$id: "https://raw.githubusercontent.com/krameff/syver/main/docs/schema.yaml"
 # Note: this schema was authored using intellij support for Json schema version 7
 # providing coding assistance
-# This schema is based on content from https://github.com/krameff/goss/blob/master/docs/gossfile.md and
-#  and https://github.com/krameff/goss/blob/master/README.md
-# It was tested in intellij against https://github.com/krameff/goss/blob/master/docs/goss.yaml
+# This schema is based on content from https://github.com/krameff/syver/blob/main/docs/gossfile.md and
+#  and https://github.com/krameff/syver/blob/main/README.md
+# It was tested in intellij against https://github.com/krameff/syver/blob/main/docs/goss.yaml
 # both for completion and code analysis use-cases.
 # Limitations / missing support
 # - patterns
@@ -653,6 +653,16 @@ properties:
     additionalProperties:
       $ref: "#/definitions/fileTest"
 
+  syverfile:
+    type: object
+    description: |
+      Input alias for 'gossfile'. Import other gossfiles from this one. This is the best way to maintain a large number of tests, and/or create profiles. See render for more examples. Glob patterns can be also be used to specify matching gossfiles.
+      You can specify the gossfile(s) either as the resource key, or using the 'file' attribute.
+
+      If the 'skip' attribute is true, then the file is not processed. If the filename is a glob pattern, then none of the matching files are processed. Note that this is not the same as skipping the contained resources; any overrides in the referenced gossfile will not be processed, and the resource count will not be incremented. Skipping a gossfile include is the same as omitting the gossfile resource entirely.
+    additionalProperties:
+      $ref: "#/definitions/gossfileTest"
+
   gossfile:
     type: object
     description: |
@@ -851,7 +861,7 @@ properties:
       Note: Goss might consider your port to be listening on tcp6 rather than tcp, try running goss add port .. to see how goss detects it. (explanation)
     x-intellij-html-description: |
       <p dir="auto">Validates the state of a local port.</p>
-      <p dir="auto"><strong>Note:</strong> Goss might consider your port to be listening on <code>tcp6</code> rather than <code>tcp</code>, try running <code>goss add port ..</code> to see how goss detects it. (<a href="https://github.com/krameff/goss/issues/149" data-hovercard-type="issue" data-hovercard-url="/krameff/goss/issues/149/hovercard">explanation</a>)</p>
+      <p dir="auto"><strong>Note:</strong> Goss might consider your port to be listening on <code>tcp6</code> rather than <code>tcp</code>, try running <code>goss add port ..</code> to see how goss detects it. (<a href="https://github.com/krameff/syver/issues/149" data-hovercard-type="issue" data-hovercard-url="/krameff/syver/issues/149/hovercard">explanation</a>)</p>
       <div class="highlight highlight-source-yaml notranslate position-relative overflow-auto" dir="auto"><pre><span class="pl-ent">port</span>:
         <span class="pl-c"><span class="pl-c">#</span> {tcp,tcp6,udp,udp6}:port_num</span>
         <span class="pl-ent">tcp:22</span>:

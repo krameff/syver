@@ -3,20 +3,20 @@
 ## Coming from `goss-org/goss`
 
 This project is a fork of [`goss-org/goss`](https://github.com/goss-org/goss), now
-maintained at `github.com/krameff/goss`. The good news: your gossfiles don't need
+maintained at `github.com/krameff/syver`. The good news: your gossfiles don't need
 to change. Nothing about the syntax, resource types, matchers, or CLI flags is
 different — if it worked before, it still works.
 
-What does change is where you get goss from:
+What does change is where you get syver from:
 
 * **Installing manually or via script?** Grab it from the
-  [`krameff/goss` releases page](https://github.com/krameff/goss/releases), and use
-  the [`install.sh`](https://github.com/krameff/goss/blob/master/install.sh) from this
+  [`krameff/syver` releases page](https://github.com/krameff/syver/releases), and use
+  the [`install.sh`](https://github.com/krameff/syver/blob/main/install.sh) from this
   repo rather than `goss-org/goss` — see [Installation](installation.md) for details.
-* **Using the container image?** Pull `ghcr.io/krameff/goss` instead of the old
+* **Using the container image?** Pull `ghcr.io/krameff/syver` instead of the old
   `aelsabbahy`/`goss-org` image.
-* **Importing goss as a Go library?** Update your import path to
-  `github.com/krameff/goss`.
+* **Importing syver as a Go library?** Update your import path to
+  `github.com/krameff/syver`.
 
 That's it — everything else carries over as-is.
 
