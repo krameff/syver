@@ -322,7 +322,7 @@ Exits with status 0 on success, non-0 otherwise.
     - `tap`
     - `prometheus` - Prometheus compatible output.
     - `silent` - No output. Avoids exposing system information (e.g. when serving tests as a healthcheck endpoint)
-    - `discovery` - JSON vars output from [discovery tests](../gossfile.md#discovery); always exits 0 on successful execution
+    - `discovery` - JSON vars output from [discovery tests](gossfile.md#discovery); always exits 0 on successful execution
 
 `--format-options`, `-o`
 :   Output format option:
@@ -350,7 +350,7 @@ Exits with status 0 on success, non-0 otherwise.
     injected as `.Discovered` for template rendering. When the main gossfile also has an inline
     `discovery:` section, the `--discover` file wins. Environment variable: `GOSS_DISCOVER`.
 
-    See [discovery](../gossfile.md#discovery).
+    See [discovery](gossfile.md#discovery).
 
 `--color`/`--no-color`
 :   Force color or disable color

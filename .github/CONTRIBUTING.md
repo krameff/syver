@@ -35,7 +35,7 @@ Some things to note prior to opening a Syver feature request:
     In other words, Syver focuses on the 20% of features that cover the core aspects of OS testing and benefit 80% of users.
 * Syver is intended to test the local machine it's running on.
     Tests aren't intended to be used to validate remote systems or endpoints.
-* Goss provides a generic [command](https://goss.rocks/gossfile/#command) runner
+* Syver provides a generic [command](../docs/gossfile.md#command) runner
     to allow users to cover more nuanced test cases.
 
 If you believe your feature adheres to the goals of Syver,

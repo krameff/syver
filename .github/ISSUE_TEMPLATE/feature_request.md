@@ -11,7 +11,7 @@ assignees: 'uk-bolly'
 Some things to note prior to opening a Syver feature request:
 * Syver is intended to be quick and easy to learn.
 * Syver is focused on the 20% of the 80/20 rule. In other words, Syver focuses on the 20% of features that cover the core aspects of OS testing and benefit 80% of users.
-* Goss provides a generic [command](https://goss.rocks/gossfile/#command) runner to allow users to cover more nuanced test cases.
+* Syver provides a generic [command](https://github.com/krameff/syver/blob/main/docs/gossfile.md#command) runner to allow users to cover more nuanced test cases.
 
 If after reading the above, you believe your feature is valid within the project scope please submit this feature request.
 
