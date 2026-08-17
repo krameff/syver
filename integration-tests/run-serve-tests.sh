@@ -32,19 +32,29 @@ find_open_port() {
 }
 
 cleanup() {
+  # MUST be the first statement in this function: $? still holds the script's
+  # real exit status here, and any command below would overwrite it. This was
+  # previously `exit "${ret:-0}"` with `ret` never assigned anywhere, so the
+  # trap unconditionally exited 0 and every serve-test failure was reported as
+  # a pass.
+  local ret=$?
+  local binary_name
   binary_name="$(basename "${SYVER_BINARY}")"
-  log_info "Killing goss serve process to clean up, exit code for tests was ${?}..."
+  log_info "Killing syver serve process to clean up, exit code for tests was ${ret}..."
+  # The kills must not change the outcome: if no process is left to reap,
+  # killall's non-zero status would otherwise become the script's exit code
+  # under `set -o errexit`, turning a clean run into a spurious failure.
   if [[ "${os}" == "darwin" ]]; then
-    killall "${binary_name}"
+    killall "${binary_name}" || true
   elif [[ "${os}" == "linux" ]]; then
-    killall "${binary_name}"
+    killall "${binary_name}" || true
   elif [[ "${os}" == "windows" ]]; then
     # Can't use killall, doesn't exist on Windows. Also would interfere with concurrent runs.
     ps -W |
       awk "/${binary_name}/,NF=1" |
-      xargs kill
+      xargs kill || true
   fi
-  exit "${ret:-0}"
+  exit "${ret}"
 }
 trap cleanup EXIT
 
@@ -101,4 +111,12 @@ assert_response_contains "${base_url}/healthz" "prometheus accept header" "goss_
 # /metrics - specific prometheus metrics endpoint
 assert_response_contains "${base_url}/metrics" "prometheus accept header" "goss_tests_outcomes_total" "" || on_test_failure
 
-[[ "${failure}" == "true" ]] && log_fatal "Test(s) failed, check output above."
+# Deliberately an `if` rather than `[[ ... ]] && log_fatal ...`: as an and-list,
+# a passing run leaves the failed `[[ ]]` as the script's last command, so the
+# script's natural exit status was 1 even when every assertion passed. That was
+# invisible only because the EXIT trap discarded it.
+if [[ "${failure}" == "true" ]]; then
+  log_fatal "Test(s) failed, check output above."
+fi
+log_success "All serve tests passed."
+exit 0
