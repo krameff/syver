@@ -1,47 +1,52 @@
 # Migration guide
 
+> For a side-by-side reference of exactly what changed between goss and Syver, plus the
+> longer list of what deliberately did not, see [goss vs Syver](goss-vs-syver.md).
+
 ## Coming from `goss-org/goss`
 
 This project is a fork of [`goss-org/goss`](https://github.com/goss-org/goss), now
-maintained at `github.com/krameff/syver`. The good news: your gossfiles don't need
-to change. Nothing about the syntax, resource types, matchers, or CLI flags is
-different — if it worked before, it still works.
+maintained at `github.com/krameff/syver`. **Your gossfiles don't need to change.**
+Syntax, resource types, matchers and CLI flags are all identical. If it worked
+before, it still works.
 
-What does change is where you get syver from:
+### What you need to change
 
-* **Installing manually or via script?** Grab it from the
-  [`krameff/syver` releases page](https://github.com/krameff/syver/releases), and use
-  the [`install.sh`](https://github.com/krameff/syver/blob/main/install.sh) from this
-  repo rather than `goss-org/goss` — see [Installation](installation.md) for details.
-* **Using the container image?** Pull `ghcr.io/krameff/syver` instead of the old
-  `aelsabbahy`/`goss-org` image.
-* **Importing syver as a Go library?** Update your import path to
-  `github.com/krameff/syver`.
+| If you | Change to |
+| --- | --- |
+| Install manually or by script | The [`krameff/syver` releases page](https://github.com/krameff/syver/releases) and this repo's [`install.sh`](https://github.com/krameff/syver/blob/main/install.sh). See [Installation](installation.md) |
+| Use the container image | `ghcr.io/krameff/syver`, replacing the old `aelsabbahy` / `goss-org` image |
+| Import syver as a Go library | `github.com/krameff/syver` |
 
-That's it — everything else carries over as-is.
+That's the whole list. Everything else carries over as-is.
 
-Worth knowing: this fork has also added a couple of features that don't
-currently exist in upstream `goss-org/goss` (at time of writing) —
-[discovery](gossfile.md#discovery) (run lightweight checks before the main
-suite and feed the results into templates) and
-[`depends-on`](gossfile.md#test-dependencies) (declare test prerequisites so
-dependents are skipped, not failed, when a prerequisite fails). Neither is
-required — existing gossfiles behave exactly as before — but they're there if
-you want them.
+### What this fork adds
 
-Also new here: the [`process`](gossfile.md#process) resource can now check
-`status` (e.g. catch zombie processes) and `user` (e.g. catch something
-running as root that shouldn't be), and the [`port`](gossfile.md#port)
-resource can check `pid` (which process owns a listening socket). Again,
-none of this is required — leave them out and nothing changes.
+None of these are required. Leave them out and nothing changes.
 
-Under the hood, this fork also swapped its process/port lookups from two
-unmaintained libraries (`goss-org/go-ps` and `goss-org/GOnetstat`) to the
-actively maintained `gopsutil`. This shouldn't be visible to you at all —
-gossfiles and output are unchanged — but it's why the two fields above were
-suddenly easy to add.
+| Addition | What it does |
+| --- | --- |
+| [discovery](gossfile.md#discovery) | Runs lightweight checks before the main suite and feeds results into templates |
+| [`depends-on`](gossfile.md#test-dependencies) | Declares test prerequisites, so dependents are skipped rather than failed |
+| [`process.status`](gossfile.md#process) | Catches zombie processes |
+| [`process.user`](gossfile.md#process) | Catches something running as root that shouldn't be |
+| [`port.pid`](gossfile.md#port) | Identifies which process owns a listening socket |
+
+Under the hood, process and port lookups moved from two unmaintained libraries
+(`goss-org/go-ps` and `goss-org/GOnetstat`) to the actively maintained `gopsutil`.
+That should be invisible to you, gossfiles and output are unchanged, but it is why
+the three resource fields above were straightforward to add.
 
 ## v4 migration
+
+Three breaking changes when moving from v0.3.x to v0.4.x. Check whether any apply
+before reading the detail below.
+
+| Change | Affects you if |
+| --- | --- |
+| Array matchers reject duplicates | You repeat the same value in an array, e.g. `user.groups` |
+| `rpm` reports the full EVR version | You pin exact rpm version strings |
+| `file.contains` renamed to `file.contents` | You use `file.contains` |
 
 ### Array matchers (e.g. user.groups) no longer allows duplicates
 
