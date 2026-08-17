@@ -1,6 +1,7 @@
 # Changelog
 
-## 0.7.0 based on v0.6.0
+## 0.7.0 based on krameff/goss v0.6.0 - Rename to Syver
+# Keeping versioning due to goss legacy compatability
 
 - syver_initial branch
   - `/metrics` now serves the `outputs` private registry, not the default global one
@@ -52,6 +53,10 @@
   - `build_images.sh` labels `image.title` and `rocks.goss.dockerfile-md5` renamed to syver
   - docker object names renamed: image `goss_<os>` -> `syver_<os>`, container `goss_int_test_*`, network `goss-test`
   - the `/goss` bind mount and the `goss/` fixture tree keep their names, matching the file-format rule
+  - `install.sh` takes `SYVER_VER`/`SYVER_DST`, still honouring `GOSS_VER`/`GOSS_DST`
+  - an exported-but-empty `SYVER_VER` falls through to `GOSS_VER` rather than shadowing it
+  - `docs/installation.md` manual-install block now names the `syver-<os>-<arch>` assets
+  - signing key updates
 
 ---
 
