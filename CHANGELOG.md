@@ -35,6 +35,13 @@
   - `ksyver` in-pod exec pointed at the files it actually stages
   - tests 282 -> 317
   - renamed docs, site branding (mkdocs.yml), and repo-hygiene references from goss to Syver
+  - wrappers now honour `SYVER_*` env vars too, same precedence as the binary
+  - `dgoss`, `dcgoss`, `kgoss` shims paired as well, so both names behave identically
+  - harness variables `GOSS_BINARY`/`GOSS_ARGS` -> `SYVER_BINARY`/`SYVER_ARGS`
+  - windows validate fixture repointed at `release\syver-windows-amd64`
+  - `docs/installation.md` checksum file corrected to `syver_<ver>_SHA256SUMS`
+  - new `docs/goss-vs-syver.md`: side-by-side comparison, linked from README and nav
+  - `docs/migrations.md` restructured into tables; content unchanged
 
 ---
 
