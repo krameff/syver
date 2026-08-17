@@ -27,7 +27,7 @@ You can manually install kgoss and goss by going through the Web UI, getting
 the files and putting them in the right path. To get each of them:
 
 * **kgoss**: Run `curl -sSLO
-  https://raw.githubusercontent.com/krameff/syver/main/extras/kgoss/kgoss`.
+  https://raw.githubusercontent.com/krameff/syver/main/extras/ksyver/kgoss`.
 * **goss**: Download a release archive such as `goss_0.5.0_linux_x86_64.tar.gz`
   from <https://github.com/krameff/syver/releases>, extract it, and rename the
   binary `goss`. Place it in your HOME directory, e.g. `C:\Users\<username>` on
@@ -59,7 +59,7 @@ repo=krameff/syver
 
 ## install kgoss
 curl -sSL -u "${username}:${token}" -H 'Accept: application/vnd.github.v3.raw' -o "${dest_dir}/kgoss" \
-  https://${host}/api/v3/repos/${repo}/contents/extras/kgoss/kgoss
+  https://${host}/api/v3/repos/${repo}/contents/extras/ksyver/kgoss
 chmod a+rx "${dest_dir}/kgoss"
 
 ## install goss

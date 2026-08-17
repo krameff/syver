@@ -127,22 +127,22 @@ arch: release/syver-linux-amd64
 	cd integration-tests/ && ./test.sh arch amd64
 
 dgoss-sha256:
-	cd extras/dgoss/ && sha256sum dgoss > dgoss.sha256
+	cd extras/dsyver/ && sha256sum dgoss > dgoss.sha256
 
 dcgoss-sha256:
-	cd extras/dcgoss/ && sha256sum dcgoss > dcgoss.sha256
+	cd extras/dcsyver/ && sha256sum dcgoss > dcgoss.sha256
 
 kgoss-sha256:
-	cd extras/kgoss/ && sha256sum kgoss > kgoss.sha256
+	cd extras/ksyver/ && sha256sum kgoss > kgoss.sha256
 
 dsyver-sha256:
-	cd extras/dgoss/ && sha256sum dsyver > dsyver.sha256
+	cd extras/dsyver/ && sha256sum dsyver > dsyver.sha256
 
 dcsyver-sha256:
-	cd extras/dcgoss/ && sha256sum dcsyver > dcsyver.sha256
+	cd extras/dcsyver/ && sha256sum dcsyver > dcsyver.sha256
 
 ksyver-sha256:
-	cd extras/kgoss/ && sha256sum ksyver > ksyver.sha256
+	cd extras/ksyver/ && sha256sum ksyver > ksyver.sha256
 
 .PHONY: lint-yaml
 lint-yaml:
@@ -163,6 +163,14 @@ test-discovery-e2e:
 test-depends-on-e2e:
 	$(info INFO: Starting $@)
 	./ci/depends-on-e2e.sh
+
+.PHONY: test-dcsyver-e2e
+# Deliberately NOT in `check` or `pre-push`: it needs a compose provider, which
+# not every dev machine has. It skips cleanly without one -- and note a skip
+# exits 0 but is NOT a pass. CI runs it via .github/workflows/dcsyver-tests.yaml.
+test-dcsyver-e2e:
+	$(info INFO: Starting $@)
+	./ci/dcsyver-e2e.sh
 
 .PHONY: test-security
 test-security:

@@ -33,9 +33,9 @@ The binary is written under `dist/` (for example `dist/goss_linux_amd64_v1/goss`
 
 ## dgoss and other wrappers
 
-* [dgoss](../extras/dgoss/README.md) — run goss against Docker/Podman containers
-* [kgoss](../extras/kgoss/README.md) — Kubernetes wrapper
-* [dcgoss](../extras/dcgoss/README.md) — Docker Compose wrapper
+* [dgoss](../extras/dsyver/README.md) — run goss against Docker/Podman containers
+* [kgoss](../extras/ksyver/README.md) — Kubernetes wrapper
+* [dcgoss](../extras/dcsyver/README.md) — Docker Compose wrapper
 
 ## Release binaries
 

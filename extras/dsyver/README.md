@@ -28,7 +28,7 @@ Since goss runs on the target container, dgoss can be used on a Mac OSX system b
 
 ```shell
 # Install dgoss
-curl -L https://raw.githubusercontent.com/krameff/syver/main/extras/dgoss/dgoss -o /usr/local/bin/dgoss
+curl -L https://raw.githubusercontent.com/krameff/syver/main/extras/dsyver/dgoss -o /usr/local/bin/dgoss
 chmod +rx /usr/local/bin/dgoss
 
 # Download desired goss version to your preferred location (e.g. v0.5.0)
