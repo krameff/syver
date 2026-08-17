@@ -91,6 +91,7 @@ never shadows a real `GOSS_*`.
 | Precedence | n/a | `SYVER_*` first, `GOSS_*` fallback |
 | Number paired | n/a | All 16, e.g. `_FILE`, `_VARS`, `_FMT`, `_LOGLEVEL`, `_SLEEP` |
 | Wrapper script variables | `GOSS_*` only | Both, same precedence rule |
+| `install.sh` variables | `GOSS_VER`, `GOSS_DST` | `SYVER_VER`, `SYVER_DST`, with the `GOSS_*` names still honoured |
 
 ---
 
