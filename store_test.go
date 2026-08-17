@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -408,6 +409,70 @@ func Test_syverfileAlias_WrongTypeSurfacesSameErrorClassAsGossfile(t *testing.T)
 	require := assert.New(t)
 	require.Error(gossErr, "malformed gossfile: entry should fail to decode")
 	require.Error(syverErr, "malformed syverfile: entry should fail to decode the same way")
+}
+
+// resetStdinOnce clears the package-level stdin buffer/guard so each test
+// gets its own fresh sync.Once, and restores os.Stdin afterwards. Follows
+// this file's existing pattern of directly manipulating package vars for
+// test isolation (see TestStaticStoreErrors below).
+func resetStdinOnce(t *testing.T) {
+	t.Helper()
+	origStdin := os.Stdin
+	stdinOnce = sync.Once{}
+	stdinData, stdinErr = nil, nil
+	t.Cleanup(func() {
+		os.Stdin = origStdin
+		stdinOnce = sync.Once{}
+		stdinData, stdinErr = nil, nil
+	})
+}
+
+// Test_readStdinOnce_ReturnsSameBytesOnRepeatedCalls covers BUG-001
+// Symptom 1: loadSyverConfigWithDiscover reads a "-" spec twice per validate
+// invocation (peek, then the real load). os.Stdin is a non-seekable stream,
+// so a naive double io.ReadAll would return the real data once and 0 bytes
+// on the second call. readStdinOnce must return the same bytes both times.
+func Test_readStdinOnce_ReturnsSameBytesOnRepeatedCalls(t *testing.T) {
+	resetStdinOnce(t)
+
+	r, w, err := os.Pipe()
+	assert.NoError(t, err)
+	os.Stdin = r
+
+	want := []byte("file:\n  /etc/hosts:\n    exists: true\n")
+	go func() {
+		_, _ = w.Write(want)
+		_ = w.Close()
+	}()
+
+	got1, err1 := readStdinOnce()
+	assert.NoError(t, err1)
+	assert.Equal(t, want, got1)
+
+	// Second call must NOT touch the (now exhausted) pipe again -- it must
+	// replay the buffered bytes, not return io.EOF/empty bytes.
+	got2, err2 := readStdinOnce()
+	assert.NoError(t, err2)
+	assert.Equal(t, want, got2, "second call must return the same bytes, not an empty EOF read")
+}
+
+// Test_readStdinOnce_ReturnsSameErrorOnRepeatedCalls covers the negative
+// path: if the underlying read fails once, the same error must be preserved
+// on every subsequent call, not silently swallowed to nil on the second.
+func Test_readStdinOnce_ReturnsSameErrorOnRepeatedCalls(t *testing.T) {
+	resetStdinOnce(t)
+
+	r, _, err := os.Pipe()
+	assert.NoError(t, err)
+	assert.NoError(t, r.Close()) // closed before any read -- forces io.ReadAll to error
+	os.Stdin = r
+
+	_, err1 := readStdinOnce()
+	assert.Error(t, err1)
+
+	_, err2 := readStdinOnce()
+	assert.Error(t, err2)
+	assert.Equal(t, err1.Error(), err2.Error(), "second call must preserve the same error, not silently return nil")
 }
 
 func TestStaticStoreErrors(t *testing.T) {

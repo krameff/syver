@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
+	"sync"
 
 	"dario.cat/mergo"
 	yamlv2 "gopkg.in/yaml.v2"
@@ -28,6 +30,45 @@ const (
 var outStoreFormat = UNSET
 var currentTemplateFilter TemplateFilter
 var debug = false
+
+// quietDecode suppresses non-essential decode-time logging (currently: the
+// gossfile:/syverfile: alias-collision WARN in ReadJSONData below) for a
+// single loadSyverConfig call. loadSyverConfigWithDiscover (discovery_load.go)
+// decodes every spec at least twice per validate invocation -- once as a
+// "peek" purely to inspect Discovery, once for the real, used result -- see
+// BUG-001 for the full trace. The peek's SyverConfig result (including any
+// alias-collision resolution) is never observed by the caller, so it is
+// correct, not just convenient, for the peek pass to resolve collisions
+// silently and let the real load's WARN be the only one that surfaces.
+// Set at the top of loadSyverConfig based on its own peek parameter, and
+// reset via defer -- see loadSyverConfig for where this is set. Like
+// outStoreFormat and debug, this assumes loadSyverConfig is never called
+// concurrently from multiple goroutines within one process, which matches
+// how this CLI actually uses it today (one validate invocation, one
+// sequential peek-then-load per spec, no goroutines in the loading phase).
+var quietDecode = false
+
+var (
+	stdinData []byte
+	stdinErr  error
+	stdinOnce sync.Once
+)
+
+// readStdinOnce reads os.Stdin exactly once, no matter how many times it is
+// called, and returns the same bytes (or the same error) on every call.
+// os.Stdin is a non-seekable stream -- a naive io.ReadAll(os.Stdin) on every
+// "-" load returns the real data on the first call and 0 bytes on every call
+// after, because the stream is already exhausted. validate's load path reads
+// the spec twice per invocation (once via getSyverConfigPeek to check for a
+// discovery: section, once via the real load) -- see BUG-001 for the full
+// trace. Buffering here, once, fixes both callers without restructuring the
+// peek/load sequencing in discovery_load.go.
+func readStdinOnce() ([]byte, error) {
+	stdinOnce.Do(func() {
+		stdinData, stdinErr = io.ReadAll(os.Stdin)
+	})
+	return stdinData, stdinErr
+}
 
 var (
 	errCannotDetermineFormat = errors.New("unable to determine format from content")
@@ -217,7 +258,9 @@ func ReadJSONData(data []byte, detectFormat bool) (SyverConfig, error) {
 	// already present.
 	for k, v := range syverConfig.SyverfileAlias {
 		if _, dup := syverConfig.Syverfiles[k]; dup {
-			log.Printf("[WARN] %q declared under both gossfile: and syverfile:", k)
+			if !quietDecode {
+				log.Printf("[WARN] %q declared under both gossfile: and syverfile:", k)
+			}
 			continue
 		}
 		syverConfig.Syverfiles[k] = v
