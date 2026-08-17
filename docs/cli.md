@@ -34,9 +34,16 @@ GLOBAL OPTIONS:
 ## Global options
 
 `--syverfile/--gossfile/-g <syverfile>`
-:   The file to use when reading/writing tests (`gossfile:` is the alias kept for
-    backwards compatibility). Use `--syverfile -`, `--gossfile -`, or `-g -` to
-    read from `STDIN`. When unset, the first of `syver.yaml`, `syver.yml`,
+:   The file to use when reading/writing tests. This flag controls the
+    **CLI file path** (which file syver opens); it is unrelated to the
+    **YAML import key** inside that file. Note the two use the same two
+    names for different purposes: at the CLI level `--syverfile` is the
+    primary flag and `--gossfile`/`-g` are aliases of it; inside the
+    YAML/JSON content itself, the reverse is true: `gossfile:` is the
+    canonical, emitted import key, and `syverfile:` is an input-only
+    alias for it, folded in at decode time and never written back out by
+    `render`. Use `--syverfile -`, `--gossfile -`, or `-g -` to read from
+    `STDIN`. When unset, the first of `syver.yaml`, `syver.yml`,
     `goss.yaml`, `goss.yml` found in the current directory is used; if none
     exist, `add`/`autoadd` create `./syver.yaml`.
 
@@ -348,7 +355,8 @@ Exits with status 0 on success, non-0 otherwise.
 `--discover <gossfile>`
 :   Gossfile containing `discovery:` tests to run before the main `-g` gossfile. Results are
     injected as `.Discovered` for template rendering. When the main gossfile also has an inline
-    `discovery:` section, the `--discover` file wins. Environment variable: `GOSS_DISCOVER`.
+    `discovery:` section, the `--discover` file wins. Environment variables:
+    `SYVER_DISCOVER`, `GOSS_DISCOVER` (checked in that order).
 
     See [discovery](gossfile.md#discovery).
 
