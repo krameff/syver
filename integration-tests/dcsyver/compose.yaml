@@ -1,0 +1,18 @@
+# Minimal compose fixture for exercising dcsyver / dcgoss.
+#
+# Deliberately tiny: one alpine service that just stays alive long enough to be
+# exec'd into. This is a test rig, not a demo -- extras/dcsyver/docker-compose.yml
+# is the (heavier, WordPress) example that ships as documentation.
+#
+# Two things about this file are deliberate:
+#   * It is named compose.yaml, the modern v2 name, so it exercises the
+#     compose-file detection path FEAT-004 added. The older
+#     docker-compose.yaml/.yml names were already covered.
+#   * It has no top-level `version:` key. Compose v2 treats that attribute as
+#     obsolete and warns on every invocation; omitting it keeps output clean.
+services:
+  syver-target:
+    image: alpine:3
+    # Long enough for a full run, short enough that a leaked container reaps
+    # itself rather than lingering on a shared test host.
+    command: ["sleep", "300"]

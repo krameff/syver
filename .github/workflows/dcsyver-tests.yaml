@@ -1,0 +1,60 @@
+name: Compose wrapper tests (dcsyver)
+
+# Nothing else in the suite covers the compose wrappers: the docker matrix
+# exercises the bare binary inside a container, and the discovery/depends-on e2e
+# scripts exercise it on the host. That gap is exactly how the stdin double-read
+# defect (BUG-001) survived unnoticed -- dcsyver could not execute a single test,
+# and no job would have said so.
+#
+# Enabled on push/PR as of 2026-08-17, once BUG-001 was fixed and this job was
+# verified passing end-to-end against a real Compose v2 provider. Path-filtered,
+# so it only runs when the wrappers, their fixture, or the runner change.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'extras/dcsyver/**'
+      - 'integration-tests/dcsyver/**'
+      - 'ci/dcsyver-e2e.sh'
+  pull_request:
+    paths:
+      - 'extras/dcsyver/**'
+      - 'integration-tests/dcsyver/**'
+      - 'ci/dcsyver-e2e.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  dcsyver-e2e:
+    name: dcsyver end-to-end against a compose service
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # ubuntu-latest ships Docker with the v2 compose plugin. Printed so a
+      # failure caused by a runner image change is obvious in the log rather
+      # than looking like a code regression.
+      - name: Show compose provider
+        run: |
+          docker --version
+          docker compose version
+
+      - name: Build release binary
+        run: make release/syver-linux-amd64
+
+      - name: Run dcsyver end-to-end
+        run: make test-dcsyver-e2e
+
+      - name: Show leftover containers on failure
+        if: failure()
+        run: |
+          docker ps -a
+          docker network ls
