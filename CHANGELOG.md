@@ -42,6 +42,16 @@
   - `docs/installation.md` checksum file corrected to `syver_<ver>_SHA256SUMS`
   - new `docs/goss-vs-syver.md`: side-by-side comparison, linked from README and nav
   - `docs/migrations.md` restructured into tables; content unchanged
+  - serve integration tests now report failures: `cleanup()` captured no exit code, so every failure passed
+  - same script's `[[ ]] && log_fatal` tail meant a passing run's natural status was 1, also masked
+  - `killall` in that trap guarded, so reaping nothing cannot fail a clean run
+  - Go toolchain 1.26.5 -> 1.26.6 for the stdlib fixes; `go.mod`/`go.sum` already tidy
+  - `install.sh` wrapper branch `master` -> `main`; the old value 404'd unless `GOSS_VER` was pinned
+  - `install.sh` now installs `dsyver`, keeping `dgoss` alongside as a shim
+  - dead `Dockerfile_*.md5` cache branch removed from `test.sh`; no such file ever existed
+  - `build_images.sh` labels `image.title` and `rocks.goss.dockerfile-md5` renamed to syver
+  - docker object names renamed: image `goss_<os>` -> `syver_<os>`, container `goss_int_test_*`, network `goss-test`
+  - the `/goss` bind mount and the `goss/` fixture tree keep their names, matching the file-format rule
 
 ---
 
