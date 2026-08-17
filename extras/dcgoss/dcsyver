@@ -20,18 +20,11 @@ done
 unset _syver_var _syver_src
 # --------------------------------------------------------------------------
 
-USAGE="USAGE: $(basename "$0") [run|edit] <docker-compose-service>"
+USAGE="USAGE: $(basename "$0") [run|edit] <compose-service>"
 GOSS_FILES_PATH="${GOSS_FILES_PATH:-.}"
 
 # Container runtime (docker client calls)
 CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
-# Compose binary -- implemented but UNVERIFIED on this machine: no
-# podman-compose / podman compose provider is installed here to test
-# against (podman-only dev sandbox, no compose provider; the remote docker
-# test host has only the v2 `docker compose` plugin, no `docker-compose` v1
-# binary either). See FEAT-004 (.claude/tasks/FEAT-004-compose-v2-migration.md)
-# for the actual v2 migration + verification against vagrant@<test-host>.
-COMPOSE_BIN="${COMPOSE_BIN:-docker-compose}"
 
 info() {
     echo -e "INFO: $*" >&2;
@@ -46,13 +39,16 @@ cleanup() {
     set +e
     { kill "$log_pid" && wait "$log_pid"; } 2> /dev/null
     [ "$DEBUG" ] || rm -rf "$tmp_dir"
-    if [[ -n "$service" ]]; then
+    # COMPOSE_BIN may still be unresolved here if cleanup() fires (via the
+    # EXIT trap) before Main ever reaches compose-provider detection --
+    # e.g. the "no compose file found" gate exits first. Guard on it being
+    # populated so that early-exit case doesn't try to run a bare "stop".
+    if [[ -n "$service" && ${#COMPOSE_BIN[@]} -gt 0 ]]; then
         info "Stopping container"
-        # NOTE: COMPOSE_BIN defaults to the standalone v1 `docker-compose`
-        # binary, not the v2 `docker compose` plugin form -- see the
-        # COMPOSE_BIN comment near the top of this file for why this half
-        # is unverified and deferred to FEAT-004.
-        $COMPOSE_BIN stop > /dev/null
+        # Uses the v2 `docker compose` plugin by default, with a v1
+        # `docker-compose` fallback -- see FEAT-004 for the migration and
+        # the remote-host verification that confirmed it.
+        "${COMPOSE_BIN[@]}" stop > /dev/null
     fi
 }
 
@@ -97,15 +93,17 @@ run(){
     case "$GOSS_FILES_STRATEGY" in
       mount)
         info "Starting $CONTAINER_RUNTIME container"
-        # NOTE: COMPOSE_BIN call, unverified locally -- see the comment on
-        # the stop call in cleanup() above.
-        $COMPOSE_BIN run -d -T --name "$service" -v "$tmp_dir:/syver" --rm "${@:2}"
+        # Uses the v2 `docker compose` plugin by default, with a v1
+        # `docker-compose` fallback -- see FEAT-004 for the migration and
+        # the remote-host verification that confirmed it.
+        "${COMPOSE_BIN[@]}" run -d -T --name "$service" -v "$tmp_dir:/syver" --rm "${@:2}"
         ;;
       cp)
         info "Creating $CONTAINER_RUNTIME container"
-        # NOTE: COMPOSE_BIN call, unverified locally -- see the comment on
-        # the stop call in cleanup() above.
-        $COMPOSE_BIN run -d -T --name "$service" --rm "${@:2}" > /dev/null
+        # Uses the v2 `docker compose` plugin by default, with a v1
+        # `docker-compose` fallback -- see FEAT-004 for the migration and
+        # the remote-host verification that confirmed it.
+        "${COMPOSE_BIN[@]}" run -d -T --name "$service" --rm "${@:2}" > /dev/null
         info "Copy goss files into container"
         $CONTAINER_RUNTIME cp "$tmp_dir/." "$service:/syver"
         ;;
@@ -134,9 +132,30 @@ chmod 777 "$tmp_dir"
 trap 'ret=$?; cleanup; info "Test ran for a total of $SECONDS seconds"; exit $ret' EXIT
 service="$2"
 
-if [[ ! -f docker-compose.yaml && ! -f docker-compose.yml ]]; then
-    echo "no docker-compose file found in ."
+if [[ ! -f compose.yaml && ! -f compose.yml && ! -f docker-compose.yaml && ! -f docker-compose.yml ]]; then
+    echo "no compose file found in ."
     exit 1
+fi
+
+# Compose provider: prefer the v2 plugin ("docker compose"), fall back to
+# the legacy v1 binary ("docker-compose") if the plugin is absent. Two
+# words, so this is a bash array, not a scalar -- see extras/dcgoss/dcsyver
+# (FEAT-004) for why.
+#
+# Deliberately placed after the compose-file existence check above (not
+# before service="$2" as first sketched) so a directory with neither a
+# compose file nor a compose provider gets the friendlier "no compose file
+# found" message instead of a provider-detection error -- see FEAT-004
+# Assumptions & Open Questions for the ordering trade-off.
+if [ -n "${COMPOSE_BIN:-}" ]; then
+    # shellcheck disable=SC2206
+    read -ra COMPOSE_BIN <<< "$COMPOSE_BIN"
+elif docker compose version > /dev/null 2>&1; then
+    COMPOSE_BIN=(docker compose)
+elif command -v docker-compose > /dev/null 2>&1; then
+    COMPOSE_BIN=(docker-compose)
+else
+    error "No Docker Compose provider found (checked the 'docker compose' plugin and the legacy 'docker-compose' binary). Install one, or set COMPOSE_BIN explicitly."
 fi
 
 state=$($CONTAINER_RUNTIME inspect --format '{{.State.Status}}' "$service" 2> /dev/null || true)
