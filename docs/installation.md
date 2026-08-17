@@ -45,16 +45,19 @@ The supported install path is:
 curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh
 ```
 
-Release assets are raw, uncompressed binaries named `goss-<os>-<arch>`
-(for example `goss-linux-amd64`; Windows builds are named `goss-windows-amd64.exe`).
+Release assets are raw, uncompressed binaries named `syver-<os>-<arch>`
+(for example `syver-linux-amd64`; Windows builds are named `syver-windows-amd64.exe`).
+Legacy `goss-<os>-<arch>` assets are published alongside them for one major
+version, so existing download URLs keep resolving.
+
 To install manually from a GitHub release:
 
 ```bash
-GOSS_VER=v0.5.0
-curl -L "https://github.com/krameff/syver/releases/download/${GOSS_VER}/goss-linux-amd64" \
-  -o /tmp/goss
-sudo mv /tmp/goss /usr/local/bin/goss
-chmod +rx /usr/local/bin/goss
+SYVER_VER=v0.5.0
+curl -L "https://github.com/krameff/syver/releases/download/${SYVER_VER}/syver-linux-amd64" \
+  -o /tmp/syver
+sudo mv /tmp/syver /usr/local/bin/syver
+chmod +rx /usr/local/bin/syver
 ```
 
 Adjust the version, OS, and architecture in the filename as needed (`amd64`,
@@ -71,14 +74,14 @@ as [`krameff-goss-key.asc`](../krameff-goss-key.asc) at the repo root and
 attached to every release).
 
 ```bash
-GOSS_VER=v0.5.0
+SYVER_VER=v0.5.0
 
 # import the signing key once
 curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-goss-key.asc | gpg --import
 
 # download the checksum file and its signature from the release page, then:
-gpg --verify syver_${GOSS_VER#v}_SHA256SUMS.sig syver_${GOSS_VER#v}_SHA256SUMS
-sha256sum -c syver_${GOSS_VER#v}_SHA256SUMS
+gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.sig syver_${SYVER_VER#v}_SHA256SUMS
+sha256sum -c syver_${SYVER_VER#v}_SHA256SUMS
 ```
 
 A `gpg --verify` output of `Good signature from "Krameff Solutions Limited..."`
