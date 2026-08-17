@@ -2,19 +2,19 @@
 /main
 *.bak
 .vscode
-/goss
+/syver
 /release
 /dist
 /linux
-/integration-tests/goss/goss
 /integration-tests/**/*-generated*
 /vendor/
-/integration-tests/**/goss-linux-386
-/integration-tests/**/goss-linux-amd64
+/integration-tests/**/syver-linux-386
+/integration-tests/**/syver-linux-amd64
 
 # Random stuff for my local testing/development that I don't want checked in
 tmp/
 /goss.yaml
+/syver.yaml
 
 /.idea
 

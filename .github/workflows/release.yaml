@@ -24,7 +24,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - run: make dgoss-sha256 dcgoss-sha256 kgoss-sha256
+      - run: make dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256
 
       - name: Set up Go
         uses: actions/setup-go@v7.0.0

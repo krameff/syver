@@ -1,4 +1,4 @@
-name: Docker image for Goss
+name: Docker image for Syver
 
 on:
   push:
@@ -11,7 +11,7 @@ env:
   PLATFORMS: "linux/amd64,linux/arm64"
 
 jobs:
-  goss:
+  syver:
     name: Build and push Docker image
     runs-on: ubuntu-latest
     permissions:
@@ -50,7 +50,7 @@ jobs:
         uses: docker/metadata-action@v6.2.0
         with:
           images: |
-            ghcr.io/${{ github.repository_owner }}/goss
+            ghcr.io/${{ github.repository_owner }}/syver
 
       - name: Build goss binaries
         uses: goreleaser/goreleaser-action@v7
@@ -81,7 +81,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/goss:main
+            ghcr.io/${{ github.repository_owner }}/syver:main
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ env.PLATFORMS }}
 
@@ -93,7 +93,7 @@ jobs:
           file: Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/goss:devel
+            ghcr.io/${{ github.repository_owner }}/syver:devel
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ env.PLATFORMS }}
 
@@ -101,7 +101,7 @@ jobs:
         if: github.ref_name == 'main'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/goss:main
+          image-ref: ghcr.io/${{ github.repository_owner }}/syver:main
           format: sarif
           output: trivy-main-results.sarif
 
@@ -109,7 +109,7 @@ jobs:
         if: github.ref_name == 'devel'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/goss:devel
+          image-ref: ghcr.io/${{ github.repository_owner }}/syver:devel
           format: sarif
           output: trivy-devel-results.sarif
 
