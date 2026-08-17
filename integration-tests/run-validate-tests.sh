@@ -17,8 +17,8 @@ if [[ "${os}" == "linux" && "${arch}" == "amd64" ]]; then
 fi
 
 repo_root="$(git rev-parse --show-toplevel)"
-export GOSS_BINARY="${repo_root}/release/syver-${platform_spec}"
-log_info "Using: '${GOSS_BINARY}', cwd: '$(pwd)', os: ${os}"
+export SYVER_BINARY="${repo_root}/release/syver-${platform_spec}"
+log_info "Using: '${SYVER_BINARY}', cwd: '$(pwd)', os: ${os}"
 
 export GOSS_USE_ALPHA=1
 # Prefer a platform-spec directory (e.g. darwin-arm64/) over an os-only directory (e.g. darwin/)
@@ -34,6 +34,6 @@ for file in $(find integration-tests -type f -name "*.goss.yaml" | grep "/${sear
     "-g=${file}"
     "validate"
   )
-  log_action "\nTesting \`${GOSS_BINARY} ${args[*]}\` ...\n"
-  "${GOSS_BINARY}" "${args[@]}"
+  log_action "\nTesting \`${SYVER_BINARY} ${args[*]}\` ...\n"
+  "${SYVER_BINARY}" "${args[@]}"
 done

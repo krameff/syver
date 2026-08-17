@@ -14,8 +14,8 @@ if [[ "${segments[0]}" == "alpha" ]]; then
 fi
 
 repo_root="$(git rev-parse --show-toplevel)"
-export GOSS_BINARY="${repo_root}/release/syver-${platform_spec}"
-log_info "Using: '${GOSS_BINARY}', cwd: '$(pwd)', os: ${os}"
+export SYVER_BINARY="${repo_root}/release/syver-${platform_spec}"
+log_info "Using: '${SYVER_BINARY}', cwd: '$(pwd)', os: ${os}"
 readarray -t goss_test_files < <(find integration-tests -type f -name "*.goss.yaml" | grep "${os}" | sort | uniq)
 
 export GOSS_USE_ALPHA=1
@@ -24,6 +24,6 @@ for file in "${goss_test_files[@]}"; do
     "-g=${file}"
     "validate"
   )
-  log_action -e "\nTesting \`${GOSS_BINARY} ${args[*]}\` ...\n"
-  "${GOSS_BINARY}" "${args[@]}"
+  log_action -e "\nTesting \`${SYVER_BINARY} ${args[*]}\` ...\n"
+  "${SYVER_BINARY}" "${args[@]}"
 done

@@ -32,7 +32,7 @@ find_open_port() {
 }
 
 cleanup() {
-  binary_name="$(basename "${GOSS_BINARY}")"
+  binary_name="$(basename "${SYVER_BINARY}")"
   log_info "Killing goss serve process to clean up, exit code for tests was ${?}..."
   if [[ "${os}" == "darwin" ]]; then
     killall "${binary_name}"
@@ -49,8 +49,8 @@ cleanup() {
 trap cleanup EXIT
 
 repo_root="$(git rev-parse --show-toplevel)"
-export GOSS_BINARY="${repo_root}/release/syver-${platform_spec}"
-log_info "Using: '${GOSS_BINARY}', cwd: '$(pwd)'"
+export SYVER_BINARY="${repo_root}/release/syver-${platform_spec}"
+log_info "Using: '${SYVER_BINARY}', cwd: '$(pwd)'"
 
 export GOSS_USE_ALPHA=1
 open_port="$(find_open_port 1025 65335)"
@@ -60,8 +60,8 @@ args=(
   "serve"
   "--listen-addr=127.0.0.1:${open_port}"
 )
-log_action "\nTesting \`${GOSS_BINARY} ${args[*]}\` ...\n"
-"${GOSS_BINARY}" "${args[@]}" &
+log_action "\nTesting \`${SYVER_BINARY} ${args[*]}\` ...\n"
+"${SYVER_BINARY}" "${args[@]}" &
 base_url="http://127.0.0.1:${open_port}"
 [[ "$(go env GOOS)" == "darwin" ]] && sleep 2
 
