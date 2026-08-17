@@ -6,12 +6,22 @@ set -e
 USAGE="USAGE: $(basename "$0") [run|edit] <docker-compose-service>"
 GOSS_FILES_PATH="${GOSS_FILES_PATH:-.}"
 
+# Container runtime (docker client calls)
+CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-docker}"
+# Compose binary -- implemented but UNVERIFIED on this machine: no
+# podman-compose / podman compose provider is installed here to test
+# against (podman-only dev sandbox, no compose provider; the remote docker
+# test host has only the v2 `docker compose` plugin, no `docker-compose` v1
+# binary either). See FEAT-004 (.claude/tasks/FEAT-004-compose-v2-migration.md)
+# for the actual v2 migration + verification against vagrant@172.16.20.167.
+COMPOSE_BIN="${COMPOSE_BIN:-docker-compose}"
+
 info() {
     echo -e "INFO: $*" >&2;
 }
 error() {
     echo -e "ERROR: $*" >&2;
-    [[ -e "$service" ]] && docker logs "$service"
+    [[ -e "$service" ]] && $CONTAINER_RUNTIME logs "$service"
     exit 1;
 }
 
@@ -21,16 +31,11 @@ cleanup() {
     [ "$DEBUG" ] || rm -rf "$tmp_dir"
     if [[ -n "$service" ]]; then
         info "Stopping container"
-        # NOTE: calls the standalone v1 `docker-compose` binary, not the v2
-        # `docker compose` plugin form. Neither is installed in this repo's
-        # dev sandbox (podman-only, no compose provider) nor confirmed on
-        # the remote docker test host (v2 plugin only, no `docker-compose`
-        # binary there either) as of 2026-08-16, so this call path could
-        # not be verified end-to-end in either environment available to
-        # this build. Left as-is rather than silently guessing at a v2
-        # rewrite -- see FEAT-002 for the docker-client parameterization
-        # this file is a candidate for.
-        docker-compose stop > /dev/null
+        # NOTE: COMPOSE_BIN defaults to the standalone v1 `docker-compose`
+        # binary, not the v2 `docker compose` plugin form -- see the
+        # COMPOSE_BIN comment near the top of this file for why this half
+        # is unverified and deferred to FEAT-004.
+        $COMPOSE_BIN stop > /dev/null
     fi
 }
 
@@ -46,33 +51,33 @@ run(){
     GOSS_FILES_STRATEGY=${GOSS_FILES_STRATEGY:="mount"}
     case "$GOSS_FILES_STRATEGY" in
       mount)
-        info "Starting docker container"
-        # NOTE: v1 `docker-compose` binary call, unverified locally -- see
-        # the comment on the `docker-compose stop` call in cleanup() above.
-        docker-compose run -d -T --name "$service" -v "$tmp_dir:/goss" --rm "${@:2}"
+        info "Starting $CONTAINER_RUNTIME container"
+        # NOTE: COMPOSE_BIN call, unverified locally -- see the comment on
+        # the stop call in cleanup() above.
+        $COMPOSE_BIN run -d -T --name "$service" -v "$tmp_dir:/goss" --rm "${@:2}"
         ;;
       cp)
-        info "Creating docker container"
-        # NOTE: v1 `docker-compose` binary call, unverified locally -- see
-        # the comment on the `docker-compose stop` call in cleanup() above.
-        docker-compose run -d -T --name "$service" --rm "${@:2}" > /dev/null
+        info "Creating $CONTAINER_RUNTIME container"
+        # NOTE: COMPOSE_BIN call, unverified locally -- see the comment on
+        # the stop call in cleanup() above.
+        $COMPOSE_BIN run -d -T --name "$service" --rm "${@:2}" > /dev/null
         info "Copy goss files into container"
-        docker cp "$tmp_dir/." "$service:/goss"
+        $CONTAINER_RUNTIME cp "$tmp_dir/." "$service:/goss"
         ;;
       *) error "Wrong goss files strategy used! Correct options are \"mount\" or \"cp\"."
     esac
 
-    docker logs -f "$service" > "$tmp_dir/docker_output.log" 2>&1 &
+    $CONTAINER_RUNTIME logs -f "$service" > "$tmp_dir/docker_output.log" 2>&1 &
     log_pid="$!"
     info "Container name: $service"
 }
 
 get_docker_file() {
     set +e
-    if docker exec "$service" sh -c "test -e $1" > /dev/null; then
+    if $CONTAINER_RUNTIME exec "$service" sh -c "test -e $1" > /dev/null; then
         mkdir -p "${GOSS_FILES_PATH}"
         info "Copied '$1' from container to '${GOSS_FILES_PATH}'"
-        docker cp "$service:$1" "${GOSS_FILES_PATH}"
+        $CONTAINER_RUNTIME cp "$service:$1" "${GOSS_FILES_PATH}"
     fi
     set -e
 }
@@ -89,11 +94,11 @@ if [[ ! -f docker-compose.yaml && ! -f docker-compose.yml ]]; then
     exit 1
 fi
 
-state=$(docker inspect --format '{{.State.Status}}' "$service" 2> /dev/null || true)
+state=$($CONTAINER_RUNTIME inspect --format '{{.State.Status}}' "$service" 2> /dev/null || true)
 if [[ "$state" == running ]]; then
-    docker rm -f "$service" > /dev/null
+    $CONTAINER_RUNTIME rm -f "$service" > /dev/null
 elif [[ "$state" == exited ]]; then
-    docker rm "$service" > /dev/null
+    $CONTAINER_RUNTIME rm "$service" > /dev/null
 fi
 
 # Auto-discovery prefers `syver` (the current binary name) and falls back
@@ -106,6 +111,8 @@ GOSS_PATH="${GOSS_PATH:-$(command -v syver 2> /dev/null || command -v goss 2> /d
 [[ "${GOSS_WAIT_OPTS+x}" ]] || GOSS_WAIT_OPTS="-r 30s -s 1s > /dev/null"
 GOSS_SLEEP="${GOSS_SLEEP:-0.2}"
 
+[[ $CONTAINER_RUNTIME =~ ^(docker|podman)$ ]] || { error "Runtime must be one of docker or podman"; }
+
 case "$1" in
     run)
         run "$@"
@@ -113,30 +120,30 @@ case "$1" in
         if [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]]; then
             info "Found goss_wait.yaml, waiting for it to pass before running tests"
             if [[ -z "${GOSS_VARS}" ]]; then
-                if ! docker exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
+                if ! $CONTAINER_RUNTIME exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
                     error "goss_wait.yaml never passed"
                 fi
             else
-                if ! docker exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml --vars='/goss/${GOSS_VARS}' render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
+                if ! $CONTAINER_RUNTIME exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml --vars='/goss/${GOSS_VARS}' render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
                     error "goss_wait.yaml never passed"
                 fi
             fi
         fi
         info "Container health"
-        if [ "true" != "$(docker inspect -f '{{.State.Running}}' $service)" ]; then
+        if [ "true" != "$($CONTAINER_RUNTIME inspect -f '{{.State.Running}}' $service)" ]; then
             error "The container failed to start"
         fi
         info "Running Tests"
         if [[ -z "${GOSS_VARS}" ]]; then
-            docker exec "$service" sh -c "/goss/goss -g /goss/${GOSS_FILE:-goss.yaml} render | /goss/goss -g - validate $GOSS_OPTS"
+            $CONTAINER_RUNTIME exec "$service" sh -c "/goss/goss -g /goss/${GOSS_FILE:-goss.yaml} render | /goss/goss -g - validate $GOSS_OPTS"
         else
-            docker exec "$service" sh -c "/goss/goss -g /goss/${GOSS_FILE:-goss.yaml} --vars='/goss/${GOSS_VARS}' render | /goss/goss -g - validate $GOSS_OPTS"
+            $CONTAINER_RUNTIME exec "$service" sh -c "/goss/goss -g /goss/${GOSS_FILE:-goss.yaml} --vars='/goss/${GOSS_VARS}' render | /goss/goss -g - validate $GOSS_OPTS"
         fi
         ;;
     edit)
         run "$@"
         info "Run goss add/autoadd to add resources"
-        docker exec -it "$service" sh -c 'cd /goss; PATH="/goss:$PATH" exec sh'
+        $CONTAINER_RUNTIME exec -it "$service" sh -c 'cd /goss; PATH="/goss:$PATH" exec sh'
         [[ -n "${GOSS_FILE}" ]] && get_docker_file "/goss/${GOSS_FILE}"
         get_docker_file "/goss/goss.yaml"
         get_docker_file "/goss/goss_wait.yaml"
