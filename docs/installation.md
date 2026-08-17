@@ -69,8 +69,8 @@ from the repository **Releases** page. Until then, use [build from source](#buil
 ## Verifying release signatures
 
 Each release's `SHA256SUMS` checksum file is GPG-signed with the project's
-signing key (fingerprint `864F6665DAD3BE65A5B4A324D6B4E7BD598F5209`, published
-as [`krameff-goss-key.asc`](../krameff-goss-key.asc) at the repo root and
+signing key (fingerprint `xxxxxxxxxxxx`, published
+as [`krameff-syver-key.asc`](../krameff-syver-key.asc) at the repo root and
 attached to every release).
 
 ```bash
