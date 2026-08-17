@@ -3,7 +3,7 @@
 command:
   "validate":
     exit-status: 0
-    exec: "release\\goss-windows-amd64 -g integration-tests/goss/windows/commands/validate-input.yaml validate"
+    exec: "release\\syver-windows-amd64 -g integration-tests/goss/windows/commands/validate-input.yaml validate"
     stdout:
       - 'Count: 1'
       - 'Failed: 0'

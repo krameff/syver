@@ -77,8 +77,8 @@ GOSS_VER=v0.5.0
 curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-goss-key.asc | gpg --import
 
 # download the checksum file and its signature from the release page, then:
-gpg --verify goss_${GOSS_VER#v}_SHA256SUMS.sig goss_${GOSS_VER#v}_SHA256SUMS
-sha256sum -c goss_${GOSS_VER#v}_SHA256SUMS
+gpg --verify syver_${GOSS_VER#v}_SHA256SUMS.sig syver_${GOSS_VER#v}_SHA256SUMS
+sha256sum -c syver_${GOSS_VER#v}_SHA256SUMS
 ```
 
 A `gpg --verify` output of `Good signature from "Krameff Solutions Limited..."`
