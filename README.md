@@ -44,6 +44,15 @@ Once the test suite is written they can be executed, waited-on, or served as a h
 * Syver is FAST! - small-medium test suites are near instantaneous
 * Syver is SMALL! - <10MB single self-contained binary
 
+### Coming from goss?
+
+Syver is the renamed continuation of the `krameff/goss` fork. **Your gossfiles do not
+need to change.** `gossfile:`, `goss.yaml`, `GOSS_*` env vars, the `dgoss`/`dcgoss`/`kgoss`
+wrappers and the `-g` flag all keep working.
+
+See [goss vs Syver](docs/goss-vs-syver.md) for the full side-by-side comparison, including
+the single intentional breaking change.
+
 ## Installation
 
 **Note:** For macOS and Windows, see [platform support](docs/platforms.md).
