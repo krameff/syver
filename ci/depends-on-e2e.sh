@@ -9,37 +9,37 @@ SYVER_ARGS=()
 source "${ROOT}/ci/lib/syver-e2e-steps.sh"
 
 if [[ -n "${SYVER_BINARY:-}" ]]; then
-  GOSS="${SYVER_BINARY}"
+  SYVER="${SYVER_BINARY}"
 elif [[ "$(uname -s)" == "Linux" ]]; then
-  GOSS="${ROOT}/release/syver-linux-amd64"
-  if [[ ! -x "${GOSS}" ]]; then
+  SYVER="${ROOT}/release/syver-linux-amd64"
+  if [[ ! -x "${SYVER}" ]]; then
     make -C "${ROOT}" release/syver-linux-amd64
   fi
 else
-  GOSS="$(mktemp -t goss-depends-on-e2e.XXXXXX)"
+  SYVER="$(mktemp -t syver-depends-on-e2e.XXXXXX)"
   # Build the package, not the single file: syver.go alone no longer compiles
   # because env_source.go (nonEmptyEnvVars) is a sibling in the same package.
-  go build -o "${GOSS}" "${ROOT}/cmd/syver"
+  go build -o "${SYVER}" "${ROOT}/cmd/syver"
   export GOSS_USE_ALPHA=1
   SYVER_ARGS=(--use-alpha=1)
 fi
 
 cleanup() {
-  if [[ "${GOSS:-}" == /tmp/goss-depends-on-e2e.* ]] || [[ "${GOSS:-}" == *"/T/goss-depends-on-e2e."* ]]; then
-    rm -f "${GOSS}"
+  if [[ "${SYVER:-}" == /tmp/syver-depends-on-e2e.* ]] || [[ "${SYVER:-}" == *"/T/syver-depends-on-e2e."* ]]; then
+    rm -f "${SYVER}"
   fi
 }
 trap cleanup EXIT
 
-if [[ ! -x "${GOSS}" ]]; then
-  echo "goss binary not found or not executable: ${GOSS}" >&2
+if [[ ! -x "${SYVER}" ]]; then
+  echo "syver binary not found or not executable: ${SYVER}" >&2
   exit 1
 fi
 
-goss_runner() {
-  "${GOSS}" "${SYVER_ARGS[@]}" "$@"
+syver_runner() {
+  "${SYVER}" "${SYVER_ARGS[@]}" "$@"
 }
 
-run_depends_on_e2e_steps "${EXAMPLES}" goss_runner
+run_depends_on_e2e_steps "${EXAMPLES}" syver_runner
 
 echo "depends-on e2e: ok"
