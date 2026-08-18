@@ -81,7 +81,7 @@ release checksums, so verification is available here that was not available
 upstream.
 
 The key for 0.7.0 onward is `krameff-syver-key.asc`, fingerprint
-`326F2A906EBB641DF88929D0306DF3B80A0667CD`. If you imported the earlier
+`CD218D529C95DC65A71F18D84C9E5095CABE5092`. If you imported the earlier
 `krameff-goss-key.asc` from a 0.6.0 release, import the new one as well: the
 old key will not verify 0.7.0 artifacts. See
 [Verifying release signatures](installation.md#verifying-release-signatures).
