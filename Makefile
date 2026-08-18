@@ -190,7 +190,7 @@ check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security
 .PHONY: pre-commit
 pre-commit: fmt vet
 	$(info INFO: Starting $@)
-	go test ./...
+	go test -count=1 ./...
 
 # Full local bundle to run before pushing / opening a PR: adds lint and the
 # same E2E + security checks CI runs in its coverage job.
