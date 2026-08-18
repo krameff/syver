@@ -7,7 +7,7 @@ file:
     group: root
     linked-to: /usr/sbin/sendmail.sendmail
     filetype: file
-    contains:
+    contents:
     - hrll
     md5: 7c9bb14b3bf178e82c00c2a4398c93cd
     sha256: 7f78ce27859049f725936f7b52c6e25d774012947d915e7b394402cfceb70c4c
@@ -18,14 +18,14 @@ file:
     owner: root
     group: root
     filetype: file
-    contains: []
+    contents: null
   /etc/passwd:
     exists: true
     mode: "0644"
     owner: root
     group: root
     filetype: file
-    contains: []
+    contents: null
 package:
   httpd:
     installed: true
@@ -111,11 +111,11 @@ kernel-param:
 mount:
   /home:
     exists: true
-    timeout: 1000
     opts:
     - rw
     source: /dev/mapper/fedora-home
     filesystem: xfs
+    timeout: 1000
     usage:
       lt: 95
 interface:
@@ -131,7 +131,6 @@ http:
     allow-insecure: false
     no-follow-redirects: false
     timeout: 1000
-    body: []
 matching:
   check_failure_count_from_all_instance:
     content: 0

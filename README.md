@@ -315,12 +315,7 @@ $ chmod a+x yajsv.linux.amd64
 $ sudo mv yajsv.linux.amd64 /usr/sbin/yajsv
 
 $ yajsv -s schema.yaml rendered_syver.yaml
-
-rendered_syver.yaml: fail: process.chrome: skip is required
-rendered_syver.yaml: fail: service.sshd: skip is required
-1 of 1 failed validation
-rendered_syver.yaml: fail: process.chrome: skip is required
-rendered_syver.yaml: fail: service.sshd: skip is required
+rendered_syver.yaml: pass
 ```
 
 Full list of available Json schema validators can be found in <https://json-schema.org/implementations.html#validator-command%20line>

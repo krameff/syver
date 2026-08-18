@@ -147,9 +147,24 @@ definitions:
           - file
           - symlink
           - directory
+      contents:
+        type:
+          - array
+          - "null"
+        description: >-
+          Check file content for these patterns. can be a string or a pattern.
+          null is accepted as well as an array because `syver render` emits
+          `contents: null` for a file resource that does not set it, and the
+          documented workflow is to schema-validate that rendered output.
+        items:
+          type: string
+          description: string or patterns
       contains:
         type: array
-        description: Check file content for these patterns. can be a string or a pattern
+        description: >-
+          Deprecated: renamed to contents. Still accepted, but validating a
+          spec that uses it prints a deprecation warning. Kept in the schema so
+          existing files continue to validate.
         items:
           type: string
           description: string or patterns
@@ -476,10 +491,13 @@ definitions:
         default: false
 
   serviceTest:
+    # `skip` is deliberately not required. It was the only definition in this
+    # schema that demanded it, and `skip` carries default: false everywhere,
+    # so requiring it here rejected the tool's own output: `syver add service`
+    # emits enabled + running and nothing else.
     required:
       - enabled
       - running
-      - skip
     properties:
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
