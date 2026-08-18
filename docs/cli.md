@@ -269,6 +269,17 @@ The end-point will return the stest results in the format requested and an http 
 
 `serve` will look for a test suite in the same order as [validate](#validate)
 
+!!! warning "The endpoint is unauthenticated"
+
+    `serve` has no authentication, authorization or TLS of its own. Anyone who
+    can reach the listen address can run the suite and read its full output --
+    including the verbatim stdout and stderr of any [`command`](gossfile.md#command)
+    resource, which may carry file paths, versions, or other host detail.
+
+    Bind it to a trusted network or an address reachable only by your health
+    checker, put a reverse proxy in front of it if you need TLS or auth, and
+    keep secrets out of command output.
+
 `--cache <duration>`, `-c <duration>`
 :   Time to cache the results (default: 5s)
 
@@ -282,7 +293,7 @@ The end-point will return the stest results in the format requested and an http 
 :   Address to listen on (default: `:8080`)
 
 `--loglevel <level>`, `-L <level>`
-:   Goss logging verbosity level (default: `INFO`).
+:   Syver logging verbosity level (default: `INFO`).
     Lower levels of tracing include all upper levels traces also (ie. `INFO` include `WARN` and `ERROR`).
     `level` can be one of:
     - `ERROR` - Critical errors that halt syver or significantly affect its functionality, requiring immediate intervention.
@@ -347,15 +358,14 @@ Exits with status 0 on success, non-0 otherwise.
     - `sort`     - Sorts the results
 
 `--loglevel <level>`, `-L <level>`
-:   Goss logging verbosity level (default: `INFO`).
-    Lower levels of tracing include all upper levels traces also (ie. `INFO` includes `WARN`, `ERROR` and `FATAL` outputs).
-    `level` can be one of :
-    - `TRACE` - Print details for each check, successful or not and all incoming healthchecks
-    - `DEBUG` - Print details of summary response to healthchecks including remote IP address, return code and full body
-    - `INFO` - Print summary when all checks run OK
-    - `WARN` - Print summary and corresponding checks when encountering some failures
-    - `ERROR` - Not used for now (will not print anything)
-    - `FATAL` - Not used for now (will not print anything)
+:   Syver logging verbosity level (default: `INFO`).
+    Lower levels of tracing include all upper levels also (ie. `INFO` includes `WARN` and `ERROR`).
+    `level` can be one of:
+    - `ERROR` - Critical errors that halt syver or significantly affect its functionality.
+    - `WARN` - Non-critical issues that may require attention, such as overwritten keys or deprecated features.
+    - `INFO` - General operational messages.
+    - `DEBUG` - Information useful for the syver user to debug.
+    - `TRACE` - Detailed internal system activities useful for syver developers to debug.
 
 `--max-concurrent <num>`
 :   Max number of tests to run concurrently

@@ -176,6 +176,19 @@ command:
 The `exec` attribute is the command to run; this defaults to the name of
 the hash for backwards compatibility
 
+!!! warning "A gossfile is executable input"
+
+    `exec` is run through the system shell (`sh -c` on Linux and macOS, `cmd /c`
+    on Windows), so shell metacharacters, pipes and redirection all work -- and
+    anyone who can supply or edit a gossfile can run arbitrary commands as the
+    user running syver. Treat a gossfile with the same care as a shell script:
+    only run ones you trust, and remember that a `--vars` file templated into an
+    `exec` string carries the same power, since whoever controls the vars file
+    controls part of the command.
+
+    On timeout the command is killed along with any child processes it started
+    (on Linux and macOS; see [platform support](platforms.md) for Windows).
+
 ### dns
 
 Validates that the provided address is resolvable and the addrs it resolves to.

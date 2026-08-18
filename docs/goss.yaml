@@ -130,7 +130,7 @@ matching:
         - have-key: baz
 
 # TODO: sprig syntax fails to accept upper block below
-# https://github.com/krameff/syver/blob/main/docs/manual.md#examples-2
+# https://github.com/krameff/syver/blob/main/docs/gossfile.md#command
 #  sping_basic:
 #    content: { { "hello!" | upper | repeat 5 }}
 #                 matches:

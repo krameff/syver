@@ -31,11 +31,13 @@ Since goss runs on the target container, dgoss can be used on a Mac OSX system b
 curl -L https://raw.githubusercontent.com/krameff/syver/main/extras/dsyver/dgoss -o /usr/local/bin/dgoss
 chmod +rx /usr/local/bin/dgoss
 
-# Download desired goss version to your preferred location (e.g. v0.5.0)
-curl -L "https://github.com/krameff/syver/releases/download/v0.5.0/goss_0.5.0_linux_x86_64.tar.gz" \
-  | tar xz -C ~/Downloads
-# Set your GOSS_PATH to the extracted binary
-export GOSS_PATH=~/Downloads/goss
+# Download the desired syver version to your preferred location (e.g. v0.7.0).
+# Release assets are raw, uncompressed binaries -- there is no tarball to extract.
+curl -L "https://github.com/krameff/syver/releases/download/v0.7.0/syver-darwin-arm64" \
+  -o ~/Downloads/syver
+chmod +rx ~/Downloads/syver
+# Point SYVER_PATH at it (GOSS_PATH is still honoured)
+export SYVER_PATH=~/Downloads/syver
 
 # Set DGOSS_TEMP_DIR to the tmp directory in your home, since /tmp is private on Mac OSX
 export DGOSS_TEMP_DIR=~/tmp
@@ -73,7 +75,7 @@ for the dgoss command, for example:
 `dgoss run` will do the following:
 
 * Run the container with the flags you specified.
-* Stream the containers log output into the container as `/goss/docker_output.log`
+* Stream the containers log output into the container as `/syver/docker_output.log`
     * This allows writing tests or waits against the container output
 * (optional) Run `goss` with `$GOSS_WAIT_OPTS` if `./goss_wait.yaml` file exists in the current dir
 * Run `goss` with `$GOSS_OPTS` using `./goss.yaml`
@@ -120,7 +122,10 @@ Location of the syver (or legacy goss) binary to use. (Default: `$(which syver)`
 
 #### GOSS_FILE
 
-Name of the goss file to use. (Default: `goss.yaml`)
+Name of the spec file to use. When unset, the first of `syver.yaml`,
+`syver.yml`, `goss.yaml`, `goss.yml` that exists is used, in that order --
+the same probe the binary itself performs. Setting this pins one filename
+and skips the probe.
 
 #### GOSS_OPTS
 
@@ -161,7 +166,7 @@ If unset (or empty), the `--vars` flag is omitted, which is the normal behavior.
 #### GOSS_FILES_STRATEGY
 
 Strategy used for copying goss files into the container. If set to `'mount'` a volume with goss files is mounted
-and log output is streamed into the container as `/goss/docker_output.log` file. Other strategy is `'cp'` which uses
+and log output is streamed into the container as `/syver/docker_output.log` file. Other strategy is `'cp'` which uses
 `'docker cp'` command to copy goss files into container. With the `'cp'` strategy you lose the ability to write
 tests or waits against the container output. The `'cp'` strategy is required especially when container daemon is
 not on the local machine.

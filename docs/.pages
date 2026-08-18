@@ -10,5 +10,6 @@ nav:
   - platforms.md
   - containers
   - Contributing: contributing.md
+  - Testing: testing.md
   - changelog.md
   - license.md

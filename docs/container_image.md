@@ -30,7 +30,7 @@ docker run --rm -it --volumes-from syver --name weby nginx
 Run syver inside your container
 
 ```sh
-docker exec weby /syver/syver autoadd nginx
+docker exec weby syver autoadd nginx
 ```
 
 ### HEALTHCHECK example

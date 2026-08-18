@@ -1,7 +1,7 @@
 site_name: Syver
 site_description: Syver is a YAML based serverspec alternative tool for validating a server’s configuration.
 site_author: Syver team
-site_url: https://goss.readthedocs.io/
+site_url: https://syver.readthedocs.io/
 repo_url: https://github.com/krameff/syver
 repo_name: krameff/syver
 edit_uri: edit/master/docs/

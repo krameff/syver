@@ -62,7 +62,7 @@ GOSS_FILES_PATH=".": location of goss.yaml and other configuration files
 GOSS_VARS="": path to a goss.vars file
 GOSS_OPTS="--color --format documentation": options passed to goss
 GOSS_WAIT_OPTS="-r 30s -s 1s > /dev/null": options passed to goss
-GOSS_CONTAINER_PATH="/tmp/goss": path to copy files in container, and working dir for tests
+GOSS_CONTAINER_PATH="/tmp/syver": path to copy files in container, and working dir for tests
 EOF
 
 exit 2
