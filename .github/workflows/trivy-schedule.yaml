@@ -12,6 +12,10 @@ jobs:
     permissions:
       packages: read
       security-events: write
+      # Same reason as docker-syver.yaml: codeql-action's upload-sarif
+      # reads the run through the Actions API, which security-events does
+      # not cover on a private repository.
+      actions: read
 
     steps:
       - name: Run Trivy vulnerability scanner

@@ -18,6 +18,12 @@ jobs:
       packages: write
       contents: read
       security-events: write  # To upload Trivy sarif files
+      # github/codeql-action reads the workflow run via the Actions API
+      # (GET /repos/{owner}/{repo}/actions/runs/{run_id}). security-events
+      # does not grant that, and on a private repository the read is
+      # mandatory -- without it upload-sarif dies with "Resource not
+      # accessible by integration" pointing at the workflow-runs endpoint.
+      actions: read
 
     steps:
       - name: Checkout

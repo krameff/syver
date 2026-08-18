@@ -129,6 +129,15 @@ image and Go module path).
   - each resource's mandatory attribute (`file.exists`, `command.exit-status`, `http.status`, ...) is deliberately left unguarded, so a resource always produces at least one result
   - `resource/isset_test.go` pins both halves: the predicate, and that an empty list produces no result while a populated one still does
   - `integration-tests/syver/goss-service.yaml` dropped the `runlevels: []` branch, which existed only to emit an empty list and is now a no-op. This was the only empty list in the counted integration run that sat on a previously-unguarded attribute -- verified by rendering all six distro specs and diffing. `integration-tests/test.sh` splits its hardcoded count three ways accordingly: arch 106 (no `goss-service.yaml`), alpine3 127 (a real `runlevels` expectation), the other four 126
+- ci permissions
+  - `docker-syver.yaml` and `trivy-schedule.yaml` gain `actions: read`.
+    `github/codeql-action/upload-sarif` reads the run through the Actions
+    API (`GET /repos/{owner}/{repo}/actions/runs/{run_id}`), which
+    `security-events: write` does not cover; on a private repository that
+    read is mandatory, so the upload failed with "Resource not accessible
+    by integration" naming the workflow-runs endpoint. Both jobs already
+    had `security-events: write`, so the SARIF permission was never the
+    problem
 - integration-tests directory rename
   - `integration-tests/goss/` renamed to `integration-tests/syver/`
     (`git mv`, history preserved) -- the last goss-named path segment in
