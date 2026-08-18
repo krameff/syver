@@ -427,8 +427,8 @@ func resetStdinOnce(t *testing.T) {
 	})
 }
 
-// Test_readStdinOnce_ReturnsSameBytesOnRepeatedCalls covers BUG-001
-// Symptom 1: loadSyverConfigWithDiscover reads a "-" spec twice per validate
+// Test_readStdinOnce_ReturnsSameBytesOnRepeatedCalls covers the stdin
+// double-read: loadSyverConfigWithDiscover reads a "-" spec twice per validate
 // invocation (peek, then the real load). os.Stdin is a non-seekable stream,
 // so a naive double io.ReadAll would return the real data once and 0 bytes
 // on the second call. readStdinOnce must return the same bytes both times.

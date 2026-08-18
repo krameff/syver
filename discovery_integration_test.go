@@ -295,7 +295,7 @@ file:
 	}
 }
 
-// TestValidateStdinMatchesFile covers BUG-001 Symptom 1: this is the actual
+// TestValidateStdinMatchesFile covers the first stdin symptom: this is the actual
 // reported bug. `validate -g -` (stdin) must produce the same result count
 // as `validate -g <file>` on the equivalent file. Before the fix, stdin
 // always failed with "found 0 tests, source: STDIN" because
@@ -361,7 +361,7 @@ func TestValidateStdinMatchesFile(t *testing.T) {
 	}
 
 	if stdinCount != fileCount {
-		t.Fatalf("stdin validate produced %d results, expected %d to match the file-based run (this is the original BUG-001 symptom -- 'found 0 tests, source: STDIN')", stdinCount, fileCount)
+		t.Fatalf("stdin validate produced %d results, expected %d to match the file-based run (this is the original stdin double-read symptom -- 'found 0 tests, source: STDIN')", stdinCount, fileCount)
 	}
 }
 
@@ -381,8 +381,8 @@ func TestValidateStdinWithDiscoverySection(t *testing.T) {
 	// goss-inline.yml example fixture uses would fail format detection here
 	// with "unable to determine format from content" -- a real, separate,
 	// pre-existing limitation of stdin format-detection, not part of
-	// BUG-001's double-decode fix. Keeping this fixture template-free
-	// isolates the test to the thing BUG-001 actually fixes.
+	// the double-decode fix. Keeping this fixture template-free
+	// isolates the test to the thing that fix actually addresses.
 	content := []byte(`discovery:
   file:
     /etc/hosts:
@@ -452,7 +452,8 @@ func TestValidateStdinEmptySpecStillErrors(t *testing.T) {
 	}
 }
 
-// TestValidateCollisionWarnLogsOnce covers BUG-001 Symptom 2: a real
+// TestValidateCollisionWarnLogsOnce covers the second symptom of that same
+// double-decode root cause: a real
 // gossfile:/syverfile: alias collision must log its WARN exactly once, not
 // once per decode. loadSyverConfigWithDiscover decodes every spec at least
 // twice (peek, then the real load); quietDecode (set from loadSyverConfig's

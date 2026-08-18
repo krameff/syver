@@ -35,8 +35,8 @@ var debug = false
 // gossfile:/syverfile: alias-collision WARN in ReadJSONData below) for a
 // single loadSyverConfig call. loadSyverConfigWithDiscover (discovery_load.go)
 // decodes every spec at least twice per validate invocation -- once as a
-// "peek" purely to inspect Discovery, once for the real, used result -- see
-// BUG-001 for the full trace. The peek's SyverConfig result (including any
+// "peek" purely to inspect Discovery, once for the real, used result. The
+// peek's SyverConfig result (including any
 // alias-collision resolution) is never observed by the caller, so it is
 // correct, not just convenient, for the peek pass to resolve collisions
 // silently and let the real load's WARN be the only one that surfaces.
@@ -60,8 +60,8 @@ var (
 // "-" load returns the real data on the first call and 0 bytes on every call
 // after, because the stream is already exhausted. validate's load path reads
 // the spec twice per invocation (once via getSyverConfigPeek to check for a
-// discovery: section, once via the real load) -- see BUG-001 for the full
-// trace. Buffering here, once, fixes both callers without restructuring the
+// discovery: section, once via the real load). Buffering here, once, fixes
+// both callers without restructuring the
 // peek/load sequencing in discovery_load.go.
 func readStdinOnce() ([]byte, error) {
 	stdinOnce.Do(func() {

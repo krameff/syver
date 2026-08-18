@@ -51,7 +51,7 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 		// validate invocation (peek, then the real load), so a naive
 		// io.ReadAll(os.Stdin) here would exhaust the stream on the first call
 		// and return 0 bytes on the second. readStdinOnce buffers it once and
-		// replays the same bytes to every caller -- see BUG-001.
+		// replays the same bytes to every caller.
 		data, err := readStdinOnce()
 		if err != nil {
 			return nil, err

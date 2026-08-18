@@ -60,11 +60,11 @@ echo "${out}"
 
 if [[ "${rc}" -ne 0 ]]; then
   log "FAIL: dcsyver exited ${rc}"
-  # This specific error meant the stdin double-read bug (BUG-001), fixed
+  # This specific error meant the stdin double-read bug, fixed
   # 2026-08-17. If it reappears, that fix has regressed -- check readStdinOnce()
   # in store.go before looking anywhere else.
   if grep -q "found 0 tests, source: STDIN" <<<"${out}"; then
-    log "cause: REGRESSION of the stdin double-read fix (BUG-001). dcsyver's test"
+    log "cause: REGRESSION of the stdin double-read fix. dcsyver's test"
     log "       path is 'render | validate -g -'; reading a spec from a pipe is"
     log "       returning zero tests again. See readStdinOnce() in store.go."
   fi
@@ -91,7 +91,7 @@ log "ok"
 # from a pipe returned zero tests, so dcsyver -- whose only test path is
 # `render | validate -g -` -- could not execute any test at all. That defect
 # predated the rename (the v0.6.0 seed binary failed identically) and was fixed
-# on 2026-08-17 by BUG-001: `loadSyverConfigWithDiscover` decodes each spec twice
+# on 2026-08-17: `loadSyverConfigWithDiscover` decodes each spec twice
 # (a peek pass, then the real load), and `os.Stdin` is not re-readable, so the
 # second decode saw nothing. `readStdinOnce()` in store.go now buffers it.
 #
