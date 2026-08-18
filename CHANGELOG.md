@@ -47,7 +47,7 @@ image and Go module path).
   - wrappers resolve the binary as `which syver` then `which goss`
   - wrappers stage `syver.yaml` before `goss.yaml`, wait step gated on the same set
   - `ksyver` in-pod exec pointed at the files it actually stages
-  - tests 282 -> 317
+  - tests 282 -> 325
   - renamed docs, site branding (mkdocs.yml), and repo-hygiene references from goss to Syver
   - wrappers now honour `SYVER_*` env vars too, same precedence as the binary
   - `dgoss`, `dcgoss`, `kgoss` shims paired as well, so both names behave identically
@@ -80,6 +80,25 @@ image and Go module path).
   - `ci/security-scan.sh` accepts podman, not just docker, so trivy runs on this sandbox
   - a skipped trivy scan now says so in a summary line instead of exiting 0 silently
   - removed the goss-era asciinema demo from the README
+  - `serve` no longer runs on a zero-value `http.Server`: read, read-header and idle deadlines set
+  - `WriteTimeout` deliberately left unset; validation runtime is set by the spec, and a `command` resource can legitimately run for minutes
+  - `serve` registers on its own `ServeMux` instead of `DefaultServeMux`
+  - `syverMu` is now actually taken: concurrent cache misses collapse to one validation instead of one per request
+  - the mutex had been allocated and never locked since upstream, so a burst of probes ran N full sweeps of the system
+  - `color.NoColor` writes collapsed onto a `sync.Once` in `outputs` and `serve`
+  - that was a genuine write-write data race in `serve` mode, where JSON/JUnit responses render concurrently; `go test -race` reports it against the previous code
+  - wrapper staging directory is no longer world-writable at the top level
+  - the 0777 directory the container mounts now nests inside the 0700 directory `mktemp -d` creates, so other local users cannot reach the staged `syver` binary the container then executes
+  - applied to all six wrappers: `dsyver`/`dgoss`, `dcsyver`/`dcgoss`, `ksyver`/`kgoss`
+  - `docs/schema.yaml` gains `contents`; `contains` kept but described as deprecated
+  - `serviceTest` no longer requires `skip`: it was the only definition that did, and it rejected the output of `syver add service`
+  - `contents` accepts null as well as an array, which is what `syver render` emits for a file resource that does not set it
+  - `docs/goss.yaml` example switched from the deprecated `contains:` to `contents:`
+  - `docs/rendered_syver.yaml` regenerated from the current binary; it had drifted, and now validates cleanly against the schema
+  - README's yajsv sample output corrected; it showed a duplicated block and two failures that the schema no longer produces
+  - `docs/platforms.md` documents `SYVER_USE_ALPHA` alongside the legacy `GOSS_USE_ALPHA`
+  - the alpha bypass hint printed on macOS/Windows now names `SYVER_USE_ALPHA`; `GOSS_USE_ALPHA` still works
+  - `docs/installation.md` GoReleaser output path corrected; it still named a `goss` build id and binary
 
 ---
 

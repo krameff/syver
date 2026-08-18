@@ -510,9 +510,13 @@ func addAlphaFlagIfNeeded(cmd *cli.Command) {
 func fatalAlphaIfNeeded(c *cli.Command) {
 	if runtime.GOOS == "darwin" || runtime.GOOS == "windows" {
 		if c.String("use-alpha") != "1" {
+			// Advertise the SYVER_ name: it is what the docs tell people to
+			// set, and it is the one this flag reads first. GOSS_USE_ALPHA
+			// keeps working -- see the Sources chain above -- it just is not
+			// what a new user should be told to type.
 			howto := map[string]string{
-				"darwin":  "export GOSS_USE_ALPHA=1",
-				"windows": "In cmd:        set GOSS_USE_ALPHA=1\nIn powershell: $env:GOSS_USE_ALPHA=1\nIn bash:       export GOSS_USE_ALPHA=1",
+				"darwin":  "export SYVER_USE_ALPHA=1",
+				"windows": "In cmd:        set SYVER_USE_ALPHA=1\nIn powershell: $env:SYVER_USE_ALPHA=1\nIn bash:       export SYVER_USE_ALPHA=1",
 			}
 			log.Printf(`Terminating.
 

@@ -21,7 +21,8 @@ To clearly signal that, syver emits a log message on every invocation saying so,
 To try out the alpha functionality, you must do one of:
 
 * pass `--use-alpha=1` to the root command (e.g. `syver --use-alpha=1 validate`).
-* set an environment variable `GOSS_USE_ALPHA=1`.
+* set an environment variable `SYVER_USE_ALPHA=1` (or the legacy `GOSS_USE_ALPHA=1`,
+  which is still honoured; `SYVER_USE_ALPHA` wins when both are set to a non-empty value).
 
 The macOS and Windows support is community driven;
 there is no commitment to adding features / fixing bugs for those platforms.

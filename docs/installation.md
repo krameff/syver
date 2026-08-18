@@ -29,7 +29,9 @@ Alternatively, build with [GoReleaser](https://goreleaser.com/):
 goreleaser build --clean --single-target --snapshot
 ```
 
-The binary is written under `dist/` (for example `dist/goss_linux_amd64_v1/goss`).
+The binary is written under `dist/`, in a directory named for the build id in
+`.goreleaser.yaml` -- currently `binaries`, so for example
+`dist/binaries_linux_amd64_v1/syver`.
 
 ## dgoss and other wrappers
 
