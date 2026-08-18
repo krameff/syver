@@ -44,7 +44,20 @@ func (c *DefCommand) setup() error {
 	}
 	c.loaded = true
 
-	cmd := commandWrapper(c.command)
+	// Bound the child's lifetime by the same timeout runCommand selects on, so
+	// that a command which never returns is actually killed rather than left
+	// running with its goroutine parked in Wait. Only applied when a timeout is
+	// set: Timeout <= 0 reaches here from callers that pass an empty
+	// util.Config, and attaching an already-expired context would change their
+	// behaviour rather than fix a leak.
+	ctx := context.Background()
+	if c.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, time.Duration(c.Timeout)*time.Millisecond)
+		defer cancel()
+	}
+
+	cmd := commandWrapper(ctx, c.command)
 	err := runCommand(cmd, c.Timeout)
 
 	// We don't care about ExitError since it's covered by status

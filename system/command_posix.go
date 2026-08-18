@@ -3,10 +3,14 @@
 
 package system
 
-import "github.com/krameff/syver/util"
+import (
+	"context"
+
+	"github.com/krameff/syver/util"
+)
 
 const linuxShell string = "sh"
 
-func commandWrapper(cmd string) *util.Command {
-	return util.NewCommand(linuxShell, "-c", cmd)
+func commandWrapper(ctx context.Context, cmd string) *util.Command {
+	return util.NewCommandContext(ctx, linuxShell, "-c", cmd)
 }

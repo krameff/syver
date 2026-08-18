@@ -4,6 +4,7 @@
 package system
 
 import (
+	"context"
 	"os/exec"
 	"testing"
 )
@@ -11,7 +12,7 @@ import (
 func TestCommandWrapper(t *testing.T) {
 	t.Parallel()
 
-	c := commandWrapper("echo hello world")
+	c := commandWrapper(context.Background(), "echo hello world")
 	cmdPath, _ := exec.LookPath(linuxShell)
 	if c.Cmd.Path != cmdPath {
 		t.Errorf("Command not wrapped properly for OS. got %s, want: %s", c.Cmd.Path, cmdPath)
