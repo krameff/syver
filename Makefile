@@ -23,16 +23,20 @@ test:
 	$(info INFO: Starting build $@)
 	./ci/go-test.sh
 
+# -count=1 for the same reason as ci/go-test.sh: `cov` is what CI's "Unit tests
+# and coverage" step runs, and actions/setup-go restores the Go build cache
+# (which holds test results) between runs, so without it CI can replay a stale
+# PASS. A coverage profile should be measured fresh regardless.
 cov:
-	go test -coverpkg=./... -coverprofile=c.out ./...
+	go test -count=1 -coverpkg=./... -coverprofile=c.out ./...
 	# go tool cover -func ./c.out
 
 funcov:
-	go test -coverpkg=./... -coverprofile=c.out ./...
+	go test -count=1 -coverpkg=./... -coverprofile=c.out ./...
 	go tool cover -func ./c.out
 
 htmlcov:
-	go test -v -coverpkg=./... -coverprofile=c.out ./...
+	go test -count=1 -v -coverpkg=./... -coverprofile=c.out ./...
 	go tool cover -html ./c.out
 
 lint:
