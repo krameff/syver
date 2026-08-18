@@ -66,7 +66,7 @@ export GOSS_USE_ALPHA=1
 open_port="$(find_open_port 1025 65335)"
 echo "${open_port}"
 args=(
-  "-g=${repo_root}/integration-tests/goss/goss-serve.yaml"
+  "-g=${repo_root}/integration-tests/syver/goss-serve.yaml"
   "serve"
   "--listen-addr=127.0.0.1:${open_port}"
 )

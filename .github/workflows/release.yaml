@@ -56,8 +56,66 @@ jobs:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
           passphrase: ${{ secrets.GPG_PASSPHRASE }}
 
-      - name: Print imported GPG fingerprint
-        run: 'echo "Imported key fingerprint: ${{ steps.import_gpg.outputs.fingerprint }}"'
+      # Fail fast, and fail with the reason named. Without this the mismatch
+      # only surfaces as `gpg: skipped "<fpr>": No secret key` after the full
+      # cross-compile has already run, and a signature made with the wrong
+      # key would ship looking valid while verifying against nothing users
+      # have. The expected fingerprint is read from the checked-in public
+      # key rather than hardcoded, so it stays correct through key rotation.
+      - name: Verify the imported key is the project signing key
+        env:
+          IMPORTED: ${{ steps.import_gpg.outputs.fingerprint }}
+          PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+
+          echo "Imported key fingerprint: ${IMPORTED:-<none>}"
+
+          if [ -z "${IMPORTED:-}" ]; then
+            echo "::error::No GPG key was imported. Check that the" \
+                 "GPG_PRIVATE_KEY and GPG_PASSPHRASE repository secrets are set."
+            exit 1
+          fi
+
+          expected="$(gpg --show-keys --with-colons krameff-syver-key.asc \
+                      | awk -F: '/^fpr:/ {print $10; exit}')"
+          echo "Expected key fingerprint: $expected  (krameff-syver-key.asc)"
+
+          if [ "$IMPORTED" != "$expected" ]; then
+            echo "::error::Signing key mismatch. The GPG_PRIVATE_KEY secret" \
+                 "holds $IMPORTED, but this project publishes $expected in" \
+                 "krameff-syver-key.asc and documents it in" \
+                 "docs/installation.md. Releases signed with $IMPORTED cannot" \
+                 "be verified by anyone. Replace the secret with an export of" \
+                 "the published key."
+            exit 1
+          fi
+
+          # A key exported with --export-secret-subkeys leaves the primary
+          # secret stubbed (sec#). The published key's only signing-capable
+          # key IS the primary, so that export cannot sign and gpg reports it
+          # as "No secret key".
+          echo "Secret keys in the keyring:"
+          gpg --list-secret-keys --with-colons --with-subkey-fingerprints \
+            | grep -E '^(sec|ssb|fpr)' || true
+
+          if ! gpg --list-secret-keys --with-colons "$IMPORTED" \
+               | grep -q '^sec:'; then
+            echo "::error::No usable primary secret key for $IMPORTED." \
+                 "Re-export with 'gpg --export-secret-keys --armor' rather" \
+                 "than --export-secret-subkeys."
+            exit 1
+          fi
+
+          # Prove signing works before spending three minutes building.
+          # Signs a file argument, exactly as the goreleaser signs block does,
+          # so stdin stays free to carry the passphrase the same way.
+          probe="$(mktemp)"
+          echo probe > "$probe"
+          gpg --batch --pinentry-mode loopback --passphrase-fd 0 \
+            -u "$IMPORTED" --output /dev/null --detach-sign "$probe" \
+            <<< "$PASSPHRASE"
+          echo "Signing probe succeeded."
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94  # v7

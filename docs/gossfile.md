@@ -674,6 +674,31 @@ user:
 
 Default matchers are determined by the attribute value received from the system.
 
+!!! warning "An empty list is not an expectation"
+    `stderr: []` does **not** assert that stderr was empty. An empty list
+    means "no expectation for this attribute", and the attribute is skipped
+    entirely -- it produces no result and does not appear in the test count.
+
+    This is the form `syver add` and `syver autoadd` emit for an attribute
+    they found nothing to assert about, which is why it appears throughout
+    generated gossfiles and in the examples on this page. It behaves the
+    same way on every attribute of every resource type.
+
+    To assert that output really is empty, say so:
+
+    ```yaml
+    command:
+      quiet-command:
+        exec: /usr/local/bin/quiet
+        exit-status: 0
+        stderr:
+          have-len: 0
+    ```
+
+    The one exception is each resource's mandatory attribute --
+    `file.exists`, `command.exit-status`, `http.status` and so on. Those
+    always report, so a resource always produces at least one result.
+
 #### Bool, Strings, Integers
 
 Bool, Strings and integers are compared using equality, for example:
@@ -1059,7 +1084,7 @@ syver --vars discovered.json validate -g goss.yml --format documentation
 ```
 
 Complete example (also in
-[`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)):
+[`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)):
 
 `discovery.yaml`
 
@@ -1124,7 +1149,7 @@ command:
 syver validate -g goss-with-deps.yml --discover discovery.yaml
 ```
 
-See [`integration-tests/goss/examples/discovery/goss-with-deps.yml`](https://github.com/krameff/syver/blob/main/integration-tests/goss/examples/discovery/goss-with-deps.yml).
+See [`integration-tests/syver/examples/discovery/goss-with-deps.yml`](https://github.com/krameff/syver/blob/main/integration-tests/syver/examples/discovery/goss-with-deps.yml).
 
 ## Test dependencies
 

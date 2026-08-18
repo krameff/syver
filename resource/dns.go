@@ -70,7 +70,7 @@ func (d *DNS) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if d.Addrs != nil {
+	if isSet(d.Addrs) {
 		results = append(results, ValidateValue(d, "addrs", d.Addrs, sysDNS.Addrs, skip))
 	}
 	return results

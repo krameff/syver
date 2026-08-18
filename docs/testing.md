@@ -75,7 +75,7 @@ with `|| true`), so `test-short-all`, `pre-push`, and CI's separate lint job agr
 
 Script: [`ci/discovery-e2e.sh`](https://github.com/krameff/syver/blob/main/ci/discovery-e2e.sh)
 
-Fixtures: [`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)
+Fixtures: [`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)
 
 ```bash
 make test-discovery-e2e
@@ -91,25 +91,25 @@ Steps performed:
 Manual equivalent:
 
 ```bash
-goss validate -g integration-tests/goss/examples/discovery/goss.yml \
-  --discover integration-tests/goss/examples/discovery/discovery.yaml \
+goss validate -g integration-tests/syver/examples/discovery/goss.yml \
+  --discover integration-tests/syver/examples/discovery/discovery.yaml \
   --format documentation
 ```
 
 Export-only (unchanged):
 
 ```bash
-goss validate -g integration-tests/goss/examples/discovery/discovery.yaml --format discovery \
+goss validate -g integration-tests/syver/examples/discovery/discovery.yaml --format discovery \
   > /tmp/discovered.json
 goss --vars /tmp/discovered.json \
-  validate -g integration-tests/goss/examples/discovery/goss.yml --format documentation
+  validate -g integration-tests/syver/examples/discovery/goss.yml --format documentation
 ```
 
 ## Depends-on E2E
 
 Script: [`ci/depends-on-e2e.sh`](https://github.com/krameff/syver/blob/main/ci/depends-on-e2e.sh)
 
-Fixtures: [`integration-tests/goss/examples/depends-on/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/depends-on/)
+Fixtures: [`integration-tests/syver/examples/depends-on/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/depends-on/)
 
 ```bash
 make test-depends-on-e2e
@@ -131,7 +131,7 @@ reuses the same steps as the host E2E scripts via [`ci/lib/syver-e2e-steps.sh`](
 * `run_depends_on_e2e_steps` — pure `depends-on` skip semantics
 
 Fixtures live under
-[`integration-tests/goss/examples/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/)
+[`integration-tests/syver/examples/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/)
 and are
 mounted at `/goss/examples/` inside the test container.
 
@@ -303,10 +303,10 @@ cannot run together and will produce "configuration not found" warnings on pull 
 ## Adding tests for new features
 
 * **Discovery / depends-on**: add cases to `discovery_*_test.go` and extend
-  [`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)
+  [`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)
 * **Output formats**: add to `outputs/*_test.go`
 * **Resource types**: add to `resource/validate_test.go` and platform integration gossfiles
 * **CLI behaviour**: prefer root `syver_test.go` or integration command gossfiles under
-  `integration-tests/goss/<platform>/commands/`
+  `integration-tests/syver/<platform>/commands/`
 
 PRs should include automated tests; discovery changes should keep `make test-discovery-e2e` passing.

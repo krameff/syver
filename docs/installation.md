@@ -71,7 +71,7 @@ from the repository **Releases** page. Until then, use [build from source](#buil
 ## Verifying release signatures
 
 Each release's `SHA256SUMS` checksum file is GPG-signed with the project's
-signing key (fingerprint `326F2A906EBB641DF88929D0306DF3B80A0667CD`, published
+signing key (fingerprint `CD218D529C95DC65A71F18D84C9E5095CABE5092`, published
 as [`krameff-syver-key.asc`](https://github.com/krameff/syver/blob/main/krameff-syver-key.asc) at the repo root and
 attached to every release).
 

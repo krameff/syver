@@ -50,7 +50,7 @@ func AddResource(fileName string, syverConfig SyverConfig, resourceName, key str
 
 	// Need to figure out a good way to refactor this
 	switch resourceName {
-	case resource.AddResourceName:
+	case resource.AddrResourceName:
 		res, err = syverConfig.Addrs.AppendSysResource(key, sys, config)
 	case resource.CommandResourceName:
 		res, err = syverConfig.Commands.AppendSysResource(key, sys, config)

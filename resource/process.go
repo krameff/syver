@@ -58,10 +58,10 @@ func (p *Process) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if p.Status != nil {
+	if isSet(p.Status) {
 		results = append(results, ValidateValue(p, "status", p.Status, sysProcess.Status, skip))
 	}
-	if p.User != nil {
+	if isSet(p.User) {
 		results = append(results, ValidateValue(p, "user", p.User, sysProcess.User, skip))
 	}
 	return results

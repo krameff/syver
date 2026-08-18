@@ -24,8 +24,8 @@ type Addr struct {
 type idKey struct{}
 
 const (
-	AddrResourceKey = "addr"
-	AddResourceName = "Addr"
+	AddrResourceKey  = "addr"
+	AddrResourceName = "Addr"
 )
 
 func init() {
@@ -41,7 +41,7 @@ func (a *Addr) ID() string {
 func (a *Addr) SetID(id string)  { a.id = id }
 func (a *Addr) SetSkip()         { a.Skip = true }
 func (a *Addr) TypeKey() string  { return AddrResourceKey }
-func (a *Addr) TypeName() string { return AddResourceName }
+func (a *Addr) TypeName() string { return AddrResourceName }
 
 // FIXME: Can this be refactored?
 func (a *Addr) GetTitle() string { return a.Title }

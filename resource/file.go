@@ -71,25 +71,25 @@ func (f *File) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if f.Mode != nil {
+	if isSet(f.Mode) {
 		results = append(results, ValidateValue(f, "mode", f.Mode, sysFile.Mode, skip))
 	}
-	if f.Owner != nil {
+	if isSet(f.Owner) {
 		results = append(results, ValidateValue(f, "owner", f.Owner, sysFile.Owner, skip))
 	}
-	if f.Uid != nil {
+	if isSet(f.Uid) {
 		results = append(results, ValidateValue(f, "uid", f.Uid, sysFile.Uid, skip))
 	}
-	if f.Group != nil {
+	if isSet(f.Group) {
 		results = append(results, ValidateValue(f, "group", f.Group, sysFile.Group, skip))
 	}
-	if f.Gid != nil {
+	if isSet(f.Gid) {
 		results = append(results, ValidateValue(f, "gid", f.Gid, sysFile.Gid, skip))
 	}
-	if f.LinkedTo != nil {
+	if isSet(f.LinkedTo) {
 		results = append(results, ValidateValue(f, "linkedto", f.LinkedTo, sysFile.LinkedTo, skip))
 	}
-	if f.Filetype != nil {
+	if isSet(f.Filetype) {
 		results = append(results, ValidateValue(f, "filetype", f.Filetype, sysFile.Filetype, skip))
 	}
 	if isSet(f.Contains) {
@@ -99,16 +99,16 @@ func (f *File) Validate(sys *system.System) []TestResult {
 	if isSet(f.Contents) {
 		results = append(results, ValidateValue(f, "contents", f.Contents, sysFile.Contents, skip))
 	}
-	if f.Size != nil {
+	if isSet(f.Size) {
 		results = append(results, ValidateValue(f, "size", f.Size, sysFile.Size, skip))
 	}
-	if f.Md5 != nil {
+	if isSet(f.Md5) {
 		results = append(results, ValidateValue(f, "md5", f.Md5, sysFile.Md5, skip))
 	}
-	if f.Sha256 != nil {
+	if isSet(f.Sha256) {
 		results = append(results, ValidateValue(f, "sha256", f.Sha256, sysFile.Sha256, skip))
 	}
-	if f.Sha512 != nil {
+	if isSet(f.Sha512) {
 		results = append(results, ValidateValue(f, "sha512", f.Sha512, sysFile.Sha512, skip))
 	}
 	return results

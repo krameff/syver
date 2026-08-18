@@ -59,10 +59,10 @@ func (r *Registry) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if r.Value != nil {
+	if isSet(r.Value) {
 		results = append(results, ValidateValue(r, "value", r.Value, sysRegistry.Value, skip))
 	}
-	if r.Type != nil {
+	if isSet(r.Type) {
 		results = append(results, ValidateValue(r, "type", r.Type, sysRegistry.Type, skip))
 	}
 	return results

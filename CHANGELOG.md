@@ -70,7 +70,7 @@ image and Go module path).
   - an exported-but-empty `SYVER_VER` falls through to `GOSS_VER` rather than shadowing it
   - `docs/installation.md` manual-install block now names the `syver-<os>-<arch>` assets
   - signing key updates
-  - new release signing key, fingerprint `326F2A906EBB641DF88929D0306DF3B80A0667CD`
+  - new release signing key, fingerprint `CD218D529C95DC65A71F18D84C9E5095CABE5092`
   - key file `krameff-goss-key.asc` -> `krameff-syver-key.asc`; import the new one to verify 0.7.0+
   - `.goreleaser.yaml` and `docs/installation.md` repointed at the new filename
   - serve integration tests now wait for the server to bind before asserting
@@ -117,6 +117,50 @@ image and Go module path).
   - `ksyver`'s own usage text contradicted its coded `GOSS_CONTAINER_PATH` default
   - `command:` documented as executable input, and `serve` documented as unauthenticated and echoing command output verbatim
   - removed the stale `.golangci.bck.yaml`; the dead docs-preview workflow keeps its `if: false` but gains the reason and a corrected project slug
+- release signing and resource-type fixes
+  - the release workflow now verifies, before building, that the imported GPG key is the key this project publishes. The `v0.7.0` run failed after 3m27s with `gpg: skipped "B2F0081380DB3968A9475BDE829BD6789AB4CEF0": No secret key` -- a fingerprint matching neither the key published at the time nor the one that replaced it, so the `GPG_PRIVATE_KEY` secret does not hold the published key
+  - `docs/installation.md` and `docs/migrations.md` cited the superseded `326F2A90...67CD` fingerprint after the key file was rotated; both now name the published `CD218D52...5092`, and the check derives the expected fingerprint from `krameff-syver-key.asc` at run time so a future rotation cannot leave it stale again
+  - the check reads the expected fingerprint out of the checked-in public key rather than hardcoding it, asserts a signing-capable *primary* secret exists (a `--export-secret-subkeys` export cannot sign this key, whose only signing-capable key is the primary, and fails exactly as above), and signs a throwaway file to prove signing works before the cross-compile starts
+  - `resource.Matching`'s `TypeKey`/`TypeName` were `mount`/`Mount`, copied from `mount.go`. A skipped `matching` test reported itself as `Mount`, `depends-on: matching:x` could not resolve, a `matching` and a `mount` sharing a key collided as a duplicate resource reference, and `util.WithDisabledResourceTypes("mount")` disabled matchings too. Now `matching`/`Matching`
+  - `resource.AddResourceName` renamed to `AddrResourceName`; the value was always correct, only the identifier was missing its `r`
+  - `.yamllint` ignores the templated `examples/` specs, which are Go templates and so are not valid YAML until rendered -- the same treatment the existing `integration-tests` template fixtures get. The non-templated examples stay in scope and lint clean
+  - an empty list now means the same thing on every attribute. `isSet` (nil, or a list with no entries) was the guard on only six of the 41 optional attributes -- `command.stdout`/`stderr`, `file.contains`/`contents`, `http.headers`/`body` -- and the other 35 used a bare `!= nil`. So `stdout: []` was dropped while `port.ip: []`, `user.groups: []`, `service.runlevels: []` and the rest produced a vacuous passing test that inflated the count. All 35 now use `isSet` too; since `isSet` is identical to `!= nil` for every non-slice value, nothing else changes -- `enabled: false` and `uid: 0` are still expectations
+  - the empty list is kept as "no expectation" rather than made to mean "is empty", because it is what `syver add`/`autoadd` emit for an attribute they found nothing to assert about; reinterpreting it would make every generated gossfile assert emptiness on re-validation. `have-len: 0` is the way to assert an attribute really is empty, and `docs/gossfile.md` now says so under Matchers
+  - each resource's mandatory attribute (`file.exists`, `command.exit-status`, `http.status`, ...) is deliberately left unguarded, so a resource always produces at least one result
+  - `resource/isset_test.go` pins both halves: the predicate, and that an empty list produces no result while a populated one still does
+  - `integration-tests/syver/goss-service.yaml` dropped the `runlevels: []` branch, which existed only to emit an empty list and is now a no-op. This was the only empty list in the counted integration run that sat on a previously-unguarded attribute -- verified by rendering all six distro specs and diffing. `integration-tests/test.sh` splits its hardcoded count three ways accordingly: arch 106 (no `goss-service.yaml`), alpine3 127 (a real `runlevels` expectation), the other four 126
+- integration-tests directory rename
+  - `integration-tests/goss/` renamed to `integration-tests/syver/`
+    (`git mv`, history preserved) -- the last goss-named path segment in
+    the test harness; fixture filenames inside it (`goss.yaml`,
+    `*.goss.yaml`, `hellogoss.txt`, etc.) are unchanged, per the standing
+    "file format stays goss-named" rule
+  - the in-container Docker mount path stays `/goss`
+    (`-v "$PWD/syver:/goss"` in `integration-tests/test.sh`) --
+    deliberately not renamed: internal test-harness plumbing, never
+    documented or read outside the ephemeral test container
+  - `test.sh`'s local `goss_bin` variable renamed to `syver_bin` (value
+    unchanged)
+  - `discovery_integration_test.go:167` built its fixture path with
+    `filepath.Join("integration-tests", "goss", ...)`, so the string
+    `integration-tests/goss` never appears contiguously in the source and
+    no substring grep could find it. The directory move alone broke
+    `TestValidateWithDiscoverFlag` and `TestValidateInlineDiscovery`; the
+    comment two hundred lines below it had been updated while the
+    functional line had not
+  - `.yamllint`'s five ignore-list entries repointed. They name Go-template
+    fixtures that are not valid YAML, so once the paths went stale
+    `make lint-yaml` walked into all five and failed. Confirmed both ways
+    on go-builder, where yamllint is actually installed: exit 0 with the
+    fix, exit 1 and four syntax errors without it
+  - verified end-to-end on the remote Docker host (go-builder): all three
+    distro branches run and matched their hardcoded count assertion for
+    the first time against a real Docker run -- rockylinux9 (`Count: 126,
+    Failed: 0, Skipped: 5`), alpine3 (`Count: 127, Failed: 0, Skipped:
+    5`), and arch (`Count: 106, Failed: 0, Skipped: 3`), all exit 0. Also
+    ran `run-serve-tests.sh` (8/8 assertions passed) and both
+    `ci/discovery-e2e.sh`/`ci/depends-on-e2e.sh` against the real built
+    `linux-amd64` binary
 
 ---
 

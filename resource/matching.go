@@ -23,8 +23,8 @@ type Matching struct {
 }
 
 const (
-	MatchingResourceKey  = "mount"
-	MatchingResourceName = "Mount"
+	MatchingResourceKey  = "matching"
+	MatchingResourceName = "Matching"
 )
 
 type MatchingMap map[string]*Matching
