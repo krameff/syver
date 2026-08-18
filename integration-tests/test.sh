@@ -71,11 +71,17 @@ docker_exec "/goss/$os/syver-linux-$arch" -g "/goss/goss-wait.yaml" validate -r 
 out=$(docker_exec "/goss/$os/syver-linux-$arch" --vars "/goss/vars.yaml" --vars-inline "$vars_inline" -g "/goss/$os/goss.yaml" validate)
 echo "$out"
 
-if [[ $os == "arch" ]]; then
-    egrep -q 'Count: 106, Failed: 0, Skipped: 3' <<<"$out"
-else
-    egrep -q 'Count: 127, Failed: 0, Skipped: 5' <<<"$out"
-fi
+# Three counts, because the distros genuinely differ:
+#   arch    does not include goss-service.yaml at all
+#   alpine3 is the one distro with a real runlevels expectation
+#   the rest carried `runlevels: []`, which is no longer an expectation --
+#           an empty list means "nothing to assert" everywhere now, so it
+#           no longer contributes a vacuous passing test
+case $os in
+  arch)    egrep -q 'Count: 106, Failed: 0, Skipped: 3' <<<"$out" ;;
+  alpine3) egrep -q 'Count: 127, Failed: 0, Skipped: 5' <<<"$out" ;;
+  *)       egrep -q 'Count: 126, Failed: 0, Skipped: 5' <<<"$out" ;;
+esac
 
 goss_bin="/goss/$os/syver-linux-$arch"
 syver_runner() {

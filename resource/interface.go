@@ -60,10 +60,10 @@ func (i *Interface) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if i.Addrs != nil {
+	if isSet(i.Addrs) {
 		results = append(results, ValidateValue(i, "addrs", i.Addrs, sysInterface.Addrs, skip))
 	}
-	if i.MTU != nil {
+	if isSet(i.MTU) {
 		results = append(results, ValidateValue(i, "mtu", i.MTU, sysInterface.MTU, skip))
 	}
 	return results

@@ -76,6 +76,23 @@ func shouldSkip(results []TestResult) bool {
 	return false
 }
 
+// isSet reports whether an optional attribute carries an expectation.
+//
+// It is the guard every optional attribute uses, so that "no expectation"
+// means the same thing everywhere. Two spellings reach here:
+//
+//	mode:            # absent or null -> nil
+//	contents: []     # present but empty
+//
+// The empty list is not merely a stylistic choice: it is what `syver add`
+// and `syver autoadd` emit for an attribute they found nothing to assert
+// about, so it appears throughout generated gossfiles. Treating it as an
+// expectation would make every generated spec assert a vacuous "contains
+// at least nothing", which always passes and only inflates the test count.
+//
+// Note this is deliberately not applied to the mandatory attribute of each
+// resource (file.exists, command.exit-status, http.status and so on). Those
+// always report, so that a resource always produces at least one result.
 func isSet(i interface{}) bool {
 	switch v := i.(type) {
 	case []interface{}:

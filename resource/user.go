@@ -61,21 +61,21 @@ func (u *User) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if u.UID != nil {
+	if isSet(u.UID) {
 		uUID := deprecateAtoI(u.UID, fmt.Sprintf("%s: user.uid", u.Username))
 		results = append(results, ValidateValue(u, "uid", uUID, sysuser.UID, skip))
 	}
-	if u.GID != nil {
+	if isSet(u.GID) {
 		uGID := deprecateAtoI(u.GID, fmt.Sprintf("%s: user.gid", u.Username))
 		results = append(results, ValidateValue(u, "gid", uGID, sysuser.GID, skip))
 	}
-	if u.Home != nil {
+	if isSet(u.Home) {
 		results = append(results, ValidateValue(u, "home", u.Home, sysuser.Home, skip))
 	}
-	if u.Groups != nil {
+	if isSet(u.Groups) {
 		results = append(results, ValidateValue(u, "groups", u.Groups, sysuser.Groups, skip))
 	}
-	if u.Shell != nil {
+	if isSet(u.Shell) {
 		results = append(results, ValidateValue(u, "shell", u.Shell, sysuser.Shell, skip))
 	}
 	return results

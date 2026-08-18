@@ -57,7 +57,7 @@ func (p *Package) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if p.Versions != nil {
+	if isSet(p.Versions) {
 		results = append(results, ValidateValue(p, "version", p.Versions, sysPkg.Versions, skip))
 	}
 	return results

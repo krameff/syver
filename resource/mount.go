@@ -69,19 +69,19 @@ func (m *Mount) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if m.Opts != nil {
+	if isSet(m.Opts) {
 		results = append(results, ValidateValue(m, "opts", m.Opts, sysMount.Opts, skip))
 	}
-	if m.VfsOpts != nil {
+	if isSet(m.VfsOpts) {
 		results = append(results, ValidateValue(m, "vfs-opts", m.VfsOpts, sysMount.VfsOpts, skip))
 	}
-	if m.Source != nil {
+	if isSet(m.Source) {
 		results = append(results, ValidateValue(m, "source", m.Source, sysMount.Source, skip))
 	}
-	if m.Filesystem != nil {
+	if isSet(m.Filesystem) {
 		results = append(results, ValidateValue(m, "filesystem", m.Filesystem, sysMount.Filesystem, skip))
 	}
-	if m.Usage != nil {
+	if isSet(m.Usage) {
 		results = append(results, ValidateValue(m, "usage", m.Usage, sysMount.Usage, skip))
 	}
 	return results

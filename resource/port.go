@@ -58,10 +58,10 @@ func (p *Port) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if p.IP != nil {
+	if isSet(p.IP) {
 		results = append(results, ValidateValue(p, "ip", p.IP, sysPort.IP, skip))
 	}
-	if p.PID != nil {
+	if isSet(p.PID) {
 		results = append(results, ValidateValue(p, "pid", p.PID, sysPort.PID, skip))
 	}
 	return results

@@ -54,13 +54,13 @@ func (s *Service) Validate(sys *system.System) []TestResult {
 	sysservice := sys.NewService(ctx, s.GetName(), sys, util.Config{})
 
 	var results []TestResult
-	if s.Enabled != nil {
+	if isSet(s.Enabled) {
 		results = append(results, ValidateValue(s, "enabled", s.Enabled, sysservice.Enabled, skip))
 	}
-	if s.Running != nil {
+	if isSet(s.Running) {
 		results = append(results, ValidateValue(s, "running", s.Running, sysservice.Running, skip))
 	}
-	if s.RunLevels != nil {
+	if isSet(s.RunLevels) {
 		results = append(results, ValidateValue(s, "runlevels", s.RunLevels, sysservice.RunLevels, skip))
 	}
 	return results
