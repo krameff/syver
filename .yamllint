@@ -9,6 +9,20 @@ ignore:
   - integration-tests/goss/examples/discovery/goss-inline.yml
   - integration-tests/goss/examples/discovery/goss-with-deps.yml
   - docs/goss.yaml
+  # examples/ -- the templated specs are Go templates, so they are not valid
+  # YAML until rendered, same as the fixtures above. The non-templated
+  # examples are deliberately left in scope and do lint clean.
+  - examples/06-discovery/syver.yaml
+  - examples/06-discovery/inline.yaml
+  - examples/06-discovery/with-deps.yaml
+  - examples/07-templates/syver.yaml
+  - examples/08-http/templated.yaml
+  - examples/09-compliance-audit/syver.yaml
+  - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.1.1.yml
+  - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.1.2.yml
+  - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.2.1.yml
+  - examples/09-compliance-audit/section_2/bench_2.1.x/bench_2.1.1.1.yml
+  - examples/09-compliance-audit/section_2/bench_2.1.x/bench_2.1.2.1.yml
 
 rules:
   braces:
