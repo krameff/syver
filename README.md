@@ -22,9 +22,10 @@
 <a href="https://asciinema.org/a/4suhr8p42qcn6r7crfzt6cc3e?autoplay=1" target="_blank"><img src="https://cloud.githubusercontent.com/assets/6783261/17330426/ce7ad066-5894-11e6-84ea-29fd4207af58.gif" alt="asciicast"></a>
 <!-- markdownlint-enable line-length no-inline-html -->
 
-**Note:** For testing containers see the [dgoss](extras/dsyver/README.md) wrapper.
-Also, user submitted wrapper scripts for Kubernetes [kgoss](extras/ksyver/README.md)
-and Docker Compose [dcgoss](extras/dcsyver/README.md).
+**Note:** For testing containers see the [dsyver](extras/dsyver/README.md) wrapper.
+There are also wrapper scripts for Kubernetes ([ksyver](extras/ksyver/README.md))
+and Docker Compose ([dcsyver](extras/dcsyver/README.md)). The goss-named
+`dgoss`, `kgoss` and `dcgoss` still ship alongside them and work unchanged.
 
 **Note:** For some Docker/Kubernetes healthcheck, health endpoint, and
 container ordering examples, see the
@@ -59,7 +60,8 @@ the single intentional breaking change.
 
 Build from source or install release binaries — see [installation](docs/installation.md).
 
-This will install syver and [dgoss](extras/dsyver/README.md).
+This installs `syver`, the [dsyver](extras/dsyver/README.md) container wrapper,
+and `dgoss` as a compatibility shim.
 
 <!-- --8<-- [end:intro] -->
 <!-- --8<-- [start:install] -->
@@ -147,7 +149,14 @@ Let's write a simple sshd test using autoadd.
 $ sudo syver autoadd sshd
 ```
 
-Generated `goss.yaml`:
+**On spec filenames:** syver looks for `syver.yaml`, `syver.yml`, `goss.yaml`
+and `goss.yml`, in that order, and writes to whichever it found. When none
+exist it creates `syver.yaml`. The goss-named files keep working indefinitely,
+so an existing `goss.yaml` needs no migration; `syver.yaml` is simply the
+preferred name for new work. Note this is the *filename* only. Inside the file
+the import key stays `gossfile:` (`syverfile:` is accepted as an input alias).
+
+Generated `syver.yaml`:
 
 ```yaml
 port:
@@ -233,7 +242,8 @@ $ curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
 Syver files can be manually edited to improve readability and expressiveness of tests.
 
 A [Json draft 7 schema](https://github.com/json-schema-org/json-schema-spec/blob/draft-07/schema.json) in
-[docs/schema.yaml](docs/schema.yaml) makes it easier to edit simple goss.yaml files in IDEs,
+[docs/schema.yaml](docs/schema.yaml) makes it easier to edit simple `syver.yaml` /
+`goss.yaml` files in IDEs,
 providing usual coding assistance such as inline documentation, completion and static analysis.
 See #793 for screenshots.
 
@@ -242,7 +252,8 @@ follow [documented instructions](https://www.jetbrains.com/help/idea/json.html#w
 with arguments such as:
 * `schema url=docs/schema.yaml` (path from the repository root)
 * `schema version=Json schema version 7`
-* `file path pattern=*/goss.yaml`
+* `file path pattern=*/syver.yaml` (add a second pattern for `*/goss.yaml` if
+  you still have goss-named specs)
 
 In addition, Syver files can also be further manually edited (without yet full json support) to use:
 
@@ -293,26 +304,26 @@ package:
 {{end}}
 ```
 
-Goss.yaml files with templates can still be validated through the Json schema after being rendered
+Spec files with templates can still be validated through the Json schema after being rendered
 using the `syver render` command. See example below
 
 ```console
 $ cd docs
-$ syver --vars ./vars.yaml render > rendered_goss.yaml
-# proceed with json schema validation of rendered_goss.yaml in your favorite IDE
+$ syver --vars ./vars.yaml render > rendered_syver.yaml
+# proceed with json schema validation of rendered_syver.yaml in your favorite IDE
 # or in one of the Json schema validator listed in https://json-schema.org/implementations.html
 # The following example is for a Linux AMD64 host
 $ curl -LO https://github.com/neilpa/yajsv/releases/download/v1.4.1/yajsv.linux.amd64
 $ chmod a+x yajsv.linux.amd64
 $ sudo mv yajsv.linux.amd64 /usr/sbin/yajsv
 
-$ yajsv -s goss-json-schema.yaml rendered_goss.yaml
+$ yajsv -s schema.yaml rendered_syver.yaml
 
-rendered_goss.yaml: fail: process.chrome: skip is required
-rendered_goss.yaml: fail: service.sshd: skip is required
+rendered_syver.yaml: fail: process.chrome: skip is required
+rendered_syver.yaml: fail: service.sshd: skip is required
 1 of 1 failed validation
-rendered_goss.yaml: fail: process.chrome: skip is required
-rendered_goss.yaml: fail: service.sshd: skip is required
+rendered_syver.yaml: fail: process.chrome: skip is required
+rendered_syver.yaml: fail: service.sshd: skip is required
 ```
 
 Full list of available Json schema validators can be found in <https://json-schema.org/implementations.html#validator-command%20line>
@@ -334,6 +345,11 @@ syver validate -g goss-inline.yml
 # Export discovery results for external tooling (unchanged)
 syver validate -g discovery.yaml --format discovery
 ```
+
+These examples pass goss-named files because that is what the checked-in
+fixtures are called. **`goss.yaml` and `goss.yml` are still accepted, and
+always will be**. `-g` takes any path, and a spec found by name is resolved
+across all four of `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml`.
 
 Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/examples/discovery/)
 
@@ -371,6 +387,18 @@ Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/
 * silent - No output. Avoids exposing system information (e.g. when serving tests as a healthcheck endpoint).
 
 ## Community Contributions
+
+These are third-party integrations written for upstream goss. They are listed
+because they still work, but **each one invokes a binary named `goss`**, and
+`install.sh` installs `syver`, `dsyver` and `dgoss`, but no `goss`. To use any of
+them, put a `goss` on your `PATH` pointing at syver:
+
+```bash
+sudo ln -s "$(command -v syver)" /usr/local/bin/goss
+```
+
+The gossfiles these tools generate and consume need no changes; only the
+binary name differs. None of them are maintained by this project.
 
 <!-- markdownlint-disable line-length -->
 * [goss-ansible](https://github.com/indusbox/goss-ansible) - Ansible module for Goss.

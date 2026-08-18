@@ -1,4 +1,4 @@
-# This sample goss.yaml file is used to test the json schema goss-json-schema.yaml
+# This sample goss.yaml file is used to test the json schema in schema.yaml
 
 addr:
   tcp:
@@ -41,7 +41,7 @@ file:
     linked-to: /usr/sbin/sendmail.sendmail
     skip: false
 # Inline templates are not valid json/yaml that could be validated as-in by json schema
-# Instead, run `goss --vars ./vars.yaml render > rendered_goss.yaml` to render them
+# Instead, run `syver --vars ./vars.yaml render > rendered_syver.yaml` to render them
 # and apply the schema validation on the rendered file.
 {{- range mkSlice "/etc/passwd" "/etc/group"}}
   {{.}}:
