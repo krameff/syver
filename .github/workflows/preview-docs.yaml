@@ -1,4 +1,15 @@
 name: Preview documentation
+
+# DISABLED: the job below is gated on `if: false` and never runs. It is kept
+# because a Read the Docs site is planned and PR preview links will be wanted
+# once it exists.
+#
+# Before enabling, read the trigger. `pull_request_target` runs with the base
+# repository's token and secrets, and is safe here only because this job never
+# checks out PR content -- it just posts a link. If you add a checkout step,
+# a build step, or anything that executes code from the pull request, that
+# becomes remote code execution with write access. Use `pull_request` instead
+# in that case.
 on:
   pull_request_target:
     types:
@@ -21,4 +32,4 @@ jobs:
     steps:
       - uses: readthedocs/actions/preview@v1
         with:
-          project-slug: goss
+          project-slug: syver

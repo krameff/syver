@@ -99,6 +99,24 @@ image and Go module path).
   - `docs/platforms.md` documents `SYVER_USE_ALPHA` alongside the legacy `GOSS_USE_ALPHA`
   - the alpha bypass hint printed on macOS/Windows now names `SYVER_USE_ALPHA`; `GOSS_USE_ALPHA` still works
   - `docs/installation.md` GoReleaser output path corrected; it still named a `goss` build id and binary
+  - a `command:` resource that times out now has its process group killed
+  - previously only the timeout error was returned: the child kept running, reparented to init, with its goroutine parked in `Wait`. Under `serve` that leaked one process per cache refresh against a hanging command
+  - killing the direct child is not enough, because commands run through `sh -c` and the hang is usually the shell's own child; the whole group is signalled instead
+  - Windows keeps `exec.CommandContext`'s default (the started process only): a process tree there needs a Job Object, which is out of scope while Windows support is alpha
+  - `go test -race ./...` is clean, and `ci/go-test.sh` now runs it
+  - the suite could not pass under the detector before, which is why the `color.NoColor` write-write race above went unnoticed for the project's entire history
+  - the cause was two `t.Parallel()` tests in serve_test.go both retargeting the process-global logger via `log.SetOutput`; every race the detector reported came from test parallelism, none from the CLI, which never loads configs concurrently
+  - `mkdocs.yml` `site_url` still pointed at `goss.readthedocs.io`, which would have published this fork's site with upstream goss's canonical links, sitemap and OG metadata
+  - `docs/container_image.md` documented `docker exec weby /syver/syver autoadd nginx`; `/syver` is an empty VOLUME and the binary installs to `/usr/bin`, so the documented command could not work
+  - `docs/cli.md`'s `validate --loglevel` block listed a `FATAL` level that does not exist and described `serve`'s healthcheck behaviour; replaced with the five levels `logs.go` actually defines
+  - `docs/testing.md` was absent from the nav and unreachable from the published site
+  - both wrapper READMEs pointed at `/goss/docker_output.log`; the scripts mount `/syver`
+  - `GOSS_FILE`'s documented default understated the real four-name probe
+  - the dsyver macOS instructions downloaded a versioned tarball this project has never produced
+  - `docs/goss.yaml` linked to `docs/manual.md`, which does not exist
+  - `ksyver`'s own usage text contradicted its coded `GOSS_CONTAINER_PATH` default
+  - `command:` documented as executable input, and `serve` documented as unauthenticated and echoing command output verbatim
+  - removed the stale `.golangci.bck.yaml`; the dead docs-preview workflow keeps its `if: false` but gains the reason and a corrected project slug
 
 ---
 
