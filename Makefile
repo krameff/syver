@@ -72,12 +72,17 @@ gen:
 	$(info INFO: Starting build $@)
 	go generate -tags genny $(pkgs)
 
+# c.out is the coverage profile written by ci/go-test.sh (via `make test`) and by
+# the cov/funcov/htmlcov targets. c.out.tmp is that script's sed intermediate,
+# normally renamed away already. Both are gitignored; removed here so `clean`
+# actually leaves a clean tree.
 clean:
 	$(info INFO: Starting build $@)
 	rm -rf ./release
 	rm -rf ./dist
 	rm -rf ./site
 	rm -rf ${VENV}
+	rm -f ./c.out ./c.out.tmp
 
 build-images:
 	$(info INFO: Starting build $@)
