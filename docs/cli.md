@@ -24,6 +24,7 @@ GLOBAL OPTIONS:
    --vars-inline string                                          json/yaml string containing variables for template (overwrites vars) [$SYVER_VARS_INLINE, $GOSS_VARS_INLINE]
    --package string                                              Package type to use [apk, dpkg, pacman, rpm]
    --help, -h                                                    show help
+   --version, -v                                                 print the version
 ```
 
 !!! note
@@ -120,6 +121,7 @@ A sub-command *resource type* has to be provided when running `add`.
 | [`package`](gossfile.md#package)           | Validate the status of a [package](gossfile.md#package) using the package manager specified on the commandline with `--package` |
 | [`port`](gossfile.md#port)                 | Validate the status of a local [port](gossfile.md#port), for example `80` or `udp:123`                                          |
 | [`process`](gossfile.md#process)           | Validate the status of a [process](gossfile.md#process)                                                                         |
+| [`registry`](gossfile.md#registry)         | Validate a Windows [registry](gossfile.md#registry) key or value. Windows only                                                  |
 | [`service`](gossfile.md#service)           | Validate if a [service](gossfile.md#service) is running and/or enabled at boot                                                  |
 | [`user`](gossfile.md#user)                 | Validate the existence and values of a [user](gossfile.md#user) on the system                                                   |
 
@@ -323,6 +325,12 @@ Exits with status 0 on success, non-0 otherwise.
 :   Output format. Can be one of:
     - `documentation` - Verbose test results
     - `json` - Detailed test result on a single line (See `pretty` format option)
+    - `structured` - Like `json`, but each result also carries a human-readable
+      `summary-line` and `summary-line-compact`, and the document gains a
+      `summary` object (`test-count`, `failed-count`, `total-duration`) plus a
+      top-level `summary-line`. Useful when the same output has to be both
+      machine-parsed and read by a person. Supports the `pretty` and `sort`
+      format options
     - `junit`
     - `nagios` - Nagios/Sensu compatible output /w exit code 2 for failures
     - `rspecish` **(default)** - Similar to rspec output

@@ -171,7 +171,7 @@ command:
     skip: false
 ```
 
-`stdout` and `stderr` can be a string or [pattern](#patterns)
+`stdout` and `stderr` can be a string or [pattern](#matchers)
 
 The `exec` attribute is the command to run; this defaults to the name of
 the hash for backwards compatibility
@@ -276,7 +276,7 @@ file:
     skip: false
 ```
 
-`contents` can be a string or a [pattern](#patterns)
+`contents` can be a string or a [pattern](#matchers)
 
 ### gossfile
 
@@ -473,6 +473,53 @@ matching:
       and:
         - have-key: baz
 ```
+
+### registry
+
+Validates a Windows registry key or value. **Windows only** -- on Linux and
+macOS this resource is not available, see [platforms](platforms.md).
+
+Uses the native `golang.org/x/sys/windows/registry` API, so no PowerShell or
+`reg.exe` subprocess is involved.
+
+```yaml
+registry:
+  # a key: the trailing backslash is what makes this a key check rather
+  # than a check on a value named CurrentVersion
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\:
+    exists: true
+
+  # a value: the last path segment is read as the value name
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\CurrentVersion:
+    exists: true
+    value: "10.0"
+    type: REG_SZ
+
+  # use :: when the value name itself contains a backslash, or when the
+  # split would otherwise be ambiguous
+  HKLM\SOFTWARE\Vendor\Product::Install\Path:
+    exists: true
+```
+
+Supported hives, as the first path segment:
+
+`HKLM` (HKEY_LOCAL_MACHINE), `HKCU` (HKEY_CURRENT_USER),
+`HKCR` (HKEY_CLASSES_ROOT), `HKU` (HKEY_USERS),
+`HKCC` (HKEY_CURRENT_CONFIG).
+
+Attributes:
+
+* `exists` -- whether the key or value is present. The only required attribute.
+* `value` -- the data held by the value, always read as a string. Accepts any
+  [matcher](#matchers). Note `REG_MULTI_SZ` is returned as its entries joined
+  by newlines, not as a list, so use `contain-substring` or `match-regexp`
+  rather than list matchers like `contain-element`.
+* `type` -- the value's data type, one of `REG_SZ`, `REG_EXPAND_SZ`,
+  `REG_DWORD`, `REG_QWORD`, `REG_BINARY`, `REG_MULTI_SZ`.
+
+By default the last backslash-separated segment of the path is treated as the
+value name. Use the explicit `::` separator when that guess would be wrong,
+for example when a value name contains backslashes.
 
 ### package
 
@@ -999,7 +1046,7 @@ syver --vars discovered.json validate -g goss.yml --format documentation
 ```
 
 Complete example (also in
-[`integration-tests/goss/examples/discovery/`](../integration-tests/goss/examples/discovery/)):
+[`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)):
 
 `discovery.yaml`
 
@@ -1064,7 +1111,7 @@ command:
 syver validate -g goss-with-deps.yml --discover discovery.yaml
 ```
 
-See [`integration-tests/goss/examples/discovery/goss-with-deps.yml`](../integration-tests/goss/examples/discovery/goss-with-deps.yml).
+See [`integration-tests/goss/examples/discovery/goss-with-deps.yml`](https://github.com/krameff/syver/blob/main/integration-tests/goss/examples/discovery/goss-with-deps.yml).
 
 ## Test dependencies
 
@@ -1095,7 +1142,7 @@ to allow for dynamic or conditional tests.
 Available variables:
 
 * `{{.Env}}`  - Containing environment variables
-* `{{.Vars}}` - Containing the values defined in [--vars](#global-options) files (merged in order)
+* `{{.Vars}}` - Containing the values defined in [--vars](cli.md#global-options) files (merged in order)
 * `{{.Discovered}}` - Values from [discovery](#discovery) (`--discover`, inline `discovery:`, or `--vars`)
 
 Available functions:

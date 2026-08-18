@@ -446,6 +446,35 @@ definitions:
         type: array
         items:
           type: string
+  registryTest:
+    required:
+      - exists
+    properties:
+      title: { "$ref":"#/definitions/title" }
+      meta: { "$ref":"#/definitions/meta" }
+      exists:
+        description: whether the registry key or value is present
+        type: boolean
+        default: true
+      value:
+        description: >-
+          the data held by the value, always read as a string. REG_MULTI_SZ is
+          returned as its entries joined by newlines, not as a list, so use
+          substring or regexp matchers rather than list matchers.
+      type:
+        description: the value's data type
+        type: string
+        enum:
+          - REG_SZ
+          - REG_EXPAND_SZ
+          - REG_DWORD
+          - REG_QWORD
+          - REG_BINARY
+          - REG_MULTI_SZ
+      skip:
+        type: boolean
+        default: false
+
   serviceTest:
     required:
       - enabled
@@ -879,6 +908,12 @@ properties:
     description: "Validates if a process is running."
     additionalProperties:
       $ref: "#/definitions/processTest"
+
+  registry:
+    type: object
+    description: "Validates a Windows registry key or value. Windows only."
+    additionalProperties:
+      $ref: "#/definitions/registryTest"
 
   service:
     type: object
