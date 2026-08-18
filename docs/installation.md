@@ -33,9 +33,9 @@ The binary is written under `dist/` (for example `dist/goss_linux_amd64_v1/goss`
 
 ## dgoss and other wrappers
 
-* [dgoss](../extras/dsyver/README.md) — run goss against Docker/Podman containers
-* [kgoss](../extras/ksyver/README.md) — Kubernetes wrapper
-* [dcgoss](../extras/dcsyver/README.md) — Docker Compose wrapper
+* [dgoss](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) — run goss against Docker/Podman containers
+* [kgoss](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md) — Kubernetes wrapper
+* [dcgoss](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md) — Docker Compose wrapper
 
 ## Release binaries
 
@@ -70,7 +70,7 @@ from the repository **Releases** page. Until then, use [build from source](#buil
 
 Each release's `SHA256SUMS` checksum file is GPG-signed with the project's
 signing key (fingerprint `326F2A906EBB641DF88929D0306DF3B80A0667CD`, published
-as [`krameff-syver-key.asc`](../krameff-syver-key.asc) at the repo root and
+as [`krameff-syver-key.asc`](https://github.com/krameff/syver/blob/main/krameff-syver-key.asc) at the repo root and
 attached to every release).
 
 ```bash

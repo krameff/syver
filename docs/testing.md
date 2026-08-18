@@ -13,7 +13,7 @@ git config core.hooksPath .githooks
 ```
 
 This runs `gofmt`, `go vet`, and `go test` scoped to whatever Go packages have staged
-changes on every `git commit` (see [`.githooks/pre-commit`](../.githooks/pre-commit)).
+changes on every `git commit` (see [`.githooks/pre-commit`](https://github.com/krameff/syver/blob/main/.githooks/pre-commit)).
 
 Before pushing / opening a PR, run the fuller local bundle (mirrors both CI jobs —
 lint + coverage):
@@ -64,18 +64,18 @@ with `|| true`), so `test-short-all`, `pre-push`, and CI's separate lint job agr
 
 | Workflow | Job | Tests run |
 | --- | --- | --- |
-| [`.github/workflows/golangci.yaml`](../.github/workflows/golangci.yaml) | `lint` | golangci-lint |
+| [`.github/workflows/golangci.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/golangci.yaml) | `lint` | golangci-lint |
 | | `coverage` | `make cov`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`** |
 | | `integration-test-*` | `make rockylinux9`, `jammy`, darwin, windows, etc. (includes discovery + depends-on E2E) |
-| [`.github/workflows/codeql.yml`](../.github/workflows/codeql.yml) | `analyze` | CodeQL static analysis for Go and GitHub Actions workflows |
-| [`.github/workflows/docs.yaml`](../.github/workflows/docs.yaml) | `lint` | markdownlint-cli2 on docs |
-| [`.github/workflows/yamllint.yaml`](../.github/workflows/yamllint.yaml) | — | YAML lint |
+| [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml) | `analyze` | CodeQL static analysis for Go and GitHub Actions workflows |
+| [`.github/workflows/docs.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docs.yaml) | `lint` | markdownlint-cli2 on docs |
+| [`.github/workflows/yamllint.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/yamllint.yaml) | — | YAML lint |
 
 ## Discovery E2E
 
-Script: [`ci/discovery-e2e.sh`](../ci/discovery-e2e.sh)
+Script: [`ci/discovery-e2e.sh`](https://github.com/krameff/syver/blob/main/ci/discovery-e2e.sh)
 
-Fixtures: [`integration-tests/goss/examples/discovery/`](../integration-tests/goss/examples/discovery/)
+Fixtures: [`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)
 
 ```bash
 make test-discovery-e2e
@@ -107,9 +107,9 @@ goss --vars /tmp/discovered.json \
 
 ## Depends-on E2E
 
-Script: [`ci/depends-on-e2e.sh`](../ci/depends-on-e2e.sh)
+Script: [`ci/depends-on-e2e.sh`](https://github.com/krameff/syver/blob/main/ci/depends-on-e2e.sh)
 
-Fixtures: [`integration-tests/goss/examples/depends-on/`](../integration-tests/goss/examples/depends-on/)
+Fixtures: [`integration-tests/goss/examples/depends-on/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/depends-on/)
 
 ```bash
 make test-depends-on-e2e
@@ -122,15 +122,17 @@ Steps performed:
 
 ## Docker integration matrix
 
-Script: [`integration-tests/test.sh`](../integration-tests/test.sh)
+Script: [`integration-tests/test.sh`](https://github.com/krameff/syver/blob/main/integration-tests/test.sh)
 
 Each distro target (`make rockylinux9`, `make jammy`, etc.) runs the main gossfile validate suite, then
-reuses the same steps as the host E2E scripts via [`ci/lib/syver-e2e-steps.sh`](../ci/lib/syver-e2e-steps.sh):
+reuses the same steps as the host E2E scripts via [`ci/lib/syver-e2e-steps.sh`](https://github.com/krameff/syver/blob/main/ci/lib/syver-e2e-steps.sh):
 
 * `run_discovery_e2e_steps` — `--format discovery`, `--discover`, inline `discovery:`, discover+depends-on
 * `run_depends_on_e2e_steps` — pure `depends-on` skip semantics
 
-Fixtures live under [`integration-tests/goss/examples/`](../integration-tests/goss/examples/) and are
+Fixtures live under
+[`integration-tests/goss/examples/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/)
+and are
 mounted at `/goss/examples/` inside the test container.
 
 ## Go unit and integration tests (317 cases)
@@ -240,14 +242,14 @@ No Go tests — behaviour covered by root package API tests and integration test
 
 ## Docker integration tests
 
-Linux distro matrix via [`integration-tests/test.sh`](../integration-tests/test.sh):
+Linux distro matrix via [`integration-tests/test.sh`](https://github.com/krameff/syver/blob/main/integration-tests/test.sh):
 
 ```bash
 make rockylinux9    # example: one distro
 make test-int-all   # full matrix (slow)
 ```
 
-Non-amd64 / darwin / windows via [`integration-tests/run-validate-tests.sh`](../integration-tests/run-validate-tests.sh)
+Non-amd64 / darwin / windows via [`integration-tests/run-validate-tests.sh`](https://github.com/krameff/syver/blob/main/integration-tests/run-validate-tests.sh)
 (find `*.goss.yaml` under platform dirs and run `goss validate`).
 
 ## Markdown lint
@@ -258,11 +260,11 @@ make lint-markdown
 
 Lints: `docs/**/*.md`, `README.md`, `extras/**/README.md`, `.github/CONTRIBUTING.md`
 
-Configuration: [`.markdownlint.yaml`](../.markdownlint.yaml)
+Configuration: [`.markdownlint.yaml`](https://github.com/krameff/syver/blob/main/.markdownlint.yaml)
 
 ## Security scan
 
-Script: [`ci/security-scan.sh`](../ci/security-scan.sh)
+Script: [`ci/security-scan.sh`](https://github.com/krameff/syver/blob/main/ci/security-scan.sh)
 
 ```bash
 make test-security
@@ -280,12 +282,13 @@ Locally, Trivy runs via the `trivy` binary if installed, otherwise via Docker
 `SECURITY_STRICT=1` (always set in CI).
 
 Docker image scanning (Alpine packages and compiled binary) continues to run in
-[`.github/workflows/docker-syver.yaml`](../.github/workflows/docker-syver.yaml) and
-[`.github/workflows/trivy-schedule.yaml`](../.github/workflows/trivy-schedule.yaml).
+[`.github/workflows/docker-syver.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docker-syver.yaml)
+and
+[`.github/workflows/trivy-schedule.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/trivy-schedule.yaml).
 
 ## CodeQL
 
-Workflow: [`.github/workflows/codeql.yml`](../.github/workflows/codeql.yml)
+Workflow: [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml)
 
 Runs on pull requests and pushes to `devel`, plus a weekly schedule.
 Uses GitHub's advanced CodeQL setup for Go and Actions with category
@@ -300,7 +303,7 @@ cannot run together and will produce "configuration not found" warnings on pull 
 ## Adding tests for new features
 
 * **Discovery / depends-on**: add cases to `discovery_*_test.go` and extend
-  [`integration-tests/goss/examples/discovery/`](../integration-tests/goss/examples/discovery/)
+  [`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)
 * **Output formats**: add to `outputs/*_test.go`
 * **Resource types**: add to `resource/validate_test.go` and platform integration gossfiles
 * **CLI behaviour**: prefer root `syver_test.go` or integration command gossfiles under

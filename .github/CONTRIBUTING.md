@@ -4,7 +4,7 @@ Thank you for your interest in contributing to Syver. Syver wouldn't be where it
 Some ways you can contribute:
 
 * Improve the [README](https://github.com/krameff/syver/blob/main/README.md)
-    and/or [Docs](https://github.com/krameff/syver/blob/main/docs/).
+    and/or [Docs](https://github.com/krameff/syver/tree/main/docs/).
     This makes it easier for new users to learn syver.
 * Vote on bugs and feature requests by adding a :+1: reaction to the inital post.
 * Create tutorials, blog posts and example use-cases on how to use Syver.
@@ -35,7 +35,7 @@ Some things to note prior to opening a Syver feature request:
     In other words, Syver focuses on the 20% of features that cover the core aspects of OS testing and benefit 80% of users.
 * Syver is intended to test the local machine it's running on.
     Tests aren't intended to be used to validate remote systems or endpoints.
-* Syver provides a generic [command](../docs/gossfile.md#command) runner
+* Syver provides a generic [command](https://github.com/krameff/syver/blob/main/docs/gossfile.md#command) runner
     to allow users to cover more nuanced test cases.
 
 If you believe your feature adheres to the goals of Syver,
@@ -65,5 +65,5 @@ It would be quite odd for a testing tool to not have a healthy approach to test 
 
 Before opening a PR, run `make pre-push` locally (formats, vets, lints, and runs unit
 tests plus the discovery/depends-on E2E and security checks CI runs). See
-[`docs/testing.md`](../docs/testing.md) for the full breakdown, including an optional
+[`docs/testing.md`](https://github.com/krameff/syver/blob/main/docs/testing.md) for the full breakdown, including an optional
 git hook (`git config core.hooksPath .githooks`) that runs a fast subset on every commit.

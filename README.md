@@ -16,9 +16,9 @@
 
 <!-- --8<-- [start:intro] -->
 
-**Note:** For testing containers see the [dsyver](extras/dsyver/README.md) wrapper.
-There are also wrapper scripts for Kubernetes ([ksyver](extras/ksyver/README.md))
-and Docker Compose ([dcsyver](extras/dcsyver/README.md)). The goss-named
+**Note:** For testing containers see the [dsyver](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) wrapper.
+There are also wrapper scripts for Kubernetes ([ksyver](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md))
+and Docker Compose ([dcsyver](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md)). The goss-named
 `dgoss`, `kgoss` and `dcgoss` still ship alongside them and work unchanged.
 
 **Note:** For some Docker/Kubernetes healthcheck, health endpoint, and
@@ -45,16 +45,17 @@ Syver is the renamed continuation of the `krameff/goss` fork. **Your gossfiles d
 need to change.** `gossfile:`, `goss.yaml`, `GOSS_*` env vars, the `dgoss`/`dcgoss`/`kgoss`
 wrappers and the `-g` flag all keep working.
 
-See [goss vs Syver](docs/goss-vs-syver.md) for the full side-by-side comparison, including
+See [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md)
+for the full side-by-side comparison, including
 the single intentional breaking change.
 
 ## Installation
 
-**Note:** For macOS and Windows, see [platform support](docs/platforms.md).
+**Note:** For macOS and Windows, see [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md).
 
-Build from source or install release binaries — see [installation](docs/installation.md).
+Build from source or install release binaries — see [installation](https://github.com/krameff/syver/blob/main/docs/installation.md).
 
-This installs `syver`, the [dsyver](extras/dsyver/README.md) container wrapper,
+This installs `syver`, the [dsyver](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) container wrapper,
 and `dgoss` as a compatibility shim.
 
 <!-- --8<-- [end:intro] -->
@@ -62,7 +63,7 @@ and `dgoss` as a compatibility shim.
 
 ### Manual installation
 
-Download pre-built binaries and install wrappers as described in [installation](docs/installation.md).
+Download pre-built binaries and install wrappers as described in [installation](https://github.com/krameff/syver/blob/main/docs/installation.md).
 
 ### Build it yourself
 
@@ -133,8 +134,8 @@ dist
 
 ### Writing a simple sshd test
 
-An initial set of tests can be derived from the system state by using the [add](docs/cli.md#add)
-or [autoadd](docs/cli.md#autoadd) commands.
+An initial set of tests can be derived from the system state by using the [add](https://github.com/krameff/syver/blob/main/docs/cli.md#add)
+or [autoadd](https://github.com/krameff/syver/blob/main/docs/cli.md#autoadd) commands.
 
 Let's write a simple sshd test using autoadd.
 
@@ -204,7 +205,8 @@ Total Duration: 0.021s # <- yeah, it's that fast..
 Count: 15, Failed: 0
 ```
 
-* Edit it to use [templates](docs/gossfile.md#templates), and run with a vars file
+* Edit it to use [templates](https://github.com/krameff/syver/blob/main/docs/gossfile.md#templates),
+  and run with a vars file
 
 ```console
 syver --vars vars.yaml validate
@@ -236,7 +238,8 @@ $ curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
 Syver files can be manually edited to improve readability and expressiveness of tests.
 
 A [Json draft 7 schema](https://github.com/json-schema-org/json-schema-spec/blob/draft-07/schema.json) in
-[docs/schema.yaml](docs/schema.yaml) makes it easier to edit simple `syver.yaml` /
+[docs/schema.yaml](https://github.com/krameff/syver/blob/main/docs/schema.yaml)
+makes it easier to edit simple `syver.yaml` /
 `goss.yaml` files in IDEs,
 providing usual coding assistance such as inline documentation, completion and static analysis.
 See #793 for screenshots.
@@ -251,9 +254,9 @@ with arguments such as:
 
 In addition, Syver files can also be further manually edited (without yet full json support) to use:
 
-* [Matchers and patterns](docs/gossfile.md#matchers)
-* [Advanced Matchers](docs/gossfile.md#advanced-matchers)
-* [Templates](docs/gossfile.md#templates)
+* [Matchers and patterns](https://github.com/krameff/syver/blob/main/docs/gossfile.md#matchers)
+* [Advanced Matchers](https://github.com/krameff/syver/blob/main/docs/gossfile.md#advanced-matchers)
+* [Templates](https://github.com/krameff/syver/blob/main/docs/gossfile.md#templates)
 * `title` and `meta` (arbitrary data) attributes are persisted when adding other resources with `syver add`
 
 Some examples:
@@ -326,8 +329,8 @@ Full list of available Json schema validators can be found in <https://json-sche
 
 Run lightweight discovery checks before the main suite and use the results in templates, or declare
 `depends-on` to skip dependents when a prerequisite fails. See
-[Discovery](docs/gossfile.md#discovery) and
-[Test dependencies](docs/gossfile.md#test-dependencies).
+[Discovery](https://github.com/krameff/syver/blob/main/docs/gossfile.md#discovery) and
+[Test dependencies](https://github.com/krameff/syver/blob/main/docs/gossfile.md#test-dependencies).
 
 ```bash
 # Pre-run discovery, then validate main gossfile (preferred)
@@ -345,7 +348,7 @@ fixtures are called. **`goss.yaml` and `goss.yml` are still accepted, and
 always will be**. `-g` takes any path, and a spec found by name is resolved
 across all four of `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml`.
 
-Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/examples/discovery/)
+Fixtures: [`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)
 
 <!-- --8<-- [end:quickstart] -->
 <!-- --8<-- [start:about] -->
@@ -362,6 +365,7 @@ Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/
 * command - add new command
 * dns - add new dns
 * process - add new process name
+* registry - add new Windows registry key or value (Windows only)
 * kernel-param - add new kernel-param
 * mount - add new mount
 * interface - add new network interface
@@ -374,6 +378,7 @@ Fixtures: [`integration-tests/goss/examples/discovery/`](integration-tests/goss/
 * rspecish - **(default)** Similar to rspec output
 * documentation - Verbose test results
 * json - JSON, detailed test result
+* structured - JSON like `json`, plus a `summary` object and a human-readable `summary-line` on every result
 * tap - TAP style
 * junit - JUnit style
 * nagios - Nagios/Sensu compatible output /w exit code 2 for failures.
@@ -406,7 +411,7 @@ binary name differs. None of them are maintained by this project.
 
 ## Limitations
 
-`syver` works well on Linux, but support on Windows & macOS is alpha. See [platform support](docs/platforms.md).
+`syver` works well on Linux, but support on Windows & macOS is alpha. See [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md).
 
 The following tests have limitations.
 
@@ -428,7 +433,7 @@ Port:
 
 * Port state is only implemented on Linux, where it's read from
   `/proc/net/{tcp,udp,tcp6,udp6}`. It is not implemented on macOS or Windows --
-  see [platform support](docs/platforms.md).
+  see [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md).
 * On Linux, if one of those files exists but contains a line syver can't parse
   (an unexpected IP/port/uid encoding, typically from a non-standard procfs,
   e.g. inside certain containers or network namespaces), the affected `port`
