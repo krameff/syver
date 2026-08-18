@@ -48,7 +48,7 @@ cleanup() {
         info "Copying log"
         cp "$tmp_dir/docker_output.log" "$CONTAINER_LOG_OUTPUT"
     fi
-    [ "$DEBUG" ] || rm -rf "$tmp_dir"
+    [ "$DEBUG" ] || rm -rf "$tmp_parent"
     if [[ $id ]]; then
         info "Deleting container"
         $CONTAINER_RUNTIME rm -vf "$id" > /dev/null
@@ -140,7 +140,19 @@ get_docker_file() {
 }
 
 # Main
-tmp_dir=$(mktemp -d ${DGOSS_TEMP_DIR:-/tmp}/tmp.XXXXXXXXXX)
+# mktemp -d creates the directory 0700, and that is exactly what is wanted on
+# the outer directory: it is what stops other local users reaching the contents.
+# The inner directory is the one bind-mounted (or copied) into the container,
+# and it has to be world-writable because the container process may run as any
+# UID. Nesting the permissive directory inside a private one gives the container
+# the access it needs without publishing the contents to every user on the host.
+#
+# That matters here specifically because this directory holds the syver binary
+# that the container is about to execute: a world-writable directory directly
+# under /tmp let any local user swap that binary between staging and startup.
+tmp_parent=$(mktemp -d "${DGOSS_TEMP_DIR:-/tmp}"/tmp.XXXXXXXXXX)
+tmp_dir="$tmp_parent/syver"
+mkdir "$tmp_dir"
 chmod 777 "$tmp_dir"
 trap 'ret=$?;cleanup;exit $ret' EXIT
 

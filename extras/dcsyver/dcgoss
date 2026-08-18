@@ -38,7 +38,7 @@ error() {
 cleanup() {
     set +e
     { kill "$log_pid" && wait "$log_pid"; } 2> /dev/null
-    [ "$DEBUG" ] || rm -rf "$tmp_dir"
+    [ "$DEBUG" ] || rm -rf "$tmp_parent"
     # COMPOSE_BIN may still be unresolved here if cleanup() fires (via the
     # EXIT trap) before Main ever reaches compose-provider detection --
     # e.g. the "no compose file found" gate exits first. Guard on it being
@@ -98,7 +98,19 @@ get_docker_file() {
 }
 
 # Main
-tmp_dir=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+# mktemp -d creates the directory 0700, and that is exactly what is wanted on
+# the outer directory: it is what stops other local users reaching the contents.
+# The inner directory is the one bind-mounted (or copied) into the container,
+# and it has to be world-writable because the container process may run as any
+# UID. Nesting the permissive directory inside a private one gives the container
+# the access it needs without publishing the contents to every user on the host.
+#
+# That matters here specifically because this directory holds the syver binary
+# that the container is about to execute: a world-writable directory directly
+# under /tmp let any local user swap that binary between staging and startup.
+tmp_parent=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
+tmp_dir="$tmp_parent/goss"
+mkdir "$tmp_dir"
 chmod 777 "$tmp_dir"
 # shellcheck disable=SC2154
 trap 'ret=$?; cleanup; info "Test ran for a total of $SECONDS seconds"; exit $ret' EXIT
