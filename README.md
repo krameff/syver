@@ -16,12 +16,6 @@
 
 <!-- --8<-- [start:intro] -->
 
-## Syver in 45 seconds
-
-<!-- markdownlint-disable line-length no-inline-html-->
-<a href="https://asciinema.org/a/4suhr8p42qcn6r7crfzt6cc3e?autoplay=1" target="_blank"><img src="https://cloud.githubusercontent.com/assets/6783261/17330426/ce7ad066-5894-11e6-84ea-29fd4207af58.gif" alt="asciicast"></a>
-<!-- markdownlint-enable line-length no-inline-html -->
-
 **Note:** For testing containers see the [dsyver](extras/dsyver/README.md) wrapper.
 There are also wrapper scripts for Kubernetes ([ksyver](extras/ksyver/README.md))
 and Docker Compose ([dcsyver](extras/dcsyver/README.md)). The goss-named

@@ -60,6 +60,13 @@
   - new release signing key, fingerprint `326F2A906EBB641DF88929D0306DF3B80A0667CD`
   - key file `krameff-goss-key.asc` -> `krameff-syver-key.asc`; import the new one to verify 0.7.0+
   - `.goreleaser.yaml` and `docs/installation.md` repointed at the new filename
+  - serve integration tests now wait for the server to bind before asserting
+  - previously only darwin slept; on linux the first curl raced the listener
+  - cross-arch runs never won that race: ppc64le needs ~500ms to bind under qemu
+  - serve tests also assert the `vnd.syver-` and `syver_tests_*` side, not just `goss`
+  - `ci/security-scan.sh` accepts podman, not just docker, so trivy runs on this sandbox
+  - a skipped trivy scan now says so in a summary line instead of exiting 0 silently
+  - removed the goss-era asciinema demo from the README
 
 ---
 
