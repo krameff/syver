@@ -44,7 +44,7 @@ This matrix attempts to track parity across platforms.
 
 !!! note "About partial support"
 
-    This is ambiguous. Where you see this, check into the test coverage within `integration-tests/goss/{darwin|windows}/{test}.goss.yaml` for more detail.
+    This is ambiguous. Where you see this, check into the test coverage within `integration-tests/syver/{darwin|windows}/{test}.goss.yaml` for more detail.
     It might be that not all features work as on `linux`, it might be that not all features are covered by automated tests.
 
 ## Tests/assertions support matrix
@@ -174,6 +174,6 @@ Validating `macOS` and `Windows` binaries requires native runners on those platf
 Because neither platform uses the Linux Docker integration-test containers,
 assertions are limited to the state of the CI hosts, where we rely on that being predictable.
 
-You can find goss-files that are used to populate this matrix within `integration-tests/goss/{darwin|windows}/{test}.goss.yaml`.
+You can find goss-files that are used to populate this matrix within `integration-tests/syver/{darwin|windows}/{test}.goss.yaml`.
 Where a feature does note work the same as linux, it is commented.
 The intent is to end up with a set of running-and-passing tests.

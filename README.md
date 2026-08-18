@@ -343,7 +343,7 @@ fixtures are called. **`goss.yaml` and `goss.yml` are still accepted, and
 always will be**. `-g` takes any path, and a spec found by name is resolved
 across all four of `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml`.
 
-Fixtures: [`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)
+Fixtures: [`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)
 
 <!-- --8<-- [end:quickstart] -->
 <!-- --8<-- [start:about] -->

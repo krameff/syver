@@ -1,6 +1,6 @@
 ---
 file:
-  integration-tests/goss/testdata/static-file.txt:
+  integration-tests/syver/testdata/static-file.txt:
     exists: true
     mode: "0644"
     # user: ""  # TODO: not working on Darwin

@@ -128,7 +128,39 @@ image and Go module path).
   - the empty list is kept as "no expectation" rather than made to mean "is empty", because it is what `syver add`/`autoadd` emit for an attribute they found nothing to assert about; reinterpreting it would make every generated gossfile assert emptiness on re-validation. `have-len: 0` is the way to assert an attribute really is empty, and `docs/gossfile.md` now says so under Matchers
   - each resource's mandatory attribute (`file.exists`, `command.exit-status`, `http.status`, ...) is deliberately left unguarded, so a resource always produces at least one result
   - `resource/isset_test.go` pins both halves: the predicate, and that an empty list produces no result while a populated one still does
-  - `integration-tests/goss/goss-service.yaml` dropped the `runlevels: []` branch, which existed only to emit an empty list and is now a no-op. This was the only empty list in the counted integration run that sat on a previously-unguarded attribute -- verified by rendering all six distro specs and diffing. `integration-tests/test.sh` splits its hardcoded count three ways accordingly: arch 106 (no `goss-service.yaml`), alpine3 127 (a real `runlevels` expectation), the other four 126
+  - `integration-tests/syver/goss-service.yaml` dropped the `runlevels: []` branch, which existed only to emit an empty list and is now a no-op. This was the only empty list in the counted integration run that sat on a previously-unguarded attribute -- verified by rendering all six distro specs and diffing. `integration-tests/test.sh` splits its hardcoded count three ways accordingly: arch 106 (no `goss-service.yaml`), alpine3 127 (a real `runlevels` expectation), the other four 126
+- integration-tests directory rename
+  - `integration-tests/goss/` renamed to `integration-tests/syver/`
+    (`git mv`, history preserved) -- the last goss-named path segment in
+    the test harness; fixture filenames inside it (`goss.yaml`,
+    `*.goss.yaml`, `hellogoss.txt`, etc.) are unchanged, per the standing
+    "file format stays goss-named" rule
+  - the in-container Docker mount path stays `/goss`
+    (`-v "$PWD/syver:/goss"` in `integration-tests/test.sh`) --
+    deliberately not renamed: internal test-harness plumbing, never
+    documented or read outside the ephemeral test container
+  - `test.sh`'s local `goss_bin` variable renamed to `syver_bin` (value
+    unchanged)
+  - `discovery_integration_test.go:167` built its fixture path with
+    `filepath.Join("integration-tests", "goss", ...)`, so the string
+    `integration-tests/goss` never appears contiguously in the source and
+    no substring grep could find it. The directory move alone broke
+    `TestValidateWithDiscoverFlag` and `TestValidateInlineDiscovery`; the
+    comment two hundred lines below it had been updated while the
+    functional line had not
+  - `.yamllint`'s five ignore-list entries repointed. They name Go-template
+    fixtures that are not valid YAML, so once the paths went stale
+    `make lint-yaml` walked into all five and failed. Confirmed both ways
+    on go-builder, where yamllint is actually installed: exit 0 with the
+    fix, exit 1 and four syntax errors without it
+  - verified end-to-end on the remote Docker host (go-builder): all three
+    distro branches run and matched their hardcoded count assertion for
+    the first time against a real Docker run -- rockylinux9 (`Count: 126,
+    Failed: 0, Skipped: 5`), alpine3 (`Count: 127, Failed: 0, Skipped:
+    5`), and arch (`Count: 106, Failed: 0, Skipped: 3`), all exit 0. Also
+    ran `run-serve-tests.sh` (8/8 assertions passed) and both
+    `ci/discovery-e2e.sh`/`ci/depends-on-e2e.sh` against the real built
+    `linux-amd64` binary
 
 ---
 

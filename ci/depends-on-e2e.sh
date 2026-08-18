@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-EXAMPLES="${ROOT}/integration-tests/goss/examples/depends-on"
+EXAMPLES="${ROOT}/integration-tests/syver/examples/depends-on"
 SYVER_ARGS=()
 
 # shellcheck source=lib/syver-e2e-steps.sh

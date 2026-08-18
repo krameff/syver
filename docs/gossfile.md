@@ -1084,7 +1084,7 @@ syver --vars discovered.json validate -g goss.yml --format documentation
 ```
 
 Complete example (also in
-[`integration-tests/goss/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/goss/examples/discovery/)):
+[`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)):
 
 `discovery.yaml`
 
@@ -1149,7 +1149,7 @@ command:
 syver validate -g goss-with-deps.yml --discover discovery.yaml
 ```
 
-See [`integration-tests/goss/examples/discovery/goss-with-deps.yml`](https://github.com/krameff/syver/blob/main/integration-tests/goss/examples/discovery/goss-with-deps.yml).
+See [`integration-tests/syver/examples/discovery/goss-with-deps.yml`](https://github.com/krameff/syver/blob/main/integration-tests/syver/examples/discovery/goss-with-deps.yml).
 
 ## Test dependencies
 

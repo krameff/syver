@@ -3,7 +3,7 @@
 command:
   "validate":
     exit-status: 0
-    exec: "release/syver-darwin-amd64 -g integration-tests/goss/darwin-amd64/commands/validate-input.yaml validate"
+    exec: "release/syver-darwin-arm64 -g integration-tests/syver/darwin-arm64/commands/validate-input.yaml validate"
     stdout:
       - 'Count: 1'
       - 'Failed: 0'

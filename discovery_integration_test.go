@@ -164,7 +164,7 @@ func TestValidateWithoutDiscoverErrorsOnMissingTemplateVar(t *testing.T) {
 
 func discoveryExamplesDir(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Join("integration-tests", "goss", "examples", "discovery")
+	dir := filepath.Join("integration-tests", "syver", "examples", "discovery")
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatalf("discovery examples missing: %v", err)
 	}
@@ -522,7 +522,7 @@ func TestValidateCollisionWarnLogsOnce(t *testing.T) {
 }
 
 func TestValidateDiscoverWithDependsOn(t *testing.T) {
-	// Self-contained variant of integration-tests/goss/examples/discovery/
+	// Self-contained variant of integration-tests/syver/examples/discovery/
 	// goss-with-deps.yml using a sentinel file instead of /etc/hosts, so the
 	// depends-on/skip semantics are also exercised on Windows/macOS runners.
 	dir := t.TempDir()

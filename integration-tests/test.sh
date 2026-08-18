@@ -17,7 +17,7 @@ container_repository="ghcr.io/krameff"
 # setup places us inside repo-root; this preserves current behaviour with least change.
 cd integration-tests
 
-cp "../release/syver-linux-$arch" "goss/$os/"
+cp "../release/syver-linux-$arch" "syver/$os/"
 # Always build. This was previously gated on `md5sum -c "Dockerfile_${os}.md5"`
 # with a pull branch behind an elif, but no Dockerfile_*.md5 file has ever
 # existed in this tree: development/build_images.sh records the digest as an
@@ -54,7 +54,7 @@ fi
 network=syver-test
 $DOCKER_BIN network create --driver bridge --subnet '172.19.0.0/16' $network
 $DOCKER_BIN run -d --name httpbin --network $network docker.io/kennethreitz/httpbin
-opts=(--env OS=$os --cap-add SYS_ADMIN -v "$PWD/goss:/goss" -d --name "$container_name" --security-opt seccomp:unconfined --security-opt label:disable --privileged)
+opts=(--env OS=$os --cap-add SYS_ADMIN -v "$PWD/syver:/goss" -d --name "$container_name" --security-opt seccomp:unconfined --security-opt label:disable --privileged)
 id=$($DOCKER_BIN run "${opts[@]}" --network $network "$container_repository/syver_$os" /sbin/init)
 # Newer Docker (verified: 29.7.2) no longer populates the legacy top-level
 # .NetworkSettings.IPAddress field for a container attached to a
@@ -83,15 +83,15 @@ case $os in
   *)       egrep -q 'Count: 126, Failed: 0, Skipped: 5' <<<"$out" ;;
 esac
 
-goss_bin="/goss/$os/syver-linux-$arch"
+syver_bin="/goss/$os/syver-linux-$arch"
 syver_runner() {
-  docker_exec "${goss_bin}" "$@"
+  docker_exec "${syver_bin}" "$@"
 }
 
 run_discovery_e2e_steps "/goss/examples/discovery" syver_runner \
-  "${REPO_ROOT}/integration-tests/goss/examples/discovery"
+  "${REPO_ROOT}/integration-tests/syver/examples/discovery"
 run_depends_on_e2e_steps "/goss/examples/depends-on" syver_runner \
-  "${REPO_ROOT}/integration-tests/goss/examples/depends-on"
+  "${REPO_ROOT}/integration-tests/syver/examples/depends-on"
 
 if [[ ! $os == "arch" ]]; then
   docker_exec /goss/generate_goss.sh "$os" "$arch"
