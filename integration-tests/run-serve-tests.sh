@@ -72,8 +72,41 @@ args=(
 )
 log_action "\nTesting \`${SYVER_BINARY} ${args[*]}\` ...\n"
 "${SYVER_BINARY}" "${args[@]}" &
+serve_pid=$!
 base_url="http://127.0.0.1:${open_port}"
-[[ "$(go env GOOS)" == "darwin" ]] && sleep 2
+
+# Wait for the server to actually bind before asserting against it.
+#
+# This was previously `[[ "$(go env GOOS)" == "darwin" ]] && sleep 2`, i.e. no
+# wait at all on Linux. A native amd64 binary usually wins that race, but a
+# cross-arch binary under qemu never does: linux-ppc64le takes ~500ms to bind,
+# so every curl hit a closed port and all five assertions failed with an empty
+# response body -- looking like five broken assertions rather than one race.
+#
+# Polling instead of a fixed sleep keeps the fast path fast (native amd64 is
+# usually ready on the first probe) while tolerating slow emulated targets.
+wait_for_server() {
+  local deadline=$((SECONDS + 30))
+  local curl_bin="curl"
+  [[ "$(go env GOOS)" == "windows" ]] && curl_bin="curl.exe"
+  while (( SECONDS < deadline )); do
+    if ${curl_bin} --silent --max-time 2 --output /dev/null "${base_url}${endpoint:-/healthz}"; then
+      return 0
+    fi
+    # If the server died on startup, fail now rather than after the full timeout.
+    if ! kill -0 "${serve_pid}" 2>/dev/null; then
+      log_error "serve process (pid ${serve_pid}) exited before binding ${base_url}"
+      return 1
+    fi
+    sleep 0.25
+  done
+  log_error "timed out after 30s waiting for ${base_url} to accept connections"
+  return 1
+}
+
+if ! wait_for_server; then
+  log_fatal "server never became ready; aborting before assertions"
+fi
 
 assert_response_contains() {
   local url="${1:?"1st arg: url"}"
@@ -108,8 +141,17 @@ assert_response_contains "${base_url}/healthz" "tap accept header" "Count: 2, Fa
 assert_response_contains "${base_url}/healthz" "json accept header" "\"failed-count\":0" "application/json" || on_test_failure
 assert_response_contains "${base_url}/healthz" "prometheus accept header" "goss_tests_outcomes_total" "application/vnd.goss-prometheus" || on_test_failure
 
-# /metrics - specific prometheus metrics endpoint
-assert_response_contains "${base_url}/metrics" "prometheus accept header" "goss_tests_outcomes_total" "" || on_test_failure
+# The syver-named side of the same contract. Both prefixes are supported
+# permanently: vnd.goss-* is what a goss-era client sends and must keep working,
+# vnd.syver-* is the current name. Only the goss half was asserted before, so a
+# regression in the syver half would not have been caught here.
+assert_response_contains "${base_url}/healthz" "syver documentation accept header" "Count: 2, Failed: 0, Skipped: 0" "application/vnd.syver-documentation" || on_test_failure
+assert_response_contains "${base_url}/healthz" "syver prometheus accept header" "syver_tests_outcomes_total" "application/vnd.syver-prometheus" || on_test_failure
+
+# /metrics - specific prometheus metrics endpoint. Metrics are dual-emitted, so
+# both names must be present on the same response.
+assert_response_contains "${base_url}/metrics" "prometheus goss_tests_*" "goss_tests_outcomes_total" "" || on_test_failure
+assert_response_contains "${base_url}/metrics" "prometheus syver_tests_*" "syver_tests_outcomes_total" "" || on_test_failure
 
 # Deliberately an `if` rather than `[[ ... ]] && log_fatal ...`: as an and-list,
 # a passing run leaves the failed `[[ ]]` as the script's last command, so the
