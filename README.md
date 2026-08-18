@@ -35,9 +35,9 @@ Once the test suite is written they can be executed, waited-on, or served as a h
 
 ### Why use Syver?
 
-* Syver is EASY! - [Syver in 45 seconds](#syver-in-45-seconds)
+* Syver is EASY!
 * Syver is FAST! - small-medium test suites are near instantaneous
-* Syver is SMALL! - <10MB single self-contained binary
+* Syver is SMALL! - <20MB single self-contained binary
 
 ### Coming from goss?
 
