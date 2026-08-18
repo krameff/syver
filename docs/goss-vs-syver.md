@@ -3,21 +3,37 @@
 Syver is the renamed continuation of the `krameff/goss` fork of
 [`goss-org/goss`](https://github.com/goss-org/goss). **The product renamed; the file
 format did not.** Existing gossfiles, env vars, wrapper scripts and CI pipelines keep
-working. There is exactly one intentional breaking change, called out below.
+working. The breaking changes are limited to things that referenced the product by
+name, and are listed first.
 
 For a step-by-step move from upstream goss, see [migrations](migrations.md). This page
 is the quick reference for what is and isn't different.
 
 ---
 
-## The one breaking change
+## Breaking changes
 
-| Behaviour | goss | Syver |
-| --- | --- | --- |
-| Outbound `User-Agent` on `http` resource checks | `goss/<version>` | `syver/<version>` |
+Nothing that reads or writes a spec file changes. What breaks is limited to things
+that referenced the product by name.
 
-If you assert on the User-Agent string server-side, update that assertion. Nothing else
-on this page is a hard break.
+| What | goss | Syver | Affects you if |
+| --- | --- | --- | --- |
+| Binary name | `goss` | `syver` | Anything shells out to `goss` by name. `install.sh` no longer puts a `goss` on your `PATH` |
+| Outbound `User-Agent` on `http` checks | `goss/<version>` | `syver/<version>` | You assert on the User-Agent server-side |
+| Checksum file | `goss_<ver>_SHA256SUMS` | `syver_<ver>_SHA256SUMS` | You verify release checksums by filename |
+| Container image | `ghcr.io/krameff/goss` | `ghcr.io/krameff/syver` | You pull the image |
+| Go module path | `github.com/krameff/goss` | `github.com/krameff/syver` | You import this as a library, not as a CLI |
+
+The release archives themselves are still published under **both** names, so a
+`goss-<os>-<arch>` download URL keeps resolving. Only the checksum file is single-named.
+
+For the binary-name break specifically, the fix is one line:
+
+```bash
+sudo ln -s "$(command -v syver)" /usr/local/bin/goss
+```
+
+See [migrations](migrations.md#upgrading-from-krameffgoss-v060) for the full upgrade path.
 
 ---
 

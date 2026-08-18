@@ -3,6 +3,19 @@
 ## 0.7.0 based on krameff/goss v0.6.0 - Rename to Syver
 # Keeping versioning due to goss legacy compatability
 
+**Renaming release.** goss becomes Syver. Your gossfiles need no changes:
+`gossfile:`, `goss.yaml`, the `GOSS_*` environment variables, `-g`, and the
+`dgoss` / `dcgoss` / `kgoss` wrappers all keep working.
+
+The breaking changes are limited to things that referenced the product by name
+(the binary is now `syver`, plus the User-Agent, checksum filename, container
+image and Go module path).
+
+- **Upgrading:** [docs/migrations.md](docs/migrations.md#upgrading-from-krameffgoss-v060)
+- **Full side-by-side of what did and did not change:** [docs/goss-vs-syver.md](docs/goss-vs-syver.md)
+
+### Detail
+
 - syver_initial branch
   - `/metrics` now serves the `outputs` private registry, not the default global one
   - added `outputs.MetricsRegistry()` accessor

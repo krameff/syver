@@ -37,6 +37,55 @@ Under the hood, process and port lookups moved from two unmaintained libraries
 That should be invisible to you, gossfiles and output are unchanged, but it is why
 the three resource fields above were straightforward to add.
 
+## Upgrading from krameff/goss v0.6.0
+
+If you are already on the `krameff/goss` fork, this is the rename release. Your
+gossfiles need no changes; syntax, resource types and matchers are identical.
+What changes is the product's own name.
+
+### What you need to do
+
+| If you | Do this |
+| --- | --- |
+| Invoke `goss` by name in scripts or CI | Call `syver`, or symlink it (below) |
+| Use the community integrations | Symlink, see below |
+| Pull the container image | Use `ghcr.io/krameff/syver` |
+| Import this as a Go library | Update the path to `github.com/krameff/syver` |
+| Verify release checksums by filename | It is now `syver_<version>_SHA256SUMS` |
+| Nothing above | Nothing. Install the new binary and carry on |
+
+The third-party integrations listed in the README (`goss-ansible`,
+`kitchen-goss`, `packer-provisioner-goss` and the rest) all invoke a binary
+named `goss`, and `install.sh` installs `syver`, `dsyver` and `dgoss` but no
+`goss`. One symlink covers all of them:
+
+```bash
+sudo ln -s "$(command -v syver)" /usr/local/bin/goss
+```
+
+### What you do NOT need to do
+
+`gossfile:` is still the canonical import key, `goss.yaml` / `goss.yml` are
+still accepted filenames, all 16 `GOSS_*` environment variables still work,
+`--gossfile` / `-g` still work, and `dgoss` / `dcgoss` / `kgoss` still ship and
+run. The JUnit suite name, the Nagios prefix, the `goss_tests_*` metrics, the
+`application/vnd.goss-*` media types and the `goss-<os>-<arch>` release
+archives are all unchanged.
+
+See [goss vs Syver](goss-vs-syver.md) for the complete side-by-side.
+
+### Verifying releases
+
+Upstream `goss-org/goss` publishes no signatures. This fork GPG-signs its
+release checksums, so verification is available here that was not available
+upstream.
+
+The key for 0.7.0 onward is `krameff-syver-key.asc`, fingerprint
+`326F2A906EBB641DF88929D0306DF3B80A0667CD`. If you imported the earlier
+`krameff-goss-key.asc` from a 0.6.0 release, import the new one as well: the
+old key will not verify 0.7.0 artifacts. See
+[Verifying release signatures](installation.md#verifying-release-signatures).
+
 ## v4 migration
 
 Three breaking changes when moving from v0.3.x to v0.4.x. Check whether any apply
