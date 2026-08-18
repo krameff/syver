@@ -17,7 +17,14 @@ import (
 )
 
 func TestServeWithNoContentNegotiation(t *testing.T) {
-	t.Parallel()
+	// Not t.Parallel(): this test calls log.SetOutput, which retargets the
+	// process-global logger at a buffer local to this function. Run in
+	// parallel with any other test that does the same, each redirects the
+	// global logger out from under the other and they race on the buffer --
+	// `go test -race` reports it. Building a handler also drives the
+	// package-level config globals (outStoreFormat, currentTemplateFilter,
+	// quietDecode, color.NoColor), which assume no concurrent load.
+	// With these two serial, `go test -race ./...` is clean.
 	tests := map[string]struct {
 		outputFormat        string
 		specFile            string
@@ -75,7 +82,14 @@ func TestServeWithNoContentNegotiation(t *testing.T) {
 }
 
 func TestServeNegotiatingContent(t *testing.T) {
-	t.Parallel()
+	// Not t.Parallel(): this test calls log.SetOutput, which retargets the
+	// process-global logger at a buffer local to this function. Run in
+	// parallel with any other test that does the same, each redirects the
+	// global logger out from under the other and they race on the buffer --
+	// `go test -race` reports it. Building a handler also drives the
+	// package-level config globals (outStoreFormat, currentTemplateFilter,
+	// quietDecode, color.NoColor), which assume no concurrent load.
+	// With these two serial, `go test -race ./...` is clean.
 	tests := map[string]struct {
 		acceptHeader        []string
 		outputFormat        string
