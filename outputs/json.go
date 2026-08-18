@@ -7,7 +7,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/util"
 )
@@ -32,7 +31,7 @@ func (r Json) Output(w io.Writer, results <-chan []resource.TestResult,
 
 	var startTime time.Time
 	var endTime time.Time
-	color.NoColor = true
+	forceNoColor()
 	testCount := 0
 	failed := 0
 	skipped := 0

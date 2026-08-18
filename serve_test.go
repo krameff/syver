@@ -6,9 +6,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
+	"sync"
 	"testing"
 	"time"
 
+	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/util"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -372,4 +374,87 @@ func makeRequest(t *testing.T, config *util.Config, headers map[string][]string)
 		}
 	}
 	return req
+}
+
+// TestFillCacheReturnsExistingEntry covers the double-check inside fillCache:
+// a request that queued on syverMu while another was validating must return
+// what the winner stored, not run the validation over again.
+//
+// The cache is seeded with a sentinel that no real validation could produce, so
+// getting it back is proof the re-check fired rather than the spec happening to
+// yield the same thing.
+func TestFillCacheReturnsExistingEntry(t *testing.T) {
+	// Deliberately not t.Parallel(): constructing a health handler goes through
+	// loadSyverConfig, which drives package-level globals (outStoreFormat,
+	// currentTemplateFilter, quietDecode). Those assume no concurrent loads --
+	// true of the CLI, not of two parallel tests -- so running in parallel here
+	// would trip the race detector on pre-existing state rather than on anything
+	// this test is about.
+
+	config, err := util.NewConfig(
+		util.WithSpecFile(filepath.Join("testdata", "passing.goss.yaml")),
+		util.WithOutputFormat("json"),
+	)
+	require.NoError(t, err)
+
+	hh, err := newHealthHandler(config)
+	require.NoError(t, err)
+
+	sentinel := [][]resource.TestResult{{{
+		Successful: true,
+		ResourceId: "sentinel-not-produced-by-validation",
+	}}}
+	hh.cache.SetDefault("res", sentinel)
+
+	got := hh.fillCache("res")
+
+	require.Len(t, got, 1)
+	require.Len(t, got[0], 1)
+	assert.Equal(t, "sentinel-not-produced-by-validation", got[0][0].ResourceId,
+		"fillCache re-ran validation instead of returning the entry already in the cache")
+}
+
+// TestServeConcurrentCacheMisses fires a burst of requests at one handler with
+// a cold cache -- the case syverMu exists for. Before the lock was taken, every
+// one of these ran its own full validation.
+//
+// Run under -race (CI does), this also covers the handler for data races on the
+// shared cache and mutex. The assertion is deliberately on outcome rather than
+// on a validation count: the latter is only observable through the global
+// logger, which other parallel tests in this package also write to.
+func TestServeConcurrentCacheMisses(t *testing.T) {
+	// Deliberately not t.Parallel(): constructing a health handler goes through
+	// loadSyverConfig, which drives package-level globals (outStoreFormat,
+	// currentTemplateFilter, quietDecode). Those assume no concurrent loads --
+	// true of the CLI, not of two parallel tests -- so running in parallel here
+	// would trip the race detector on pre-existing state rather than on anything
+	// this test is about.
+
+	config, err := util.NewConfig(
+		util.WithSpecFile(filepath.Join("testdata", "passing.goss.yaml")),
+		util.WithOutputFormat("json"),
+	)
+	require.NoError(t, err)
+
+	hh, err := newHealthHandler(config)
+	require.NoError(t, err)
+
+	const concurrency = 16
+	var wg sync.WaitGroup
+	codes := make([]int, concurrency)
+
+	for i := range concurrency {
+		wg.Add(1)
+		go func(idx int) {
+			defer wg.Done()
+			rr := httptest.NewRecorder()
+			http.HandlerFunc(hh.ServeHTTP).ServeHTTP(rr, makeRequest(t, config, nil))
+			codes[idx] = rr.Code
+		}(i)
+	}
+	wg.Wait()
+
+	for i, code := range codes {
+		assert.Equal(t, http.StatusOK, code, "request %d", i)
+	}
 }

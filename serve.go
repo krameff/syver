@@ -28,23 +28,59 @@ func Serve(c *util.Config) error {
 	if err != nil {
 		return err
 	}
-	http.Handle(endpoint, health)
+	// A dedicated mux rather than DefaultServeMux: the global one is process-wide
+	// shared state, so registering into it makes a second Serve call in the same
+	// process panic on the duplicate pattern, and lets anything else linked in
+	// register routes on our listener.
+	mux := http.NewServeMux()
+	mux.Handle(endpoint, health)
 	// Serve the outputs package's private registry, not the default global one.
 	// The goss_tests_* metrics are registered into the private registry via
 	// promauto.With(registry), so promhttp.Handler() (default registry) exposed
 	// none of them and /metrics always returned zero matches. Initialised eagerly
 	// with the process-level format options so label cardinality is deterministic
 	// rather than set by whichever request happens to arrive first.
-	http.Handle("/metrics", promhttp.HandlerFor(
+	mux.Handle("/metrics", promhttp.HandlerFor(
 		outputs.MetricsRegistry(util.OutputConfig{FormatOptions: c.FormatOptions}),
 		promhttp.HandlerOpts{},
 	))
+
+	// http.ListenAndServe uses a zero-value Server, which has no deadlines at
+	// all. On an endpoint that is unauthenticated by design, that lets a client
+	// open a connection and dribble its request headers forever, pinning a
+	// goroutine and a descriptor per connection (Slowloris).
+	//
+	// WriteTimeout is deliberately left unset. How long a response takes is
+	// decided by the spec under test, and a `command` resource can legitimately
+	// run for minutes; a write deadline would cut the body mid-flight and turn a
+	// slow pass into a truncated failure that looks like the server broke. The
+	// read-side and idle deadlines cost nothing here, because requests to this
+	// endpoint carry no body.
+	srv := &http.Server{
+		Addr:              c.ListenAddress,
+		Handler:           mux,
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
 	log.Printf("[INFO] Starting to listen on: %s", c.ListenAddress)
-	return http.ListenAndServe(c.ListenAddress, nil)
+	return srv.ListenAndServe()
 }
 
+// color.NoColor is a package global in fatih/color, and this used to assign it
+// on every call. Serve() constructs exactly one handler so production never
+// noticed, but any two callers racing here is a write-write data race on that
+// global -- which is precisely what the parallel tests in this package do, and
+// what `go test -race` reports against the unguarded version.
+//
+// The assignment is idempotent, so doing it once is equivalent. sync.Once also
+// establishes happens-before for every later caller, so no output goroutine can
+// be reading the flag while the first writer sets it.
+var noColorOnce sync.Once
+
 func newHealthHandler(c *util.Config) (*healthHandler, error) {
-	color.NoColor = true
+	noColorOnce.Do(func() { color.NoColor = true })
 	cache := cache.New(c.Cache, 30*time.Second)
 
 	cfg, err := getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
@@ -111,13 +147,38 @@ func (h healthHandler) processAndEnsureCached(negotiatedContentType string, outp
 		log.Printf("[TRACE] Returning cached[%s].", cacheKey)
 		tra = tmp.([][]resource.TestResult)
 	} else {
-		log.Printf("Stale cache[%s], running tests", cacheKey)
-		h.sys = system.New(h.c.PackageManager)
-		tra = h.validate()
-		h.cache.SetDefault(cacheKey, tra)
+		tra = h.fillCache(cacheKey)
 	}
 	trc := testResultArrayToChan(tra)
 	return h.output(trc, outputer)
+}
+
+// fillCache runs the validation and stores the result, serializing concurrent
+// misses so that a burst of probes arriving on a cold or just-expired cache
+// triggers one sweep of the system rather than one per request.
+//
+// syverMu has been carried since upstream (as gossMu) but was allocated and
+// never taken, so that amplification was live: N simultaneous requests ran N
+// full validations, each shelling out to the same package managers and
+// services. It is a pointer, so every value-receiver copy of healthHandler
+// shares the one mutex.
+func (h healthHandler) fillCache(cacheKey string) [][]resource.TestResult {
+	h.syverMu.Lock()
+	defer h.syverMu.Unlock()
+
+	// Re-check under the lock. Whichever request won the race has already
+	// stored its result, and the rest should return it rather than redo the
+	// work they queued for.
+	if tmp, found := h.cache.Get(cacheKey); found {
+		log.Printf("[TRACE] Returning cached[%s], filled while waiting.", cacheKey)
+		return tmp.([][]resource.TestResult)
+	}
+
+	log.Printf("Stale cache[%s], running tests", cacheKey)
+	h.sys = system.New(h.c.PackageManager)
+	tra := h.validate()
+	h.cache.SetDefault(cacheKey, tra)
+	return tra
 }
 
 func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs.Outputer) res {

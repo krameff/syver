@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/util"
 )
@@ -28,7 +27,7 @@ func (r JUnit) Output(w io.Writer, results <-chan []resource.TestResult,
 	sort := util.IsValueInList(foSort, outConfig.FormatOptions)
 	results = getResults(results, sort)
 
-	color.NoColor = true
+	forceNoColor()
 	var testCount, failed, skipped int
 
 	// ISO8601 timeformat
