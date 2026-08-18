@@ -41,6 +41,10 @@ func (s *ServiceUpstart) Exists() (bool, error) {
 
 func (s *ServiceUpstart) Enabled() (bool, error) {
 	if fh, err := os.Open(fmt.Sprintf("/etc/init/%s.override", s.service)); err == nil {
+		// Deferred, not closed at the end of this block: the loop below can
+		// return early, and `serve` mode re-runs this per request for the life
+		// of the process, so a missed Close leaks a descriptor per request.
+		defer fh.Close()
 		scanner := bufio.NewScanner(fh)
 		for scanner.Scan() {
 			line := scanner.Text()
@@ -53,6 +57,7 @@ func (s *ServiceUpstart) Enabled() (bool, error) {
 	// If no /etc/init/<service>.override with `manual` keyword in it has been found
 	// Check the contents of the upstart manifest.
 	if fh, err := os.Open(fmt.Sprintf("/etc/init/%s.conf", s.service)); err == nil {
+		defer fh.Close()
 		scanner := bufio.NewScanner(fh)
 		for scanner.Scan() {
 			line := scanner.Text()
