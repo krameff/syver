@@ -328,7 +328,7 @@ func newApp() *cli.Command {
 						},
 						Action: func(ctx context.Context, c *cli.Command) error {
 							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.AddResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+							return syver.AddResources(resolveSpecPath(c), resource.AddrResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
 						},
 					},
 					{
