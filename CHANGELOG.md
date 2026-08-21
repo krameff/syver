@@ -1,5 +1,59 @@
 # Changelog
 
+## Unreleased
+
+- modularization branch
+  - FEAT-007: registry-driven dispatch (Modularisation, Phase 1). Verified
+    no-op internal refactor -- `./ci/golden-baseline.sh verify` passes
+    against all 204 pre-refactor goldens -- with exactly one deliberate
+    behaviour change (see below)
+  - new `resource.Descriptor`/`Register`/`Descriptors()` (`resource/descriptor.go`)
+    replaces the old `registerResource`/`Resources()` registry; a
+    mutex-guarded, panic-on-duplicate table mirroring
+    `outputs.RegisterOutputer`
+  - `matching` is registered for the first time -- it had no `init()` at
+    all before this. goss-modular (the prior-art branch this spec's design
+    was informed by) couldn't register it without colliding with a
+    `MatchingResourceKey = "mount"` copy-paste bug it never fixed; Syver
+    fixed that bug in `802454a` and can register cleanly
+  - `resource/resource_list.go` (1,629 generated lines) and
+    `resource/resource_list_genny.go` deleted outright, along with the
+    `genny` dependency and the Makefile `gen` target. Replaced by one
+    generic `ResourceMap[T, ST, PT]` (`resource/resource_map.go`) carrying
+    `AppendSysResource`/`AppendSysResourceIfExists`/`UnmarshalJSON`/
+    `UnmarshalYAML` for all 17 types via type aliases (`type PortMap =
+    ResourceMap[Port, system.Port, *Port]`, etc.)
+  - new `dispatch.go` (root package): one `configAccessors`/
+    `discoveryAccessors` table replaces the switch/list/map literals
+    that used to be duplicated once per type across `syver_config.go`,
+    `discovery_config.go` and `add.go`. An `init()`-time guard panics if
+    the accessor tables and the resource registry ever fall out of sync
+    (the resolution of `syver_config.go`'s old `// FIXME: Can this be
+    moved to a safer compile-time check?`)
+  - `syver add`'s 16-case switch (`add.go`) replaced with a descriptor
+    lookup by name; a live-field accessor (not a copy) keeps newly-added
+    resources actually landing in the written file
+  - `cmd/syver`'s ~180-line hand-written `add` subcommand list replaced
+    with a loop over the resource registry
+  - fixed `resource/validate.go` deriving a resource's printed type via
+    `reflect.TypeOf` instead of calling `TypeName()` -- the reflect-based
+    version breaks for any out-of-package type, which matters once
+    external types exist (see below)
+  - **the one deliberate behaviour change:** `Matching.SetSkip()` was a
+    no-op, so `util.WithDisabledResourceTypes("matching")` silently failed
+    to disable it (`total=1 skipped=0 failed=1` instead of `total=1
+    skipped=1 failed=0`). Fixed; no golden exercises
+    `DisabledResourceTypes` (there is no CLI flag for it), so this changes
+    no golden. Regression test:
+    `TestMatchingSetSkipDisablesValidation`
+  - new conformance suite (`resource/conformance_test.go`), driven by the
+    descriptor registry, gives the 15 previously-Go-untested resource
+    types (of 17) real coverage for the first time
+  - test floor: 339 -> 365 cases, still 7 packages, `-race` clean;
+    `make check` clean (vet, lint, lint-markdown, gofmt), and the Docker
+    integration suite passes 7/7 with its three hardcoded per-distro
+    assertion counts (106/127/126) unchanged -- which is the no-op proof
+
 ## 0.7.0 based on krameff/goss v0.6.0 - Rename to Syver
 # Keeping versioning due to goss legacy compatability
 
@@ -130,14 +184,23 @@ image and Go module path).
   - `resource/isset_test.go` pins both halves: the predicate, and that an empty list produces no result while a populated one still does
   - `integration-tests/syver/goss-service.yaml` dropped the `runlevels: []` branch, which existed only to emit an empty list and is now a no-op. This was the only empty list in the counted integration run that sat on a previously-unguarded attribute -- verified by rendering all six distro specs and diffing. `integration-tests/test.sh` splits its hardcoded count three ways accordingly: arch 106 (no `goss-service.yaml`), alpine3 127 (a real `runlevels` expectation), the other four 126
 - ci permissions
-  - `docker-syver.yaml` and `trivy-schedule.yaml` gain `actions: read`.
-    `github/codeql-action/upload-sarif` reads the run through the Actions
-    API (`GET /repos/{owner}/{repo}/actions/runs/{run_id}`), which
-    `security-events: write` does not cover; on a private repository that
-    read is mandatory, so the upload failed with "Resource not accessible
-    by integration" naming the workflow-runs endpoint. Both jobs already
-    had `security-events: write`, so the SARIF permission was never the
-    problem
+  - the Trivy SARIF upload failed on every push to `main` with
+    `Error: Resource not accessible by integration`, citing the Actions
+    workflow-runs endpoint. The cause was **GitHub Advanced Security not
+    being enabled on this repository**: code scanning is unavailable on a
+    private repo without it, and the API rejection surfaces as a generic
+    not-accessible error naming an unrelated-looking endpoint rather than
+    saying so. Fixed by enabling Advanced Security in the repository
+    settings -- a repo setting, not a code change, so nothing in the tree
+    records it and it is easy to re-debug from scratch. Hence this note
+  - `docker-syver.yaml` and `trivy-schedule.yaml` also gained
+    `actions: read`, which `github/codeql-action` documents as required on
+    private repositories for the run lookup that `security-events: write`
+    does not cover. Kept because it is correct, but it was **not** what
+    fixed the error above: both failing runs predated it (each reported
+    `revision=000f6e84`, the merge commit, which does not contain it), so
+    the error was never actually reproduced with it in place. Enabling
+    Advanced Security is what resolved it
 - integration-tests directory rename
   - `integration-tests/goss/` renamed to `integration-tests/syver/`
     (`git mv`, history preserved) -- the last goss-named path segment in
