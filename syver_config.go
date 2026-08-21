@@ -24,6 +24,12 @@ type SyverConfig struct {
 	// written with `syverfile:` entries decodes here, gets folded into
 	// Syverfiles (see ReadJSONData in store.go), and is then nil'd out --
 	// it is never itself written back out (omitempty drops it once nil).
+	//
+	// NOTE (FEAT-007): this field intentionally has no dispatch.go
+	// accessor entry and is never touched by the configAccessors loops
+	// below -- it isn't a registered resource type, it's pure store.go
+	// decode plumbing (see store.go:255-268). Handled explicitly here,
+	// same as before the refactor.
 	SyverfileAlias resource.SyverfileMap   `json:"syverfile,omitempty" yaml:"syverfile,omitempty"`
 	KernelParams   resource.KernelParamMap `json:"kernel-param,omitempty" yaml:"kernel-param,omitempty"`
 	Mounts         resource.MountMap       `json:"mount,omitempty" yaml:"mount,omitempty"`
@@ -33,45 +39,21 @@ type SyverConfig struct {
 	Registries     resource.RegistryMap    `json:"registry,omitempty" yaml:"registry,omitempty"`
 }
 
+// NewSyverConfig builds an empty SyverConfig with every map field
+// initialised (FEAT-007: replaces two 16-entry make() blocks with a loop
+// over configAccessors/discoveryAccessors). gossfile has no accessor Make
+// (see the accessor table's comment in dispatch.go) so Syverfiles and
+// SyverfileAlias are still made explicitly, exactly as before.
 func NewSyverConfig() *SyverConfig {
-	return &SyverConfig{
-		Discovery: DiscoveryConfig{
-			Files:        make(resource.FileMap),
-			Packages:     make(resource.PackageMap),
-			Addrs:        make(resource.AddrMap),
-			Ports:        make(resource.PortMap),
-			Services:     make(resource.ServiceMap),
-			Users:        make(resource.UserMap),
-			Groups:       make(resource.GroupMap),
-			Commands:     make(resource.CommandMap),
-			DNS:          make(resource.DNSMap),
-			Processes:    make(resource.ProcessMap),
-			KernelParams: make(resource.KernelParamMap),
-			Mounts:       make(resource.MountMap),
-			Interfaces:   make(resource.InterfaceMap),
-			HTTPs:        make(resource.HTTPMap),
-			Matchings:    make(resource.MatchingMap),
-			Registries:   make(resource.RegistryMap),
-		},
-		Files:          make(resource.FileMap),
-		Packages:       make(resource.PackageMap),
-		Addrs:          make(resource.AddrMap),
-		Ports:          make(resource.PortMap),
-		Services:       make(resource.ServiceMap),
-		Users:          make(resource.UserMap),
-		Groups:         make(resource.GroupMap),
-		Commands:       make(resource.CommandMap),
-		DNS:            make(resource.DNSMap),
-		Processes:      make(resource.ProcessMap),
+	c := &SyverConfig{
 		Syverfiles:     make(resource.SyverfileMap),
 		SyverfileAlias: make(resource.SyverfileMap),
-		KernelParams:   make(resource.KernelParamMap),
-		Mounts:         make(resource.MountMap),
-		Interfaces:     make(resource.InterfaceMap),
-		HTTPs:          make(resource.HTTPMap),
-		Matchings:      make(resource.MatchingMap),
-		Registries:     make(resource.RegistryMap),
 	}
+	for _, key := range fieldOrder {
+		configAccessors[key].Make(c)
+		discoveryAccessors[key].Make(&c.Discovery)
+	}
+	return c
 }
 
 // Merge consumes all the resources in g2 into c, duplicate resources
@@ -79,68 +61,10 @@ func NewSyverConfig() *SyverConfig {
 func (c *SyverConfig) Merge(g2 SyverConfig) {
 	c.Discovery.Merge(g2.Discovery)
 
-	for k, v := range g2.Files {
-		mergeType(c.Files, "file", k, v)
-	}
-
-	for k, v := range g2.Packages {
-		mergeType(c.Packages, "package", k, v)
-	}
-
-	for k, v := range g2.Addrs {
-		mergeType(c.Addrs, "addr", k, v)
-	}
-
-	for k, v := range g2.Ports {
-		mergeType(c.Ports, "port", k, v)
-	}
-
-	for k, v := range g2.Services {
-		mergeType(c.Services, "service", k, v)
-	}
-
-	for k, v := range g2.Users {
-		mergeType(c.Users, "user", k, v)
-	}
-
-	for k, v := range g2.Groups {
-		mergeType(c.Groups, "group", k, v)
-	}
-
-	for k, v := range g2.Commands {
-		mergeType(c.Commands, "command", k, v)
-	}
-
-	for k, v := range g2.DNS {
-		mergeType(c.DNS, "dns", k, v)
-	}
-
-	for k, v := range g2.Processes {
-		mergeType(c.Processes, "process", k, v)
-	}
-
-	for k, v := range g2.KernelParams {
-		mergeType(c.KernelParams, "kernel-param", k, v)
-	}
-
-	for k, v := range g2.Mounts {
-		mergeType(c.Mounts, "mount", k, v)
-	}
-
-	for k, v := range g2.Interfaces {
-		mergeType(c.Interfaces, "interface", k, v)
-	}
-
-	for k, v := range g2.HTTPs {
-		mergeType(c.HTTPs, "http", k, v)
-	}
-
-	for k, v := range g2.Matchings {
-		mergeType(c.Matchings, "matching", k, v)
-	}
-
-	for k, v := range g2.Registries {
-		mergeType(c.Registries, "registry", k, v)
+	for _, key := range fieldOrder {
+		if acc := configAccessors[key]; acc.Merge != nil {
+			acc.Merge(c, &g2)
+		}
 	}
 }
 
@@ -151,43 +75,25 @@ func mergeType[V any](m map[string]V, t, k string, v V) {
 	m[k] = v
 }
 
+// Resources returns every validation-eligible resource (FEAT-007: replaces
+// the 16-argument genericConcatMaps call with a loop over resourceOrder;
+// see the accessor table's InValidation field, which is what "eligible"
+// means here -- gossfile is the one registered type excluded).
 func (c *SyverConfig) Resources() []resource.Resource {
 	var tests []resource.Resource
 
-	gm := genericConcatMaps(c.Commands,
-		c.HTTPs,
-		c.Addrs,
-		c.DNS,
-		c.Packages,
-		c.Services,
-		c.Files,
-		c.Processes,
-		c.Users,
-		c.Groups,
-		c.Ports,
-		c.KernelParams,
-		c.Mounts,
-		c.Interfaces,
-		c.Matchings,
-		c.Registries,
-	)
-
-	for _, m := range gm {
+	for _, key := range resourceOrder {
+		m := configAccessors[key].Get(c)
 		for _, t := range m {
-			// FIXME: Can this be moved to a safer compile-time check?
+			// This type assertion is now checked at boot by dispatch.go's
+			// init() guard (every InValidation resource type must resolve
+			// through here), which is the resolution of the old
+			// "// FIXME: Can this be moved to a safer compile-time check?"
 			tests = append(tests, t.(resource.Resource))
 		}
 	}
 
 	return tests
-}
-
-func genericConcatMaps(maps ...any) (ret []map[string]any) {
-	for _, slice := range maps {
-		im := interfaceMap(slice)
-		ret = append(ret, im)
-	}
-	return ret
 }
 
 func interfaceMap(slice any) map[string]any {
