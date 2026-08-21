@@ -8,7 +8,6 @@ require (
 	dario.cat/mergo v1.0.2
 	github.com/Masterminds/sprig/v3 v3.3.0
 	github.com/blang/semver/v4 v4.0.0
-	github.com/cheekybits/genny v1.0.0
 	github.com/fatih/color v1.19.0
 	github.com/hashicorp/logutils v1.0.0
 	github.com/lorenzosaino/go-sysctl v0.3.1

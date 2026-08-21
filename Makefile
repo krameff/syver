@@ -9,7 +9,7 @@ VENV := $(shell echo $${VIRTUAL_ENV-.venv})
 PYTHON := $(VENV)/bin/python
 DOCS_DEPS := $(VENV)/.docs.dependencies
 
-.PHONY: all build install test release bench fmt lint vet test-int-all gen
+.PHONY: all build install test release bench fmt lint vet test-int-all
 
 all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256
 
@@ -71,10 +71,6 @@ release:
 	$(MAKE) build
 
 build: release/syver-darwin-amd64 release/syver-darwin-arm64 release/syver-linux-amd64 release/syver-linux-arm release/syver-linux-arm64 release/syver-linux-s390x release/syver-linux-ppc64le release/syver-windows-amd64
-
-gen:
-	$(info INFO: Starting build $@)
-	go generate -tags genny $(pkgs)
 
 # c.out is the coverage profile written by ci/go-test.sh (via `make test`) and by
 # the cov/funcov/htmlcov targets. c.out.tmp is that script's sed intermediate,

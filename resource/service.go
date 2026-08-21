@@ -26,7 +26,21 @@ const (
 )
 
 func init() {
-	registerResource(ServiceResourceKey, &Service{})
+	Register(Descriptor{
+		Key:          ServiceResourceKey,
+		Name:         ServiceResourceName,
+		New:          func() Resource { return &Service{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Service{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		AutoAdd: &AutoAddSpec{Order: 6},
+	})
 }
 
 func (s *Service) ID() string {
@@ -81,4 +95,21 @@ func NewService(sysService system.Service, config util.Config) (*Service, error)
 		Enabled: enabled,
 		Running: running,
 	}, nil
+}
+
+// fromSystem builds a fresh Service from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewService" off
+// *system.System from a type parameter alone.
+func (s *Service) fromSystem(sys *system.System, key string, config util.Config) (system.Service, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewService(ctx, key, sys, config)
+	n, err := NewService(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*s = *n
+	return sysRes, nil
 }

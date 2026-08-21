@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
+	"github.com/urfave/cli/v3"
 	"time"
 )
 
@@ -30,7 +31,23 @@ const (
 )
 
 func init() {
-	registerResource(MountResourceKey, &Mount{})
+	Register(Descriptor{
+		Key:          MountResourceKey,
+		Name:         MountResourceName,
+		New:          func() Resource { return &Mount{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Mount{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		CLIFlags: func() []cli.Flag {
+			return []cli.Flag{&cli.DurationFlag{Name: "timeout", Value: 1000 * time.Millisecond}}
+		},
+	})
 }
 
 func (m *Mount) ID() string {
@@ -116,4 +133,21 @@ func NewMount(sysMount system.Mount, config util.Config) (*Mount, error) {
 		}
 	}
 	return m, nil
+}
+
+// fromSystem builds a fresh Mount from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewMount" off
+// *system.System from a type parameter alone.
+func (m *Mount) fromSystem(sys *system.System, key string, config util.Config) (system.Mount, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewMount(ctx, key, sys, config)
+	n, err := NewMount(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*m = *n
+	return sysRes, nil
 }

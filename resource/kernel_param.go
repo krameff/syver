@@ -25,7 +25,20 @@ const (
 )
 
 func init() {
-	registerResource(KernelParamResourceKey, &KernelParam{})
+	Register(Descriptor{
+		Key:          KernelParamResourceKey,
+		Name:         KernelParamResourceName,
+		New:          func() Resource { return &KernelParam{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &KernelParam{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+	})
 }
 
 func (k *KernelParam) ID() string {
@@ -68,4 +81,21 @@ func NewKernelParam(sysKernelParam system.KernelParam, config util.Config) (*Ker
 		Value: value,
 	}
 	return a, err
+}
+
+// fromSystem builds a fresh KernelParam from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewKernelParam" off
+// *system.System from a type parameter alone.
+func (a *KernelParam) fromSystem(sys *system.System, key string, config util.Config) (system.KernelParam, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewKernelParam(ctx, key, sys, config)
+	n, err := NewKernelParam(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*a = *n
+	return sysRes, nil
 }

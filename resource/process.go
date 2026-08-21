@@ -26,7 +26,21 @@ const (
 )
 
 func init() {
-	registerResource(ProcessResourceKey, &Process{})
+	Register(Descriptor{
+		Key:          ProcessResourceKey,
+		Name:         ProcessResourceName,
+		New:          func() Resource { return &Process{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Process{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		AutoAdd: &AutoAddSpec{Order: 5},
+	})
 }
 
 func (p *Process) ID() string {
@@ -88,4 +102,21 @@ func NewProcess(sysProcess system.Process, config util.Config) (*Process, error)
 		}
 	}
 	return p, nil
+}
+
+// fromSystem builds a fresh Process from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewProcess" off
+// *system.System from a type parameter alone.
+func (p *Process) fromSystem(sys *system.System, key string, config util.Config) (system.Process, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewProcess(ctx, key, sys, config)
+	n, err := NewProcess(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*p = *n
+	return sysRes, nil
 }

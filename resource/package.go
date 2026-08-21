@@ -25,7 +25,21 @@ const (
 )
 
 func init() {
-	registerResource(PackageResourceKey, &Package{})
+	Register(Descriptor{
+		Key:          PackageResourceKey,
+		Name:         PackageResourceName,
+		New:          func() Resource { return &Package{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Package{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		AutoAdd: &AutoAddSpec{Order: 3},
+	})
 }
 
 func (p *Package) ID() string {
@@ -76,4 +90,21 @@ func NewPackage(sysPackage system.Package, config util.Config) (*Package, error)
 		}
 	}
 	return p, nil
+}
+
+// fromSystem builds a fresh Package from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewPackage" off
+// *system.System from a type parameter alone.
+func (p *Package) fromSystem(sys *system.System, key string, config util.Config) (system.Package, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewPackage(ctx, key, sys, config)
+	n, err := NewPackage(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*p = *n
+	return sysRes, nil
 }
