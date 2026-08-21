@@ -1,10 +1,8 @@
 package resource
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
-	"reflect"
 	"strings"
 
 	"github.com/krameff/syver/system"
@@ -27,11 +25,49 @@ const (
 	MatchingResourceName = "Matching"
 )
 
-type MatchingMap map[string]*Matching
+// MatchingMap's hand-written duplicate of the genny-generated map (this file
+// used to define its own UnmarshalJSON/UnmarshalYAML here, byte-identical to
+// every other type's) collapses into the shared generic -- see the
+// MatchingMap alias in resource_map.go.
 
-func (a *Matching) ID() string       { return a.id }
-func (a *Matching) SetID(id string)  { a.id = id }
-func (a *Matching) SetSkip()         {}
+// matching gains a registration for the first time here (FEAT-007 S4.1).
+// It had none before this -- no init() at all in this file -- because
+// goss-modular couldn't register it without colliding with the
+// MatchingResourceKey = "mount" copy-paste bug it never fixed. Syver fixed
+// that bug in 802454a, so it can register cleanly.
+//
+// InValidation: true, matching SyverConfig.Resources()'s existing generic
+// map list (which already includes c.Matchings). InDiscovery: true, matching
+// DiscoveryConfig's existing Matchings field. AppendSys: nil -- matching has
+// no `syver add` subcommand and never has; there's nothing to build from
+// live system state (see fromSystem's stub below). AutoAdd: nil, for the
+// same reason.
+func init() {
+	Register(Descriptor{
+		Key:          MatchingResourceKey,
+		Name:         MatchingResourceName,
+		New:          func() Resource { return &Matching{} },
+		InValidation: true,
+		InDiscovery:  true,
+	})
+}
+
+func (a *Matching) ID() string      { return a.id }
+func (a *Matching) SetID(id string) { a.id = id }
+
+// SetSkip is the one deliberate behaviour change in FEAT-007 (G2, AC-7):
+// this used to be a no-op, which is a live bug, not a latent one --
+// `matching` IS in SyverConfig.Resources() (unlike `gossfile`), so it does
+// reach applyDisabledTypes (dependency_scheduler.go), whose only action is
+// calling SetSkip(). Before this fix,
+// util.WithDisabledResourceTypes("matching") produced total=1 skipped=0
+// failed=1 instead of the expected total=1 skipped=1 failed=0 -- disabling
+// the type didn't disable it. No golden exercises DisabledResourceTypes (it
+// has no CLI flag, only util.WithDisabledResourceTypes, a library-only
+// option), so this changes no golden and AC-1 stays valid. See
+// TestMatchingSetSkipDisablesValidation in matching_test.go for the
+// regression test.
+func (a *Matching) SetSkip()         { a.Skip = true }
 func (a *Matching) TypeKey() string  { return MatchingResourceKey }
 func (a *Matching) TypeName() string { return MatchingResourceName }
 
@@ -61,68 +97,13 @@ func (a *Matching) Validate(sys *system.System) []TestResult {
 	return results
 }
 
-func (ret *MatchingMap) UnmarshalJSON(data []byte) error {
-	// Curried json.Unmarshal
-	unmarshal := func(i any) error {
-		if err := json.Unmarshal(data, i); err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// Validate configuration
-	zero := Matching{}
-	whitelist, err := util.WhitelistAttrs(zero, util.JSON)
-	if err != nil {
-		return err
-	}
-	if err := util.ValidateSections(unmarshal, zero, whitelist); err != nil {
-		return err
-	}
-
-	var tmp map[string]*Matching
-	if err := unmarshal(&tmp); err != nil {
-		return err
-	}
-
-	typ := reflect.TypeOf(zero)
-	typs := strings.Split(typ.String(), ".")[1]
-	for id, res := range tmp {
-		if res == nil {
-			return fmt.Errorf("could not parse resource %s:%s", typs, id)
-		}
-		res.SetID(id)
-	}
-
-	*ret = tmp
-	return nil
-}
-
-func (ret *MatchingMap) UnmarshalYAML(unmarshal func(v any) error) error {
-	// Validate configuration
-	zero := Matching{}
-	whitelist, err := util.WhitelistAttrs(zero, util.YAML)
-	if err != nil {
-		return err
-	}
-	if err := util.ValidateSections(unmarshal, zero, whitelist); err != nil {
-		return err
-	}
-
-	var tmp map[string]*Matching
-	if err := unmarshal(&tmp); err != nil {
-		return err
-	}
-
-	typ := reflect.TypeOf(zero)
-	typs := strings.Split(typ.String(), ".")[1]
-	for id, res := range tmp {
-		if res == nil {
-			return fmt.Errorf("could not parse resource %s:%s", typs, id)
-		}
-		res.SetID(id)
-	}
-
-	*ret = tmp
-	return nil
+// fromSystem is a stub: matching resources have no system backing (they
+// validate a literal `content:` value, not anything read off the host), so
+// Descriptor.AppendSys is nil for matching and this is never actually
+// called. It exists only to satisfy ResourceMap's PT constraint so
+// MatchingMap can still share the generic AppendSysResource/
+// AppendSysResourceIfExists/UnmarshalJSON/UnmarshalYAML implementation for
+// its Unmarshal path.
+func (a *Matching) fromSystem(sys *system.System, key string, config util.Config) (any, error) {
+	return nil, fmt.Errorf("matching resources do not support `syver add` (no system backing)")
 }
