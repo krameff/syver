@@ -10,8 +10,20 @@
     them asserted anything
   - an empty list matcher such as `opts: []` now warns that it asserts nothing,
     unless the resource is skipped
-  - Ctrl-C now stops commands that are already running, instead of leaving
-    them orphaned. Library API: `Validate` and friends take a `context.Context`
+  - Ctrl-C now stops commands that are already running, instead of leaving them
+    orphaned, and `syver serve` shuts down cleanly on SIGTERM. Library API:
+    `Validate` and friends take a `context.Context`
+  - **the one deliberate behaviour change:** `--format structured` now exits
+    non-zero when checks fail. It always exited 0, so a failing run reported
+    success. If you monitor `/healthz` with
+    `Accept: application/vnd.goss-structured`, it has been answering 200 on
+    failing hosts and will now correctly answer 503
+  - `/healthz`'s status is taken from the results rather than the output
+    format's exit code, so no `Accept` header can report a failing host as
+    healthy. `--format prometheus` still exits 0 by design: it renders metrics,
+    not a verdict
+  - a cancelled run now reports `context canceled` instead of exit status -1,
+    which was indistinguishable from a process genuinely killed by a signal
 
 ## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 

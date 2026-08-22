@@ -66,8 +66,9 @@ One thing Syver does that goss does not: **Ctrl-C stops work in progress.** goss
 mints a fresh `context.Background()` inside each check, so interrupting a run
 leaves any command it had already started to run to completion, orphaned. Syver
 threads the signal handler's context all the way down to `exec`, so the child is
-killed with the parent. The same context reaches `syver serve`, where cancelling
-the server stops in-flight checks.
+killed with the parent. `syver serve` shuts down in an orderly way on SIGTERM
+rather than being killed mid-request, and a second signal always terminates the
+process outright, so nothing becomes unkillable.
 
 This is a difference, not a compatibility break: no spec file behaves differently,
 and a run that is allowed to finish produces identical results either way.
