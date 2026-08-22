@@ -10,6 +10,11 @@ import (
 
 var errMissingRequiredAttribute = errors.New("syntax error: missing required attribute")
 
+// errEmptyMatcher is returned for `{}` used where a matcher is expected. It is
+// deliberately worded like the other syntax errors here: the spec is wrong, not
+// the system under test.
+var errEmptyMatcher = errors.New("syntax error: invalid matcher configuration. An empty map asserts nothing, exactly one matcher is required")
+
 func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 	// Default matchers
 	switch x := matcher.(type) {
@@ -39,6 +44,12 @@ func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 		//panic(fmt.Sprintf("Syntax Error: Unexpected matcher type: %T\n\n", matcher))
 	}
 	keys := lo.Keys(matcherMap)
+	// Guard the empty case before indexing keys[0]. An empty map asserts
+	// nothing, so it is a spec mistake rather than a match failure -- but
+	// without this it panics with an index-out-of-range instead of saying so.
+	if len(keys) == 0 {
+		return nil, errEmptyMatcher
+	}
 	if len(keys) > 1 {
 		return nil, fmt.Errorf("syntax error: invalid matcher configuration. At a given nesting level, only one matcher is allowed. Found multiple matchers: %q", keys)
 	}

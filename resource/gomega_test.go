@@ -162,3 +162,33 @@ func TestMatcherToGomegaMatcher(t *testing.T) {
 func gomegaTestEqual(t *testing.T, got, want any, useNegateTester bool, in string) {
 	assert.Equal(t, got, want)
 }
+
+// An empty map used where a matcher is expected used to panic with an
+// index-out-of-range inside matcherToGomegaMatcher, because len(keys) was
+// only ever checked for > 1 before indexing keys[0]. It must report a syntax
+// error instead: `{}` asserts nothing, which is a mistake in the spec rather
+// than a failure of the system under test.
+func TestEmptyMatcherIsASyntaxErrorNotAPanic(t *testing.T) {
+	cases := []struct {
+		name string
+		in   string
+	}{
+		{"bare empty map", `{}`},
+		{"nested in and", `{"and": [{}]}`},
+		{"nested in or", `{"or": [{"equal": "x"}, {}]}`},
+		{"nested in not", `{"not": {}}`},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			var dat any
+			if err := json.Unmarshal([]byte(c.in), &dat); err != nil {
+				t.Fatal(err)
+			}
+			got, err := matcherToGomegaMatcher(dat)
+			assert.Nil(t, got)
+			if assert.Error(t, err) {
+				assert.ErrorIs(t, err, errEmptyMatcher)
+			}
+		})
+	}
+}
