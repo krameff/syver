@@ -5,10 +5,11 @@
 - feat/patches branch
   - an empty matcher such as `stdout: {}` now reports a syntax error instead
     of crashing
-  - `syver add` no longer writes `contents: []` or `ip: []`, and `render` no
-    longer prints `contents: null`. All three asserted nothing
-  - an empty list matcher such as `opts: []` now warns that it asserts
-    nothing, instead of being skipped silently
+  - `syver add` no longer writes empty list matchers (`contents`, `ip`, `body`,
+    `status`, `user`), and `render` no longer prints `contents: null`. None of
+    them asserted anything
+  - an empty list matcher such as `opts: []` now warns that it asserts nothing,
+    unless the resource is skipped
   - Ctrl-C now stops commands that are already running, instead of leaving
     them orphaned. Library API: `Validate` and friends take a `context.Context`
 
