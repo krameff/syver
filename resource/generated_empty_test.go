@@ -33,7 +33,44 @@ func TestGeneratorsDoNotEmitEmptyLists(t *testing.T) {
 		assert.NilError(t, err)
 		assert.DeepEqual(t, p.IP, matcher([]string{"0.0.0.0"}))
 	})
+
+	t.Run("NewHTTP leaves body unset", func(t *testing.T) {
+		u, err := NewHTTP(conformanceHTTP{}, util.Config{})
+		assert.NilError(t, err)
+		assert.Equal(t, u.Body, nil)
+	})
+
+	t.Run("NewProcess leaves status and user unset when the process reports none", func(t *testing.T) {
+		p, err := NewProcess(emptyProcess{}, util.Config{})
+		assert.NilError(t, err)
+		assert.Equal(t, p.Status, nil)
+		assert.Equal(t, p.User, nil)
+	})
+
+	t.Run("NewProcess still records status and user when reported", func(t *testing.T) {
+		p, err := NewProcess(fullProcess{}, util.Config{})
+		assert.NilError(t, err)
+		assert.DeepEqual(t, p.Status, matcher([]string{"S"}))
+		assert.DeepEqual(t, p.User, matcher([]string{"root"}))
+	})
 }
+
+// Two process fakes rather than one configurable: what is being pinned is the
+// boundary between "reports nothing" and "reports something", and naming the
+// two cases reads better at the call site than a bool.
+type emptyProcess struct{}
+
+func (emptyProcess) Executable() string        { return "proc-fake" }
+func (emptyProcess) Exists() (bool, error)     { return true, nil }
+func (emptyProcess) Running() (bool, error)    { return true, nil }
+func (emptyProcess) Status() ([]string, error) { return []string{}, nil }
+func (emptyProcess) User() ([]string, error)   { return []string{}, nil }
+func (emptyProcess) Pids() ([]int, error)      { return []int{}, nil }
+
+type fullProcess struct{ emptyProcess }
+
+func (fullProcess) Status() ([]string, error) { return []string{"S"}, nil }
+func (fullProcess) User() ([]string, error)   { return []string{"root"}, nil }
 
 // The generators above only stay clean if the marshalled output is clean too.
 // `contents` was the one optional file attribute without `omitempty`, so an
@@ -53,4 +90,18 @@ func TestUnsetOptionalAttributesAreOmitted(t *testing.T) {
 	out, err = yaml.Marshal(p)
 	assert.NilError(t, err)
 	assert.Assert(t, !strings.Contains(string(out), "ip:"), "unexpected ip key in:\n%s", out)
+
+	u, err := NewHTTP(conformanceHTTP{}, util.Config{})
+	assert.NilError(t, err)
+	out, err = yaml.Marshal(u)
+	assert.NilError(t, err)
+	assert.Assert(t, !strings.Contains(string(out), "body:"), "unexpected body key in:\n%s", out)
+
+	pr, err := NewProcess(emptyProcess{}, util.Config{})
+	assert.NilError(t, err)
+	out, err = yaml.Marshal(pr)
+	assert.NilError(t, err)
+	for _, key := range []string{"status:", "user:"} {
+		assert.Assert(t, !strings.Contains(string(out), key), "unexpected %s key in:\n%s", key, out)
+	}
 }

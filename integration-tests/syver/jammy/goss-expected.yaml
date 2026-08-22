@@ -5,10 +5,8 @@ file:
     owner: root
     group: root
     filetype: file
-    contents: []
   /tmp/goss/foobar:
     exists: false
-    contents: []
 package:
   apache2:
     installed: true
@@ -35,10 +33,8 @@ port:
     - 0.0.0.0
   tcp:9999:
     listening: false
-    ip: []
   tcp6:80:
     listening: false
-    ip: []
 service:
   apache2:
     enabled: true
@@ -145,8 +141,6 @@ process:
     - www-data
   foobar:
     running: false
-    status: []
-    user: []
 kernel-param:
   kernel.ostype:
     value: Linux
@@ -167,11 +161,9 @@ http:
     allow-insecure: false
     no-follow-redirects: false
     timeout: 5000
-    body: []
     proxy: http://127.0.0.1:8888
   https://www.google.com:
     status: 200
     allow-insecure: false
     no-follow-redirects: false
     timeout: 5000
-    body: []
