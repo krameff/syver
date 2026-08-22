@@ -87,10 +87,10 @@ func (m *Mount) Validate(ctx context.Context, sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(m.Opts, fmt.Sprintf("%s: mount.opts", m.ID())) {
+	if isSetWarnEmpty(m.Opts, fmt.Sprintf("%s: mount.opts", m.ID()), skip) {
 		results = append(results, ValidateValue(m, "opts", m.Opts, sysMount.Opts, skip))
 	}
-	if isSetWarnEmpty(m.VfsOpts, fmt.Sprintf("%s: mount.vfs-opts", m.ID())) {
+	if isSetWarnEmpty(m.VfsOpts, fmt.Sprintf("%s: mount.vfs-opts", m.ID()), skip) {
 		results = append(results, ValidateValue(m, "vfs-opts", m.VfsOpts, sysMount.VfsOpts, skip))
 	}
 	if isSet(m.Source) {

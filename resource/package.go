@@ -71,7 +71,7 @@ func (p *Package) Validate(ctx context.Context, sys *system.System) []TestResult
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(p.Versions, fmt.Sprintf("%s: package.version", p.ID())) {
+	if isSetWarnEmpty(p.Versions, fmt.Sprintf("%s: package.version", p.ID()), skip) {
 		results = append(results, ValidateValue(p, "version", p.Versions, sysPkg.Versions, skip))
 	}
 	return results

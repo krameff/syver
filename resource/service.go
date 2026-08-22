@@ -74,7 +74,7 @@ func (s *Service) Validate(ctx context.Context, sys *system.System) []TestResult
 	if isSet(s.Running) {
 		results = append(results, ValidateValue(s, "running", s.Running, sysservice.Running, skip))
 	}
-	if isSetWarnEmpty(s.RunLevels, fmt.Sprintf("%s: service.runlevels", s.ID())) {
+	if isSetWarnEmpty(s.RunLevels, fmt.Sprintf("%s: service.runlevels", s.ID()), skip) {
 		results = append(results, ValidateValue(s, "runlevels", s.RunLevels, sysservice.RunLevels, skip))
 	}
 	return results

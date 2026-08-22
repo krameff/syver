@@ -73,7 +73,7 @@ func (i *Interface) Validate(ctx context.Context, sys *system.System) []TestResu
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(i.Addrs, fmt.Sprintf("%s: interface.addrs", i.ID())) {
+	if isSetWarnEmpty(i.Addrs, fmt.Sprintf("%s: interface.addrs", i.ID()), skip) {
 		results = append(results, ValidateValue(i, "addrs", i.Addrs, sysInterface.Addrs, skip))
 	}
 	if isSet(i.MTU) {

@@ -90,7 +90,7 @@ func (d *DNS) Validate(ctx context.Context, sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(d.Addrs, fmt.Sprintf("%s: dns.addrs", d.ID())) {
+	if isSetWarnEmpty(d.Addrs, fmt.Sprintf("%s: dns.addrs", d.ID()), skip) {
 		results = append(results, ValidateValue(d, "addrs", d.Addrs, sysDNS.Addrs, skip))
 	}
 	return results

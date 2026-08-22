@@ -98,18 +98,25 @@ func TestIsSetWarnEmpty(t *testing.T) {
 	for _, tc := range []struct {
 		name    string
 		value   any
+		skip    bool
 		want    bool
 		wantMsg bool
 	}{
-		{"empty list warns and is not set", []interface{}{}, false, true},
-		{"populated list is set, no warning", []interface{}{"x"}, true, false},
-		{"absent attribute is not set, no warning", nil, false, false},
-		{"zero value is set, no warning", 0, true, false},
-		{"empty string is set, no warning", "", true, false},
+		{"empty list warns and is not set", []interface{}{}, false, false, true},
+		{"populated list is set, no warning", []interface{}{"x"}, false, true, false},
+		{"absent attribute is not set, no warning", nil, false, false, false},
+		{"zero value is set, no warning", 0, false, true, false},
+		{"empty string is set, no warning", "", false, true, false},
+		// A skipped resource is one the user asked not to check. Some fixtures
+		// carry an empty list as a documented placeholder for an attribute that
+		// does not apply on that platform; warning there is nagging about a
+		// deliberate decision. The return value must not change, only the noise.
+		{"empty list on a skipped resource is silent", []interface{}{}, true, false, false},
+		{"populated list on a skipped resource is still set", []interface{}{"x"}, true, true, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			got, stderr := capture(func() bool {
-				return isSetWarnEmpty(tc.value, "id: type.property")
+				return isSetWarnEmpty(tc.value, "id: type.property", tc.skip)
 			})
 			assert.Equal(t, got, tc.want)
 			assert.Equal(t, got, isSet(tc.value), "must agree with isSet")

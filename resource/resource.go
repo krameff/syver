@@ -101,8 +101,14 @@ func isSet(i interface{}) bool {
 // desc follows the "<id>: <type>.<property>" shape the deprecation warnings
 // use. Wired only where a list is a plausible thing to write; on a scalar
 // attribute the type assertion below could never match anyway.
-func isSetWarnEmpty(i interface{}, desc string) bool {
-	if v, ok := i.([]interface{}); ok && len(v) == 0 {
+func isSetWarnEmpty(i interface{}, desc string, skip bool) bool {
+	// Say nothing about a resource that is being skipped. The user has already
+	// declared they do not want it checked -- some fixtures carry an empty list
+	// precisely as a documented placeholder for an attribute that does not apply
+	// on that platform -- so warning would be nagging about a decision they made
+	// deliberately. skip is also true when the mandatory attribute already
+	// failed, where the rest of the resource is moot anyway.
+	if v, ok := i.([]interface{}); ok && len(v) == 0 && !skip {
 		fmt.Fprintf(os.Stderr, "WARNING: %s is an empty list, which asserts nothing and always passes. Give it a value, or remove it.\n", desc)
 	}
 	return isSet(i)
