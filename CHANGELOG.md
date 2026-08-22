@@ -3,17 +3,10 @@
 ## Unreleased
 
 - feat/patches branch
-  - fixed an empty map used where a matcher is expected (`stdout: {}`,
-    `listening: {}`, or a nested `{"and": [{}]}`) panicking with
-    `index out of range [0] with length 0` instead of reporting a syntax
-    error. `resource/gomega.go` only ever checked for *more than one* key
-    before indexing `keys[0]`; the zero case is now caught and reported as
-    `An empty map asserts nothing, exactly one matcher is required`, exiting
-    1 like every other spec error rather than 2. Regression test
-    `TestEmptyMatcherIsASyntaxErrorNotAPanic` covers the bare and the
-    `and`/`or`/`not`-nested forms. Written fresh against Syver rather than
-    cherry-picked from upstream goss-org/goss#1118, which targets a
-    different base
+  - an empty matcher such as `stdout: {}` now reports a syntax error instead
+    of crashing
+  - `syver add` no longer writes `contents: []` or `ip: []`, and `render` no
+    longer prints `contents: null`. All three asserted nothing
 
 ## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 
