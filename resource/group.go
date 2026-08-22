@@ -25,7 +25,21 @@ const (
 )
 
 func init() {
-	registerResource(GroupResourceKey, &Group{})
+	Register(Descriptor{
+		Key:          GroupResourceKey,
+		Name:         GroupResourceName,
+		New:          func() Resource { return &Group{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Group{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		AutoAdd: &AutoAddSpec{Order: 2},
+	})
 }
 
 func (g *Group) ID() string {
@@ -77,4 +91,21 @@ func NewGroup(sysGroup system.Group, config util.Config) (*Group, error) {
 		}
 	}
 	return g, nil
+}
+
+// fromSystem builds a fresh Group from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewGroup" off
+// *system.System from a type parameter alone.
+func (g *Group) fromSystem(sys *system.System, key string, config util.Config) (system.Group, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewGroup(ctx, key, sys, config)
+	n, err := NewGroup(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*g = *n
+	return sysRes, nil
 }

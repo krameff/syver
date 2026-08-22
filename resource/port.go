@@ -26,7 +26,21 @@ const (
 )
 
 func init() {
-	registerResource(PortResourceKey, &Port{})
+	Register(Descriptor{
+		Key:          PortResourceKey,
+		Name:         PortResourceName,
+		New:          func() Resource { return &Port{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Port{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		AutoAdd: &AutoAddSpec{Order: 4},
+	})
 }
 
 func (p *Port) ID() string {
@@ -84,4 +98,21 @@ func NewPort(sysPort system.Port, config util.Config) (*Port, error) {
 	// that's already stale by the time it's used. The field still works if added
 	// to a gossfile by hand -- Validate() checks it whenever it's set.
 	return p, nil
+}
+
+// fromSystem builds a fresh Port from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewPort" off
+// *system.System from a type parameter alone.
+func (p *Port) fromSystem(sys *system.System, key string, config util.Config) (system.Port, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewPort(ctx, key, sys, config)
+	n, err := NewPort(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*p = *n
+	return sysRes, nil
 }

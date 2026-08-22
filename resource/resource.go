@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"sync"
 
 	"github.com/krameff/syver/system"
 )
@@ -20,20 +19,9 @@ type Resource interface {
 	GetDependsOn() []string
 }
 
-var (
-	resourcesMu sync.Mutex
-	resources   = map[string]Resource{}
-)
-
-func registerResource(key string, resource Resource) {
-	resourcesMu.Lock()
-	resources[key] = resource
-	resourcesMu.Unlock()
-}
-
-func Resources() map[string]Resource {
-	return resources
-}
+// registerResource/Resources() moved to descriptor.go (FEAT-007): the
+// registry is now the Descriptor table, with these kept as deprecated
+// shims for backward compatibility. See descriptor.go for both.
 
 type ResourceRead interface {
 	ID() string

@@ -96,11 +96,80 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 	return cfg
 }
 
-func timeoutFlag(value time.Duration) *cli.DurationFlag {
-	return &cli.DurationFlag{
-		Name:  "timeout",
-		Value: value,
+// addSubcommandOrder preserves the exact original CLI listing order for
+// `syver add` subcommands. Unrelated to fieldOrder/resourceOrder in the
+// root package (those drive struct iteration and marshalling; this is
+// purely a CLI presentation concern), so it gets its own list rather than
+// reusing either.
+var addSubcommandOrder = []string{
+	"package", "file", "addr", "port", "service", "user", "group",
+	"command", "dns", "process", "http", "gossfile", "kernel-param",
+	"mount", "interface", "registry",
+}
+
+// addSubcommandUsage holds the per-type `syver add <type>` help text.
+// Not part of resource.Descriptor: it's presentation-only, CLI-specific,
+// and every other Descriptor field is meaningful outside cmd/syver too
+// (validation, discovery, dispatch) where a help string wouldn't be.
+var addSubcommandUsage = map[string]string{
+	"package":      "add new package",
+	"file":         "add new file",
+	"addr":         "add new remote address:port - ex: google.com:80",
+	"port":         "add new listening [protocol]:port - ex: 80 or udp:123",
+	"service":      "add new service",
+	"user":         "add new user",
+	"group":        "add new group",
+	"command":      "add new command",
+	"dns":          "add new dns",
+	"process":      "add new process name",
+	"http":         "add new http",
+	"gossfile":     "add new syver file, it will be imported from this one",
+	"kernel-param": "add new goss kernel param",
+	"mount":        "add new mount",
+	"interface":    "add new interface",
+	"registry":     "add new registry key",
+}
+
+// addSubcommands builds the `syver add` subcommand tree from
+// resource.Descriptors() (FEAT-007 task 8) instead of the ~180-line
+// hand-written list this used to be -- one *cli.Command per addable type
+// (AppendSys != nil; today that's every type except matching).
+//
+// G4: the gossfile subcommand is named neither its Key ("gossfile") nor
+// its Name ("Gossfile") -- it's "syver", aliased to "goss". A naive
+// Key/Name-driven generator would rename it and break AC-1's `add`
+// goldens, so CLIName/CLIAliases drive Name/Aliases here instead,
+// defaulting to Key/nil when unset (every type but gossfile).
+func addSubcommands() []*cli.Command {
+	var cmds []*cli.Command
+	for _, key := range addSubcommandOrder {
+		desc, ok := resource.DescriptorByKey(key)
+		if !ok || desc.AppendSys == nil {
+			continue
+		}
+
+		name := desc.CLIName
+		if name == "" {
+			name = desc.Key
+		}
+		var flags []cli.Flag
+		if desc.CLIFlags != nil {
+			flags = desc.CLIFlags()
+		}
+		resourceName := desc.Name
+
+		cmds = append(cmds, &cli.Command{
+			Name:    name,
+			Aliases: desc.CLIAliases,
+			Usage:   addSubcommandUsage[key],
+			Flags:   flags,
+			Action: func(ctx context.Context, c *cli.Command) error {
+				fatalAlphaIfNeeded(c)
+				return syver.AddResources(resolveSpecPath(c), resourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
+			},
+		})
 	}
+	return cmds
 }
 
 // newApp builds the syver CLI command tree. Split out from main() so
@@ -303,180 +372,7 @@ func newApp() *cli.Command {
 						Usage: "Exclude the following attributes when adding a new resource",
 					},
 				},
-				Commands: []*cli.Command{
-					{
-						Name:  resource.PackageResourceKey,
-						Usage: "add new package",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.PackageResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.FileResourceKey,
-						Usage: "add new file",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.FileResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.AddrResourceKey,
-						Usage: "add new remote address:port - ex: google.com:80",
-						Flags: []cli.Flag{
-							timeoutFlag(500 * time.Millisecond),
-						},
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.AddrResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.PortResourceKey,
-						Usage: "add new listening [protocol]:port - ex: 80 or udp:123",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.PortResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.ServiceResourceKey,
-						Usage: "add new service",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.ServiceResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.UserResourceKey,
-						Usage: "add new user",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.UserResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.GroupResourceKey,
-						Usage: "add new group",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.GroupResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.CommandResourceKey,
-						Usage: "add new command",
-						Flags: []cli.Flag{
-							timeoutFlag(10 * time.Second),
-						},
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.CommandResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.DNSResourceKey,
-						Usage: "add new dns",
-						Flags: []cli.Flag{
-							timeoutFlag(500 * time.Millisecond),
-							&cli.StringFlag{
-								Name:  "server",
-								Usage: "The IP address of a DNS server to query",
-							},
-						},
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.DNSResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.ProcessResourceKey,
-						Usage: "add new process name",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.ProcessResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.HTTPResourceKey,
-						Usage: "add new http",
-						Flags: []cli.Flag{
-							&cli.BoolFlag{
-								Name:    "insecure",
-								Aliases: []string{"k"},
-							},
-							&cli.BoolFlag{
-								Name:    "no-follow-redirects",
-								Aliases: []string{"r"},
-							},
-							timeoutFlag(5 * time.Second),
-							&cli.StringFlag{
-								Name:    "username",
-								Aliases: []string{"u"},
-								Usage:   "Username for basic auth",
-							},
-							&cli.StringFlag{
-								Name:    "password",
-								Aliases: []string{"p"},
-								Usage:   "Password for basic auth",
-							},
-							&cli.StringFlag{
-								Name:    "proxy",
-								Aliases: []string{"x"},
-								Usage:   "Proxy server to use. e.g. http://10.0.0.2:8080",
-							},
-						},
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.HTTPResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:    "syver",
-						Aliases: []string{"goss"},
-						Usage:   "add new syver file, it will be imported from this one",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.SyverFileResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-
-						},
-					},
-					{
-						Name:  resource.KernelParamResourceKey,
-						Usage: "add new goss kernel param",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.KernelParamResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.MountResourceKey,
-						Usage: "add new mount",
-						Flags: []cli.Flag{
-							timeoutFlag(1000 * time.Millisecond),
-						},
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.MountResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.InterfaceResourceKey,
-						Usage: "add new interface",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.InterfaceResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-					{
-						Name:  resource.RegistryResourceKey,
-						Usage: "add new registry key",
-						Action: func(ctx context.Context, c *cli.Command) error {
-							fatalAlphaIfNeeded(c)
-							return syver.AddResources(resolveSpecPath(c), resource.RegistryResourceName, c.Args().Slice(), newRuntimeConfigFromCLI(c))
-						},
-					},
-				},
+				Commands: addSubcommands(),
 			},
 		},
 	}

@@ -26,7 +26,20 @@ const (
 )
 
 func init() {
-	registerResource(InterfaceResourceKey, &Interface{})
+	Register(Descriptor{
+		Key:          InterfaceResourceKey,
+		Name:         InterfaceResourceName,
+		New:          func() Resource { return &Interface{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Interface{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+	})
 }
 
 func (i *Interface) ID() string {
@@ -87,4 +100,21 @@ func NewInterface(sysInterface system.Interface, config util.Config) (*Interface
 		}
 	}
 	return i, nil
+}
+
+// fromSystem builds a fresh Interface from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewInterface" off
+// *system.System from a type parameter alone.
+func (i *Interface) fromSystem(sys *system.System, key string, config util.Config) (system.Interface, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewInterface(ctx, key, sys, config)
+	n, err := NewInterface(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*i = *n
+	return sysRes, nil
 }

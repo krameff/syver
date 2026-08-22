@@ -10,6 +10,7 @@ import (
 
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
+	"github.com/urfave/cli/v3"
 )
 
 type Command struct {
@@ -31,7 +32,23 @@ const (
 )
 
 func init() {
-	registerResource(CommandResourceKey, &Command{})
+	Register(Descriptor{
+		Key:          CommandResourceKey,
+		Name:         CommandResourceName,
+		New:          func() Resource { return &Command{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &Command{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		CLIFlags: func() []cli.Flag {
+			return []cli.Flag{&cli.DurationFlag{Name: "timeout", Value: 10 * time.Second}}
+		},
+	})
 }
 
 func (c *Command) ID() string       { return c.id }
@@ -119,4 +136,21 @@ func readerToSlice(reader io.Reader) []string {
 	}
 
 	return slice
+}
+
+// fromSystem builds a fresh Command from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewCommand" off
+// *system.System from a type parameter alone.
+func (c *Command) fromSystem(sys *system.System, key string, config util.Config) (system.Command, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewCommand(ctx, key, sys, config)
+	n, err := NewCommand(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*c = *n
+	return sysRes, nil
 }

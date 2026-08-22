@@ -24,6 +24,11 @@ func (f *FakeResource) GetTitle() string { return "title" }
 
 func (f *FakeResource) GetMeta() meta { return meta{"foo": "bar"} }
 
+// TypeName satisfies TypedResourceRead -- added alongside the FEAT-007
+// §4.5 fix that switched ValidateValue/ValidateGomegaValue from deriving
+// the printed type via reflect.TypeOf to calling TypeName() directly.
+func (f *FakeResource) TypeName() string { return "FakeResource" }
+
 var stringTests = []struct {
 	in, in2 any
 	want    int
@@ -197,5 +202,34 @@ func TestResultMarshaling(t *testing.T) {
 	}
 	if res.Err.Error() != "dummy error" {
 		t.Fatalf("expected to receive 'dummy error', got: %v", res.Err.Error())
+	}
+}
+
+// resourceReadOnlyFake implements ResourceRead but deliberately NOT
+// TypeName(), simulating a library embedder's custom resource type that
+// predates FEAT-007's §4.5 fix. ValidateValue/ValidateGomegaValue's
+// exported signatures still take plain ResourceRead (not the narrower
+// TypedResourceRead) specifically so a type like this keeps compiling
+// against them -- see typeNameFor's fallback in validate.go.
+type resourceReadOnlyFake struct{}
+
+func (resourceReadOnlyFake) ID() string       { return "fallback-id" }
+func (resourceReadOnlyFake) GetTitle() string { return "" }
+func (resourceReadOnlyFake) GetMeta() meta    { return nil }
+
+// TestValidateValueFallsBackWithoutTypeName guards that
+// ValidateValue/ValidateGomegaValue still accept (and correctly handle) a
+// ResourceRead that doesn't implement TypeName() -- the reflect-based
+// derivation from before FEAT-007's §4.5 fix, preserved as a fallback
+// rather than removed, specifically to avoid an exported-signature break
+// for library embedders (see typeNameFor's doc comment).
+func TestValidateValueFallsBackWithoutTypeName(t *testing.T) {
+	inFunc := func() (any, error) { return "foo", nil }
+	got := ValidateValue(resourceReadOnlyFake{}, "prop", "foo", inFunc, false)
+	if got.Result != SUCCESS {
+		t.Fatalf("got %v, want SUCCESS", got.Result)
+	}
+	if got.ResourceType != "resourceReadOnlyFake" {
+		t.Fatalf("got ResourceType %q, want %q (the reflect-derived fallback name)", got.ResourceType, "resourceReadOnlyFake")
 	}
 }

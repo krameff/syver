@@ -8,6 +8,7 @@ import (
 
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
+	"github.com/urfave/cli/v3"
 )
 
 type DNS struct {
@@ -30,7 +31,26 @@ const (
 )
 
 func init() {
-	registerResource(DNSResourceKey, &DNS{})
+	Register(Descriptor{
+		Key:          DNSResourceKey,
+		Name:         DNSResourceName,
+		New:          func() Resource { return &DNS{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &DNS{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		CLIFlags: func() []cli.Flag {
+			return []cli.Flag{
+				&cli.DurationFlag{Name: "timeout", Value: 500 * time.Millisecond},
+				&cli.StringFlag{Name: "server", Usage: "The IP address of a DNS server to query"},
+			}
+		},
+	})
 }
 
 func (d *DNS) ID() string {
@@ -98,4 +118,21 @@ func NewDNS(sysDNS system.DNS, config util.Config) (*DNS, error) {
 		d.Addrs = addrs
 	}
 	return d, err
+}
+
+// fromSystem builds a fresh DNS from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewDNS" off
+// *system.System from a type parameter alone.
+func (d *DNS) fromSystem(sys *system.System, key string, config util.Config) (system.DNS, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewDNS(ctx, key, sys, config)
+	n, err := NewDNS(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*d = *n
+	return sysRes, nil
 }

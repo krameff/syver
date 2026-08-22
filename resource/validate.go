@@ -107,6 +107,40 @@ func skipResult(typeS string, id string, title string, meta meta, property strin
 	}
 }
 
+// TypedResourceRead is ResourceRead plus TypeName(). It is *not* required
+// by ValidateValue/ValidateGomegaValue's exported signatures below --
+// deliberately, see the comment on typeNameFor -- but every builtin
+// resource type satisfies it, and any embedder's custom ResourceRead
+// implementation should too, for the same reason: it's what lets those
+// functions print an accurate ResourceType without reflection.
+type TypedResourceRead interface {
+	ResourceRead
+	TypeName() string
+}
+
+// typeNameFor derives the resource type string ValidateGomegaValue prints
+// in a TestResult. Prefers TypeName() (FEAT-007 §4.5: correct for any
+// type, in-package or not -- resource/skip.go already did this).
+//
+// Falls back to the old reflect.TypeOf(res) -> split(".")[1] derivation
+// for a ResourceRead that doesn't also implement TypeName() -- which,
+// for every type in this codebase, is never (all 17 implement it; see
+// TestTypeNameMatchesReflectType). This fallback exists purely so
+// ValidateValue/ValidateGomegaValue's exported parameter type can stay
+// ResourceRead, not a new interface: those two functions are the one
+// place this refactor could have quietly broken a library embedder's
+// custom ResourceRead-implementing type (§4.2's "preserve the public
+// API" applies here every bit as much as it does to the resource maps),
+// so the widened case degrades to exactly the old behaviour instead of
+// failing to compile.
+func typeNameFor(res ResourceRead) string {
+	if tn, ok := res.(interface{ TypeName() string }); ok {
+		return tn.TypeName()
+	}
+	typ := reflect.TypeOf(res)
+	return strings.Split(typ.String(), ".")[1]
+}
+
 func ValidateValue(res ResourceRead, property string, expectedValue any, actual any, skip bool) TestResult {
 	if f, ok := actual.(func() (io.Reader, error)); ok {
 		if _, ok := expectedValue.([]any); !ok {
@@ -130,8 +164,7 @@ func ValidateGomegaValue(res ResourceRead, property string, expectedValue any, a
 	id := res.ID()
 	title := res.GetTitle()
 	meta := res.GetMeta()
-	typ := reflect.TypeOf(res)
-	typeS := strings.Split(typ.String(), ".")[1]
+	typeS := typeNameFor(res)
 	startTime := time.Now()
 	if skip {
 		return skipResult(

@@ -7,6 +7,7 @@ import (
 
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
+	"github.com/urfave/cli/v3"
 )
 
 type HTTP struct {
@@ -40,7 +41,30 @@ const (
 )
 
 func init() {
-	registerResource(HTTPResourceKey, &HTTP{})
+	Register(Descriptor{
+		Key:          HTTPResourceKey,
+		Name:         HTTPResourceName,
+		New:          func() Resource { return &HTTP{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &HTTP{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		CLIFlags: func() []cli.Flag {
+			return []cli.Flag{
+				&cli.BoolFlag{Name: "insecure", Aliases: []string{"k"}},
+				&cli.BoolFlag{Name: "no-follow-redirects", Aliases: []string{"r"}},
+				&cli.DurationFlag{Name: "timeout", Value: 5 * time.Second},
+				&cli.StringFlag{Name: "username", Aliases: []string{"u"}, Usage: "Username for basic auth"},
+				&cli.StringFlag{Name: "password", Aliases: []string{"p"}, Usage: "Password for basic auth"},
+				&cli.StringFlag{Name: "proxy", Aliases: []string{"x"}, Usage: "Proxy server to use. e.g. http://10.0.0.2:8080"},
+			}
+		},
+	})
 }
 
 func (h *HTTP) ID() string {
@@ -115,4 +139,21 @@ func NewHTTP(sysHTTP system.HTTP, config util.Config) (*HTTP, error) {
 		Proxy:              config.Proxy,
 	}
 	return u, err
+}
+
+// fromSystem builds a fresh HTTP from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewHTTP" off
+// *system.System from a type parameter alone.
+func (h *HTTP) fromSystem(sys *system.System, key string, config util.Config) (system.HTTP, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewHTTP(ctx, key, sys, config)
+	n, err := NewHTTP(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*h = *n
+	return sysRes, nil
 }

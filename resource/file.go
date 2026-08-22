@@ -38,7 +38,21 @@ const (
 )
 
 func init() {
-	registerResource(FileResourceKey, &File{})
+	Register(Descriptor{
+		Key:          FileResourceKey,
+		Name:         FileResourceName,
+		New:          func() Resource { return &File{} },
+		InValidation: true,
+		InDiscovery:  true,
+		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
+			r := &File{}
+			if _, err := r.fromSystem(sys, key, config); err != nil {
+				return nil, err
+			}
+			return r, nil
+		},
+		AutoAdd: &AutoAddSpec{Order: 1},
+	})
 }
 
 func (f *File) ID() string {
@@ -151,4 +165,21 @@ func NewFile(sysFile system.File, config util.Config) (*File, error) {
 		}
 	}
 	return f, nil
+}
+
+// fromSystem builds a fresh File from live system state, populating the
+// receiver in place. It is the one piece of AppendSysResource/
+// AppendSysResourceIfExists that genny used to text-substitute per type and
+// that ResourceMap's shared generic implementation (resource_map.go) cannot
+// derive on its own -- Go generics have no way to pick "NewFile" off
+// *system.System from a type parameter alone.
+func (f *File) fromSystem(sys *system.System, key string, config util.Config) (system.File, error) {
+	ctx := context.WithValue(context.Background(), idKey{}, key)
+	sysRes := sys.NewFile(ctx, key, sys, config)
+	n, err := NewFile(sysRes, config)
+	if err != nil {
+		return sysRes, err
+	}
+	*f = *n
+	return sysRes, nil
 }
