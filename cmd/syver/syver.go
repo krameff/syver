@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/krameff/syver"
@@ -270,7 +272,7 @@ func newApp() *cli.Command {
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					code, err := syver.Validate(newRuntimeConfigFromCLI(c))
+					code, err := syver.Validate(ctx, newRuntimeConfigFromCLI(c))
 					if err != nil {
 						color.Red(fmt.Sprintf("Error: %v\n", err))
 					}
@@ -327,7 +329,7 @@ func newApp() *cli.Command {
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					return syver.Serve(newRuntimeConfigFromCLI(c))
+					return syver.Serve(ctx, newRuntimeConfigFromCLI(c))
 				},
 			},
 			{
@@ -386,7 +388,13 @@ func main() {
 	app := newApp()
 
 	addAlphaFlagIfNeeded(app)
-	err := app.Run(context.Background(), os.Args)
+	// Cancel on SIGINT/SIGTERM rather than relying on the process dying. The
+	// context reaches system/command.go's exec, so Ctrl-C now stops in-flight
+	// commands instead of leaving them running until they finish on their own.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	err := app.Run(ctx, os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

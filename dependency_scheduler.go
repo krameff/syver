@@ -1,6 +1,7 @@
 package syver
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"strings"
@@ -117,7 +118,7 @@ func hasDependencies(resources []resource.Resource) bool {
 	return false
 }
 
-func validateWithDependencies(sys *system.System, resources []resource.Resource, maxConcurrent int) (<-chan []resource.TestResult, error) {
+func validateWithDependencies(ctx context.Context, sys *system.System, resources []resource.Resource, maxConcurrent int) (<-chan []resource.TestResult, error) {
 	schedule, err := buildSchedule(resources)
 	if err != nil {
 		return nil, err
@@ -200,7 +201,7 @@ func validateWithDependencies(sys *system.System, resources []resource.Resource,
 				go func() {
 					defer wg.Done()
 					for item := range work {
-						results := item.resource.Validate(sys)
+						results := item.resource.Validate(ctx, sys)
 						passed := true
 						for _, result := range results {
 							if result.Result == resource.FAIL {

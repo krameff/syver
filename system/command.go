@@ -50,7 +50,15 @@ func (c *DefCommand) setup() error {
 	// set: Timeout <= 0 reaches here from callers that pass an empty
 	// util.Config, and attaching an already-expired context would change their
 	// behaviour rather than fix a leak.
-	ctx := context.Background()
+	// Inherit the caller's context rather than starting a fresh root: it is what
+	// carries cancellation down from the CLI's signal handler and from the
+	// server, so a Ctrl-C or a shutdown kills the child instead of leaving it to
+	// run to completion. c.Ctx is nil only for a zero-value DefCommand built
+	// outside the normal path.
+	ctx := c.Ctx
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	if c.Timeout > 0 {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(c.Timeout)*time.Millisecond)

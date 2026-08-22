@@ -37,7 +37,7 @@ func TestValidateDiscoveryFormat(t *testing.T) {
 		t.Fatalf("new config: %v", err)
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate discovery: %v", err)
 	}
@@ -62,7 +62,7 @@ func TestValidateDependsOnSkipsDependent(t *testing.T) {
 	dependent.SetID("dependent")
 	resources := []resource.Resource{base, dependent}
 
-	out, err := validateWithDependencies(sys, resources, 1)
+	out, err := validateWithDependencies(t.Context(), sys, resources, 1)
 	if err != nil {
 		t.Fatalf("validate with dependencies: %v", err)
 	}
@@ -132,7 +132,7 @@ func TestValidateWithoutDiscover(t *testing.T) {
 		t.Fatal("expected empty DiscoverSpec for plain validate")
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate without discover: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestValidateWithoutDiscoverErrorsOnMissingTemplateVar(t *testing.T) {
 		t.Fatalf("new config: %v", err)
 	}
 
-	_, err = Validate(cfg)
+	_, err = Validate(t.Context(), cfg)
 	if err == nil {
 		t.Fatal("expected template error for missing .Vars key without discover")
 	}
@@ -186,7 +186,7 @@ func TestValidateWithDiscoverFlag(t *testing.T) {
 		t.Fatalf("new config: %v", err)
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate with discover: %v", err)
 	}
@@ -209,7 +209,7 @@ func TestValidateInlineDiscovery(t *testing.T) {
 		t.Fatalf("new config: %v", err)
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate inline discovery: %v", err)
 	}
@@ -286,7 +286,7 @@ file:
 		t.Fatal("expected inline discovery in peek file")
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate override: %v", err)
 	}
@@ -324,7 +324,7 @@ func TestValidateStdinMatchesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new config (file): %v", err)
 	}
-	fileResults, err := ValidateResults(fileCfg)
+	fileResults, err := ValidateResults(t.Context(), fileCfg)
 	if err != nil {
 		t.Fatalf("validate (file): %v", err)
 	}
@@ -351,7 +351,7 @@ func TestValidateStdinMatchesFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new config (stdin): %v", err)
 	}
-	stdinResults, err := ValidateResults(stdinCfg)
+	stdinResults, err := ValidateResults(t.Context(), stdinCfg)
 	if err != nil {
 		t.Fatalf("validate (stdin): %v", err)
 	}
@@ -413,7 +413,7 @@ file:
 		t.Fatalf("new config: %v", err)
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate inline discovery via stdin: %v", err)
 	}
@@ -443,7 +443,7 @@ func TestValidateStdinEmptySpecStillErrors(t *testing.T) {
 		t.Fatalf("new config: %v", err)
 	}
 
-	_, err = Validate(cfg)
+	_, err = Validate(t.Context(), cfg)
 	if err == nil {
 		t.Fatal("expected 'found 0 tests' error for a genuinely empty stdin spec")
 	}
@@ -503,7 +503,7 @@ func TestValidateCollisionWarnLogsOnce(t *testing.T) {
 	log.SetOutput(&logOutput)
 	t.Cleanup(func() { log.SetOutput(os.Stderr) })
 
-	syverConfig, err := loadSyverConfigWithDiscover(cfg)
+	syverConfig, err := loadSyverConfigWithDiscover(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("load: %v", err)
 	}
@@ -573,7 +573,7 @@ command:
 		t.Fatalf("new config: %v", err)
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	if err != nil {
 		t.Fatalf("validate discover with depends-on: %v", err)
 	}

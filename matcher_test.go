@@ -57,7 +57,7 @@ func TestMatchers(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			exitCode, err := Validate(cfg)
+			exitCode, err := Validate(t.Context(), cfg)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -9,6 +9,8 @@
     longer prints `contents: null`. All three asserted nothing
   - an empty list matcher such as `opts: []` now warns that it asserts
     nothing, instead of being skipped silently
+  - Ctrl-C now stops commands that are already running, instead of leaving
+    them orphaned. Library API: `Validate` and friends take a `context.Context`
 
 ## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 

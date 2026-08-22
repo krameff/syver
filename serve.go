@@ -2,6 +2,7 @@ package syver
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,13 +19,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func Serve(c *util.Config) error {
+func Serve(ctx context.Context, c *util.Config) error {
 	err := setLogLevel(c)
 	if err != nil {
 		return err
 	}
 	endpoint := c.Endpoint
-	health, err := newHealthHandler(c)
+	health, err := newHealthHandler(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -79,7 +80,7 @@ func Serve(c *util.Config) error {
 // be reading the flag while the first writer sets it.
 var noColorOnce sync.Once
 
-func newHealthHandler(c *util.Config) (*healthHandler, error) {
+func newHealthHandler(ctx context.Context, c *util.Config) (*healthHandler, error) {
 	noColorOnce.Do(func() { color.NoColor = true })
 	cache := cache.New(c.Cache, 30*time.Second)
 
@@ -94,6 +95,7 @@ func newHealthHandler(c *util.Config) (*healthHandler, error) {
 	}
 
 	health := &healthHandler{
+		baseCtx:       ctx,
 		c:             c,
 		syverConfig:   *cfg,
 		sys:           system.New(c.PackageManager),
@@ -117,6 +119,14 @@ type healthHandler struct {
 	cache         *cache.Cache
 	syverMu       *sync.Mutex
 	maxConcurrent int
+
+	// baseCtx is the server's context, not any one request's. fillCache runs a
+	// single shared sweep and hands the same result to every waiter, so scoping
+	// it to r.Context() would let one client hanging up cancel the work the
+	// other waiters are blocked on -- turning a disconnect into a failed probe
+	// for everybody else. Cancelling the server cancels the sweep; cancelling a
+	// request does not.
+	baseCtx context.Context
 }
 
 func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -176,7 +186,7 @@ func (h healthHandler) fillCache(cacheKey string) [][]resource.TestResult {
 
 	log.Printf("Stale cache[%s], running tests", cacheKey)
 	h.sys = system.New(h.c.PackageManager)
-	tra := h.validate()
+	tra := h.validate(h.baseCtx)
 	h.cache.SetDefault(cacheKey, tra)
 	return tra
 }
@@ -197,10 +207,10 @@ func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs
 	}
 	return resp
 }
-func (h healthHandler) validate() [][]resource.TestResult {
+func (h healthHandler) validate(ctx context.Context) [][]resource.TestResult {
 	h.sys = system.New(h.c.PackageManager)
 	res := make([][]resource.TestResult, 0)
-	tr, err := runValidation(h.sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
+	tr, err := runValidation(ctx, h.sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
 	if err != nil {
 		return res
 	}

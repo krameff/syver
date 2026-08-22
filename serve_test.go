@@ -62,7 +62,7 @@ func TestServeWithNoContentNegotiation(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			hh, err := newHealthHandler(config)
+			hh, err := newHealthHandler(t.Context(), config)
 			require.NoError(t, err)
 
 			req := makeRequest(t, config, nil)
@@ -243,7 +243,7 @@ func TestServeNegotiatingContent(t *testing.T) {
 			)
 			require.NoError(t, err)
 
-			hh, err := newHealthHandler(config)
+			hh, err := newHealthHandler(t.Context(), config)
 			require.NoError(t, err)
 
 			req := makeRequest(t, config, map[string][]string{
@@ -274,7 +274,7 @@ func TestServeCacheWithNoContentNegotiation(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	hh, err := newHealthHandler(config)
+	hh, err := newHealthHandler(t.Context(), config)
 	require.NoError(t, err)
 
 	req := makeRequest(t, config, nil)
@@ -322,7 +322,7 @@ func TestServeCacheNegotiatingContent(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	hh, err := newHealthHandler(config)
+	hh, err := newHealthHandler(t.Context(), config)
 	require.NoError(t, err)
 
 	rr := httptest.NewRecorder()
@@ -411,7 +411,7 @@ func TestFillCacheReturnsExistingEntry(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	hh, err := newHealthHandler(config)
+	hh, err := newHealthHandler(t.Context(), config)
 	require.NoError(t, err)
 
 	sentinel := [][]resource.TestResult{{{
@@ -450,7 +450,7 @@ func TestServeConcurrentCacheMisses(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	hh, err := newHealthHandler(config)
+	hh, err := newHealthHandler(t.Context(), config)
 	require.NoError(t, err)
 
 	const concurrency = 16

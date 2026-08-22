@@ -1,6 +1,7 @@
 package resource
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -75,7 +76,7 @@ func (a *Matching) TypeName() string { return MatchingResourceName }
 func (r *Matching) GetTitle() string { return r.Title }
 func (r *Matching) GetMeta() meta    { return r.Meta }
 
-func (a *Matching) Validate(sys *system.System) []TestResult {
+func (a *Matching) Validate(ctx context.Context, sys *system.System) []TestResult {
 	skip := a.Skip
 
 	var stub interface{}

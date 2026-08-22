@@ -54,7 +54,7 @@ func TestEmptyListIsNotAnExpectation(t *testing.T) {
 
 	t.Run("an empty list produces no result for that attribute", func(t *testing.T) {
 		p := &Port{Listening: true, IP: []interface{}{}, PID: []interface{}{}}
-		results := p.Validate(newFakePort(&fakeSysPort{listening: true}))
+		results := p.Validate(t.Context(), newFakePort(&fakeSysPort{listening: true}))
 
 		// Only the mandatory attribute reports.
 		assert.Equal(t, len(results), 1)
@@ -63,7 +63,7 @@ func TestEmptyListIsNotAnExpectation(t *testing.T) {
 
 	t.Run("a populated list still produces a result", func(t *testing.T) {
 		p := &Port{Listening: true, IP: []interface{}{"127.0.0.1"}}
-		results := p.Validate(newFakePort(&fakeSysPort{listening: true, ip: []string{"127.0.0.1"}}))
+		results := p.Validate(t.Context(), newFakePort(&fakeSysPort{listening: true, ip: []string{"127.0.0.1"}}))
 
 		assert.Equal(t, len(results), 2)
 		assert.Equal(t, results[1].Property, "ip")
@@ -71,7 +71,7 @@ func TestEmptyListIsNotAnExpectation(t *testing.T) {
 
 	t.Run("the mandatory attribute always reports, empty list or not", func(t *testing.T) {
 		p := &Port{Listening: []interface{}{}}
-		results := p.Validate(newFakePort(&fakeSysPort{listening: true}))
+		results := p.Validate(t.Context(), newFakePort(&fakeSysPort{listening: true}))
 
 		assert.Equal(t, len(results), 1)
 		assert.Equal(t, results[0].Property, "listening")

@@ -1,6 +1,7 @@
 package syver
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -8,12 +9,12 @@ import (
 	"github.com/krameff/syver/util"
 )
 
-func runDiscoveryPhase(sys *system.System, discovery DiscoveryConfig, maxConcurrent int) (map[string]bool, error) {
+func runDiscoveryPhase(ctx context.Context, sys *system.System, discovery DiscoveryConfig, maxConcurrent int) (map[string]bool, error) {
 	cfg := SyverConfig{Discovery: discovery}
-	return validateDiscovery(sys, cfg, maxConcurrent)
+	return validateDiscovery(ctx, sys, cfg, maxConcurrent)
 }
 
-func loadSyverConfigWithDiscover(c *util.Config) (*SyverConfig, error) {
+func loadSyverConfigWithDiscover(ctx context.Context, c *util.Config) (*SyverConfig, error) {
 	if c.OutputFormat == "discovery" {
 		return getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
 	}
@@ -29,7 +30,7 @@ func loadSyverConfigWithDiscover(c *util.Config) (*SyverConfig, error) {
 			return nil, fmt.Errorf("discover gossfile %q has no discovery: tests", c.DiscoverSpec)
 		}
 
-		discovered, err := runDiscoveryPhase(sys, discoverCfg.Discovery, c.MaxConcurrent)
+		discovered, err := runDiscoveryPhase(ctx, sys, discoverCfg.Discovery, c.MaxConcurrent)
 		if err != nil {
 			return nil, fmt.Errorf("discover phase: %w", err)
 		}
@@ -53,7 +54,7 @@ func loadSyverConfigWithDiscover(c *util.Config) (*SyverConfig, error) {
 		return getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
 	}
 
-	discovered, err := runDiscoveryPhase(sys, peek.Discovery, c.MaxConcurrent)
+	discovered, err := runDiscoveryPhase(ctx, sys, peek.Discovery, c.MaxConcurrent)
 	if err != nil {
 		return nil, fmt.Errorf("discover phase: %w", err)
 	}

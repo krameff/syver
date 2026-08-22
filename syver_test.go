@@ -75,7 +75,7 @@ func TestUseAsPackage(t *testing.T) {
 	checkErr(t, err, "could not add resource %q", os.TempDir())
 
 	// validate and sanity check, compare structured vs direct results etc
-	results, err := ValidateResults(cfg)
+	results, err := ValidateResults(t.Context(), cfg)
 	checkErr(t, err, "check failed")
 
 	found := 0
@@ -90,7 +90,7 @@ func TestUseAsPackage(t *testing.T) {
 		}
 	}
 
-	code, err := Validate(cfg)
+	code, err := Validate(t.Context(), cfg)
 	checkErr(t, err, "check failed")
 	if code != 0 {
 		t.Fatalf("check failed, expected 0 got %d", code)
@@ -137,7 +137,7 @@ func TestSkipResourcesByType(t *testing.T) {
 	checkErr(t, err, "could not add resource %q", os.TempDir())
 
 	// validate and sanity check, compare structured vs direct results etc
-	results, err := ValidateResults(cfg)
+	results, err := ValidateResults(t.Context(), cfg)
 	checkErr(t, err, "check failed")
 
 	skipped := 0
