@@ -128,6 +128,13 @@ func validateWithDependencies(ctx context.Context, sys *system.System, resources
 	go func() {
 		defer close(out)
 
+		// stateMu guards status and completed. Both are written from every worker
+		// goroutine below, and every resource runnable in the same dependency wave
+		// races. Unsynchronised, that is `fatal error: concurrent map writes` --
+		// a runtime throw, not a panic, so recover() cannot catch it and there is
+		// no handler-level mitigation. Under `serve` a single unauthenticated GET
+		// /healthz against a spec using depends-on killed the daemon outright.
+		var stateMu sync.Mutex
 		status := make(map[string]int, len(schedule))
 		completed := make(map[string]bool, len(schedule))
 		pending := append([]scheduledResource(nil), schedule...)
@@ -209,12 +216,14 @@ func validateWithDependencies(ctx context.Context, sys *system.System, resources
 								break
 							}
 						}
+						stateMu.Lock()
 						if passed {
 							status[item.ref] = resource.SUCCESS
 						} else {
 							status[item.ref] = resource.FAIL
 						}
 						completed[item.ref] = true
+						stateMu.Unlock()
 						out <- results
 					}
 				}()

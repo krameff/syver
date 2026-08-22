@@ -72,10 +72,32 @@ func (c *DefCommand) setup() error {
 	if _, ok := err.(*exec.ExitError); !ok {
 		c.err = err
 	}
+	// ...except when the context killed the child. exec.CommandContext signals
+	// the process, so Run returns an ExitError and the branch above discards it,
+	// leaving err nil and status -1 (util/command.go reads a signalled process's
+	// WaitStatus as -1). The result is a cancelled run rendering as
+	// "Expected -1 to be numerically eq 0" -- byte-identical to a binary that
+	// genuinely died on a signal. During a graceful shutdown that reads to an
+	// operator as the daemon crashing, which is the opposite of what happened.
+	// Surfacing ctx.Err() makes every output format say "context canceled".
+	if ctxErr := ctx.Err(); ctxErr != nil {
+		c.err = ctxErr
+	}
 	c.exitStatus = cmd.Status
 	stdoutB := cmd.Stdout.Bytes()
 	stderrB := cmd.Stderr.Bytes()
-	id := c.Ctx.Value("id")
+	// Read from the local ctx, not c.Ctx: the nil guard above puts the fallback
+	// in ctx, so dereferencing c.Ctx here would panic on exactly the zero-value
+	// DefCommand that guard exists for -- and a nil-interface method call is a
+	// process kill, since nothing in non-test code recovers.
+	//
+	// The value has never actually been found: producers set it under
+	// resource.idKey{} (an unexported struct type) while this looks up the
+	// string "id". Different key types never match, so this has always logged
+	// <nil>. idKey is unexported, so system structurally cannot read it; leaving
+	// the lookup in place keeps the log line's shape until the key is made
+	// reachable, rather than pretending it works.
+	id := ctx.Value("id")
 	logBytes(stdoutB, fmt.Sprintf("[Command][%s][stdout] ", id))
 	logBytes(stderrB, fmt.Sprintf("[Command][%s][stderr] ", id))
 	c.stdout = bytes.NewReader(stdoutB)
