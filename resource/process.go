@@ -63,7 +63,7 @@ func (p *Process) GetComm() string {
 }
 
 func (p *Process) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, p.ID())
+	ctx = withID(ctx, p.ID())
 	skip := p.Skip
 	sysProcess := sys.NewProcess(ctx, p.GetComm(), sys, util.Config{})
 
@@ -72,10 +72,10 @@ func (p *Process) Validate(ctx context.Context, sys *system.System) []TestResult
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(p.Status, fmt.Sprintf("%s: process.status", p.ID()), skip) {
+	if isSetWarnEmpty(p.Status, fmt.Sprintf("%s: process.status", p.ID()), p.Skip) {
 		results = append(results, ValidateValue(p, "status", p.Status, sysProcess.Status, skip))
 	}
-	if isSetWarnEmpty(p.User, fmt.Sprintf("%s: process.user", p.ID()), skip) {
+	if isSetWarnEmpty(p.User, fmt.Sprintf("%s: process.user", p.ID()), p.Skip) {
 		results = append(results, ValidateValue(p, "user", p.User, sysProcess.User, skip))
 	}
 	return results

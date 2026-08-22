@@ -71,7 +71,7 @@ func (a *Addr) GetAddress() string {
 }
 
 func (a *Addr) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, a.ID())
+	ctx = withID(ctx, a.ID())
 	skip := a.Skip
 
 	if a.Timeout == 0 {

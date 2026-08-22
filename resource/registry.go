@@ -63,7 +63,7 @@ func (r *Registry) GetName() string {
 }
 
 func (r *Registry) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, r.ID())
+	ctx = withID(ctx, r.ID())
 	skip := r.Skip
 	sysRegistry := sys.NewRegistry(ctx, r.GetName(), sys, util.Config{})
 

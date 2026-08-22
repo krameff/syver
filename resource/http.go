@@ -89,7 +89,7 @@ func (r *HTTP) getURL() string {
 }
 
 func (u *HTTP) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, u.ID())
+	ctx = withID(ctx, u.ID())
 	skip := u.Skip
 	if u.Timeout == 0 {
 		u.Timeout = 5000
@@ -111,10 +111,10 @@ func (u *HTTP) Validate(ctx context.Context, sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(u.Headers, fmt.Sprintf("%s: http.headers", u.ID()), skip) {
+	if isSetWarnEmpty(u.Headers, fmt.Sprintf("%s: http.headers", u.ID()), u.Skip) {
 		results = append(results, ValidateValue(u, "Headers", u.Headers, sysHTTP.Headers, skip))
 	}
-	if isSetWarnEmpty(u.Body, fmt.Sprintf("%s: http.body", u.ID()), skip) {
+	if isSetWarnEmpty(u.Body, fmt.Sprintf("%s: http.body", u.ID()), u.Skip) {
 		results = append(results, ValidateValue(u, "Body", u.Body, sysHTTP.Body, skip))
 	}
 

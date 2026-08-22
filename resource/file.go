@@ -76,7 +76,7 @@ func (f *File) GetPath() string {
 }
 
 func (f *File) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, f.ID())
+	ctx = withID(ctx, f.ID())
 	skip := f.Skip
 	sysFile := sys.NewFile(ctx, f.GetPath(), sys, util.Config{})
 
@@ -106,11 +106,11 @@ func (f *File) Validate(ctx context.Context, sys *system.System) []TestResult {
 	if isSet(f.Filetype) {
 		results = append(results, ValidateValue(f, "filetype", f.Filetype, sysFile.Filetype, skip))
 	}
-	if isSetWarnEmpty(f.Contains, fmt.Sprintf("%s: file.contains", f.ID()), skip) {
+	if isSetWarnEmpty(f.Contains, fmt.Sprintf("%s: file.contains", f.ID()), f.Skip) {
 		fmt.Fprintf(os.Stderr, "DEPRECATION WARNING: file.contains has been renamed to file.contents\n")
 		results = append(results, ValidateValue(f, "contains", f.Contains, sysFile.Contents, skip))
 	}
-	if isSetWarnEmpty(f.Contents, fmt.Sprintf("%s: file.contents", f.ID()), skip) {
+	if isSetWarnEmpty(f.Contents, fmt.Sprintf("%s: file.contents", f.ID()), f.Skip) {
 		results = append(results, ValidateValue(f, "contents", f.Contents, sysFile.Contents, skip))
 	}
 	if isSet(f.Size) {
