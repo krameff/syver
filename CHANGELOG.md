@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 
 - modularization branch
   - FEAT-007: registry-driven dispatch (Modularisation, Phase 1). Verified
