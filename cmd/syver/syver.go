@@ -394,6 +394,19 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	// NotifyContext suppresses the default "signal terminates the process"
+	// behaviour for as long as it is installed. That is the point for the first
+	// signal -- we want an orderly wind-down -- but it must not be permanent:
+	// any code path that does not watch ctx would otherwise become unkillable
+	// by anything short of SIGKILL. Restoring the default disposition as soon
+	// as the first signal lands means a second one behaves exactly as it did
+	// before this handler existed, so an impatient Ctrl-C or a supervisor's
+	// escalation still works.
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
+
 	err := app.Run(ctx, os.Args)
 	if err != nil {
 		log.Fatal(err)

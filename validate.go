@@ -174,7 +174,15 @@ func ValidateConfig(ctx context.Context, c *util.Config, syverConfig *SyverConfi
 		}
 		color.Red("Retrying in %s (elapsed/timeout time: %.3fs/%s)\n\n\n", sleep, elapsed.Seconds(), retryTimeout)
 		sys = system.New(c.PackageManager)
-		time.Sleep(sleep)
+		// An interruptible sleep: `validate -r 60s` used to die instantly on
+		// Ctrl-C via the default signal disposition, which main's handler now
+		// suppresses. Without this select it would sit out the full retry
+		// interval before noticing.
+		select {
+		case <-time.After(sleep):
+		case <-ctx.Done():
+			return 3, ctx.Err()
+		}
 		i++
 		fmt.Printf("Attempt #%d:\n", i)
 	}
