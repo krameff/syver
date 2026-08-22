@@ -23,7 +23,7 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.7
 	github.com/stretchr/testify v1.12.0
 	github.com/tidwall/gjson v1.19.0
-	github.com/urfave/cli/v3 v3.10.1
+	github.com/urfave/cli/v3 v3.11.0
 	golang.org/x/sys v0.47.0
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
