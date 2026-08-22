@@ -66,7 +66,7 @@ func (u *User) GetUsername() string {
 }
 
 func (u *User) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, u.ID())
+	ctx = withID(ctx, u.ID())
 	skip := u.Skip
 	sysuser := sys.NewUser(ctx, u.GetUsername(), sys, util.Config{})
 
@@ -86,7 +86,7 @@ func (u *User) Validate(ctx context.Context, sys *system.System) []TestResult {
 	if isSet(u.Home) {
 		results = append(results, ValidateValue(u, "home", u.Home, sysuser.Home, skip))
 	}
-	if isSetWarnEmpty(u.Groups, fmt.Sprintf("%s: user.groups", u.ID()), skip) {
+	if isSetWarnEmpty(u.Groups, fmt.Sprintf("%s: user.groups", u.ID()), u.Skip) {
 		results = append(results, ValidateValue(u, "groups", u.Groups, sysuser.Groups, skip))
 	}
 	if isSet(u.Shell) {
@@ -113,7 +113,7 @@ func NewUser(sysUser system.User, config util.Config) (*User, error) {
 		}
 	}
 	if !contains(config.IgnoreList, "groups") {
-		if groups, err := sysUser.Groups(); err == nil {
+		if groups, err := sysUser.Groups(); err == nil && len(groups) > 0 {
 			u.Groups = groups
 		}
 	}

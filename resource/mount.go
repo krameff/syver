@@ -73,7 +73,7 @@ func (m *Mount) GetMountPoint() string {
 }
 
 func (m *Mount) Validate(ctx context.Context, sys *system.System) []TestResult {
-	ctx = context.WithValue(ctx, idKey{}, m.ID())
+	ctx = withID(ctx, m.ID())
 	skip := m.Skip
 
 	if m.Timeout == 0 {
@@ -87,10 +87,10 @@ func (m *Mount) Validate(ctx context.Context, sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSetWarnEmpty(m.Opts, fmt.Sprintf("%s: mount.opts", m.ID()), skip) {
+	if isSetWarnEmpty(m.Opts, fmt.Sprintf("%s: mount.opts", m.ID()), m.Skip) {
 		results = append(results, ValidateValue(m, "opts", m.Opts, sysMount.Opts, skip))
 	}
-	if isSetWarnEmpty(m.VfsOpts, fmt.Sprintf("%s: mount.vfs-opts", m.ID()), skip) {
+	if isSetWarnEmpty(m.VfsOpts, fmt.Sprintf("%s: mount.vfs-opts", m.ID()), m.Skip) {
 		results = append(results, ValidateValue(m, "vfs-opts", m.VfsOpts, sysMount.VfsOpts, skip))
 	}
 	if isSet(m.Source) {
@@ -114,12 +114,12 @@ func NewMount(sysMount system.Mount, config util.Config) (*Mount, error) {
 		Timeout: config.TimeOutMilliSeconds(),
 	}
 	if !contains(config.IgnoreList, "opts") {
-		if opts, err := sysMount.Opts(); err == nil {
+		if opts, err := sysMount.Opts(); err == nil && len(opts) > 0 {
 			m.Opts = opts
 		}
 	}
 	if !contains(config.IgnoreList, "vfs-opts") {
-		if vfsOpts, err := sysMount.VfsOpts(); err == nil {
+		if vfsOpts, err := sysMount.VfsOpts(); err == nil && len(vfsOpts) > 0 {
 			m.VfsOpts = vfsOpts
 		}
 	}
