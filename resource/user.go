@@ -86,7 +86,7 @@ func (u *User) Validate(sys *system.System) []TestResult {
 	if isSet(u.Home) {
 		results = append(results, ValidateValue(u, "home", u.Home, sysuser.Home, skip))
 	}
-	if isSet(u.Groups) {
+	if isSetWarnEmpty(u.Groups, fmt.Sprintf("%s: user.groups", u.ID())) {
 		results = append(results, ValidateValue(u, "groups", u.Groups, sysuser.Groups, skip))
 	}
 	if isSet(u.Shell) {

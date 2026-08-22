@@ -3,10 +3,11 @@ package resource
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
 	"github.com/urfave/cli/v3"
-	"time"
 )
 
 type Mount struct {
@@ -86,10 +87,10 @@ func (m *Mount) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(m.Opts) {
+	if isSetWarnEmpty(m.Opts, fmt.Sprintf("%s: mount.opts", m.ID())) {
 		results = append(results, ValidateValue(m, "opts", m.Opts, sysMount.Opts, skip))
 	}
-	if isSet(m.VfsOpts) {
+	if isSetWarnEmpty(m.VfsOpts, fmt.Sprintf("%s: mount.vfs-opts", m.ID())) {
 		results = append(results, ValidateValue(m, "vfs-opts", m.VfsOpts, sysMount.VfsOpts, skip))
 	}
 	if isSet(m.Source) {

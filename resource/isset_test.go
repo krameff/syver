@@ -2,6 +2,9 @@ package resource
 
 import (
 	"context"
+	"io"
+	"os"
+	"strings"
 	"testing"
 
 	"github.com/krameff/syver/system"
@@ -73,4 +76,48 @@ func TestEmptyListIsNotAnExpectation(t *testing.T) {
 		assert.Equal(t, len(results), 1)
 		assert.Equal(t, results[0].Property, "listening")
 	})
+}
+
+// isSetWarnEmpty must not change what isSet decides. It only adds a warning,
+// so an empty list is still skipped and the run still passes -- the point is
+// that a human who wrote `opts: []` finds out, not that it starts failing.
+func TestIsSetWarnEmpty(t *testing.T) {
+	capture := func(fn func() bool) (bool, string) {
+		orig := os.Stderr
+		r, w, err := os.Pipe()
+		assert.NilError(t, err)
+		os.Stderr = w
+		got := fn()
+		_ = w.Close()
+		os.Stderr = orig
+		out, err := io.ReadAll(r)
+		assert.NilError(t, err)
+		return got, string(out)
+	}
+
+	for _, tc := range []struct {
+		name    string
+		value   any
+		want    bool
+		wantMsg bool
+	}{
+		{"empty list warns and is not set", []interface{}{}, false, true},
+		{"populated list is set, no warning", []interface{}{"x"}, true, false},
+		{"absent attribute is not set, no warning", nil, false, false},
+		{"zero value is set, no warning", 0, true, false},
+		{"empty string is set, no warning", "", true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got, stderr := capture(func() bool {
+				return isSetWarnEmpty(tc.value, "id: type.property")
+			})
+			assert.Equal(t, got, tc.want)
+			assert.Equal(t, got, isSet(tc.value), "must agree with isSet")
+			if tc.wantMsg {
+				assert.Assert(t, strings.Contains(stderr, "id: type.property is an empty list"), "got %q", stderr)
+			} else {
+				assert.Equal(t, stderr, "")
+			}
+		})
+	}
 }

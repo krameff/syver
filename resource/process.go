@@ -72,10 +72,10 @@ func (p *Process) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(p.Status) {
+	if isSetWarnEmpty(p.Status, fmt.Sprintf("%s: process.status", p.ID())) {
 		results = append(results, ValidateValue(p, "status", p.Status, sysProcess.Status, skip))
 	}
-	if isSet(p.User) {
+	if isSetWarnEmpty(p.User, fmt.Sprintf("%s: process.user", p.ID())) {
 		results = append(results, ValidateValue(p, "user", p.User, sysProcess.User, skip))
 	}
 	return results

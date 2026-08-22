@@ -90,7 +90,7 @@ func (d *DNS) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(d.Addrs) {
+	if isSetWarnEmpty(d.Addrs, fmt.Sprintf("%s: dns.addrs", d.ID())) {
 		results = append(results, ValidateValue(d, "addrs", d.Addrs, sysDNS.Addrs, skip))
 	}
 	return results

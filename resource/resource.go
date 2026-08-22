@@ -89,3 +89,20 @@ func isSet(i interface{}) bool {
 		return i != nil
 	}
 }
+
+// isSetWarnEmpty is isSet plus a warning. isSet quietly drops an empty list,
+// which is right -- it asserts nothing, so it must not inflate the count or
+// produce a vacuous pass. But quietly is the problem when a human wrote it:
+// `opts: []` looks like an assertion and behaves like an absent attribute, and
+// nothing said so. This warns and then defers to isSet, so behaviour is
+// unchanged: still skipped, still passing, still the same exit code.
+//
+// desc follows the "<id>: <type>.<property>" shape the deprecation warnings
+// use. Wired only where a list is a plausible thing to write; on a scalar
+// attribute the type assertion below could never match anyway.
+func isSetWarnEmpty(i interface{}, desc string) bool {
+	if v, ok := i.([]interface{}); ok && len(v) == 0 {
+		fmt.Fprintf(os.Stderr, "WARNING: %s is an empty list, which asserts nothing and always passes. Give it a value, or remove it.\n", desc)
+	}
+	return isSet(i)
+}
