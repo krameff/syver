@@ -24,6 +24,10 @@
     not a verdict
   - a cancelled run now reports `context canceled` instead of exit status -1,
     which was indistinguishable from a process genuinely killed by a signal
+  - a hung `systemctl`, `rpm`, `apk` or `getent` no longer wedges `serve`
+    forever; helpers now time out after 30s and cancel on shutdown
+  - a panic while checking one resource now fails that check instead of killing
+    the process
 
 ## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 

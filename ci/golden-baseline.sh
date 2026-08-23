@@ -109,12 +109,27 @@ for spec in passing failing; do
     # MUST stay the very next command: PIPESTATUS is clobbered by the next
     # pipeline or simple command, so inserting anything above this line silently
     # reverts this harness to recording a constant again.
-    code=${PIPESTATUS[0]}
+    #
+    # The whole array is copied in one assignment rather than read element by
+    # element, for the same reason: a `${PIPESTATUS[1]}` on the following line
+    # would be reading the array left by this assignment, not by the pipeline.
+    codes=("${PIPESTATUS[@]}")
     set -e
-    # PIPESTATUS[0], not $?: $? is the exit of `sanitize` at the end of the pipe,
+    # codes[0], not $?: $? is the exit of `sanitize` at the end of the pipe,
     # and the old `|| true` made it 0 unconditionally -- so every golden recorded
     # exit=0, including nagios which exits 2 on failure. The gate silently
     # covered none of the exit codes it appeared to.
+    code=${codes[0]}
+    # codes[1] is sanitize, which writes the golden. A sed that fails leaves the
+    # file truncated or empty, and that damage is indistinguishable from a real
+    # output change -- or, if it fails the same way during `capture`, from no
+    # change at all. Neither is something to record. `set -e` cannot see this:
+    # the pipeline ran under `set +e` above, and `pipefail` only sets $?, which
+    # this loop no longer reads.
+    if [ "${codes[1]}" -ne 0 ]; then
+      echo "FATAL: sanitize failed (exit ${codes[1]}) while writing $f" >&2
+      exit 1
+    fi
     echo "exit=$code" >> "$f"
   done
 done
