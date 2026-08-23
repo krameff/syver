@@ -88,8 +88,8 @@ func (r *HTTP) getURL() string {
 	return r.id
 }
 
-func (u *HTTP) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, u.ID())
+func (u *HTTP) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, u.ID())
 	skip := u.Skip
 	if u.Timeout == 0 {
 		u.Timeout = 5000
@@ -111,10 +111,10 @@ func (u *HTTP) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(u.Headers) {
+	if isSetWarnEmpty(u.Headers, fmt.Sprintf("%s: http.headers", u.ID()), u.Skip) {
 		results = append(results, ValidateValue(u, "Headers", u.Headers, sysHTTP.Headers, skip))
 	}
-	if isSet(u.Body) {
+	if isSetWarnEmpty(u.Body, fmt.Sprintf("%s: http.body", u.ID()), u.Skip) {
 		results = append(results, ValidateValue(u, "Body", u.Body, sysHTTP.Body, skip))
 	}
 
@@ -130,13 +130,18 @@ func NewHTTP(sysHTTP system.HTTP, config util.Config) (*HTTP, error) {
 		RequestHeader:      []string{},
 		RequestQueryParams: nil,
 		Headers:            nil,
-		Body:               []string{},
-		AllowInsecure:      config.AllowInsecure,
-		NoFollowRedirects:  config.NoFollowRedirects,
-		Timeout:            config.TimeOutMilliSeconds(),
-		Username:           config.Username,
-		Password:           config.Password,
-		Proxy:              config.Proxy,
+		// Body is deliberately left unset. `[]` asserts nothing (isSet skips an
+		// empty list), so emitting it only writes a line the reader has to think
+		// about and dismiss -- and isSetWarnEmpty would warn about a file
+		// `syver add` had just written. RequestHeader above is a request *input*,
+		// not a matcher, so it is left as-is.
+		Body:              nil,
+		AllowInsecure:     config.AllowInsecure,
+		NoFollowRedirects: config.NoFollowRedirects,
+		Timeout:           config.TimeOutMilliSeconds(),
+		Username:          config.Username,
+		Password:          config.Password,
+		Proxy:             config.Proxy,
 	}
 	return u, err
 }

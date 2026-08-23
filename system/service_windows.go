@@ -12,13 +12,40 @@ import (
 )
 
 type ServiceWindows struct {
+	// ctx bounds and cancels the Get-Service subprocesses below. See the
+	// matching field on ServiceSystemd.
+	ctx     context.Context
 	service string
 }
 
-func NewServiceWindows(_ context.Context, service string, system *System, config util.Config) Service {
+func NewServiceWindows(ctx context.Context, service string, system *System, config util.Config) Service {
 	return &ServiceWindows{
+		ctx:     ctx,
 		service: service,
 	}
+}
+
+// runHelperPowershell is runHelperCommand for the powershell wrapper, which
+// builds its Cmd differently (the command line goes in SysProcAttr.CmdLine) and
+// so cannot go through util.NewCommandContext. Same contract: the caller's
+// context, a bounded lifetime, and an error only when the context ended the run.
+//
+// Note the process-group caveat in util/procgroup_windows.go -- on Windows the
+// started powershell is killed, but a grandchild it spawned can survive.
+func runHelperPowershell(ctx context.Context, name string, arg ...string) (*util.Command, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx, cancel := context.WithTimeout(ctx, helperCommandTimeout)
+	defer cancel()
+
+	cmd := util.NewCommandForWindowsPowershellContext(ctx, name, arg...)
+	cmd.Run()
+
+	if err := ctx.Err(); err != nil {
+		return cmd, err
+	}
+	return cmd, nil
 }
 
 func (s *ServiceWindows) Service() string {
@@ -26,8 +53,10 @@ func (s *ServiceWindows) Service() string {
 }
 
 func (s *ServiceWindows) Exists() (bool, error) {
-	cmd := util.NewCommandForWindowsPowershell("Get-Service", "-Name", s.service)
-	cmd.Run()
+	cmd, err := runHelperPowershell(s.ctx, "Get-Service", "-Name", s.service)
+	if err != nil {
+		return false, err
+	}
 	if strings.Contains(cmd.Stderr.String(), "Cannot find any service with service name") {
 		return false, nil
 	}
@@ -35,8 +64,10 @@ func (s *ServiceWindows) Exists() (bool, error) {
 }
 
 func (s *ServiceWindows) Enabled() (bool, error) {
-	cmd := util.NewCommandForWindowsPowershell(fmt.Sprintf("$(Get-Service -Name %q).StartType", s.service))
-	cmd.Run()
+	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf("$(Get-Service -Name %q).StartType", s.service))
+	if err != nil {
+		return false, err
+	}
 	if strings.Contains(cmd.Stdout.String(), "Automatic") {
 		return true, cmd.Err
 	}
@@ -44,8 +75,10 @@ func (s *ServiceWindows) Enabled() (bool, error) {
 }
 
 func (s *ServiceWindows) Running() (bool, error) {
-	cmd := util.NewCommandForWindowsPowershell(fmt.Sprintf("$(Get-Service -Name %q).Status", s.service))
-	cmd.Run()
+	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf("$(Get-Service -Name %q).Status", s.service))
+	if err != nil {
+		return false, err
+	}
 	if strings.Contains(cmd.Stdout.String(), "Running") {
 		return true, cmd.Err
 	}

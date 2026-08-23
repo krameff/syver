@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"time"
 
 	"github.com/krameff/syver/resource"
@@ -97,5 +98,18 @@ func (r Structured) Output(w io.Writer, results <-chan []resource.TestResult, ou
 
 	fmt.Fprintln(w, string(j))
 
+	// Every other formatter in this package reports failure through the exit
+	// code; structured was the sole outlier, ending with a bare `return 0` since
+	// the file was created (upstream a17ce0f, 2020). The count was being
+	// computed above and then discarded, which made `validate --format
+	// structured` exit 0 on a failing spec, and -- because serve negotiates the
+	// format from the request's Accept header -- let a client flip /healthz to
+	// 200 on a host where every check was failing.
+	if result.Summary.Failed > 0 {
+		log.Printf("[DEBUG] FAIL SUMMARY: %s", result.SummaryLine)
+		return 1
+	}
+
+	log.Printf("[DEBUG] OK SUMMARY: %s", result.SummaryLine)
 	return 0
 }

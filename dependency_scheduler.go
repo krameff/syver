@@ -1,6 +1,7 @@
 package syver
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"strings"
@@ -117,7 +118,7 @@ func hasDependencies(resources []resource.Resource) bool {
 	return false
 }
 
-func validateWithDependencies(sys *system.System, resources []resource.Resource, maxConcurrent int) (<-chan []resource.TestResult, error) {
+func validateWithDependencies(ctx context.Context, sys *system.System, resources []resource.Resource, maxConcurrent int) (<-chan []resource.TestResult, error) {
 	schedule, err := buildSchedule(resources)
 	if err != nil {
 		return nil, err
@@ -127,6 +128,13 @@ func validateWithDependencies(sys *system.System, resources []resource.Resource,
 	go func() {
 		defer close(out)
 
+		// stateMu guards status and completed. Both are written from every worker
+		// goroutine below, and every resource runnable in the same dependency wave
+		// races. Unsynchronised, that is `fatal error: concurrent map writes` --
+		// a runtime throw, not a panic, so recover() cannot catch it and there is
+		// no handler-level mitigation. Under `serve` a single unauthenticated GET
+		// /healthz against a spec using depends-on killed the daemon outright.
+		var stateMu sync.Mutex
 		status := make(map[string]int, len(schedule))
 		completed := make(map[string]bool, len(schedule))
 		pending := append([]scheduledResource(nil), schedule...)
@@ -200,7 +208,10 @@ func validateWithDependencies(sys *system.System, resources []resource.Resource,
 				go func() {
 					defer wg.Done()
 					for item := range work {
-						results := item.resource.Validate(sys)
+						// ValidateSafe, not Validate -- same reason as in
+						// validateParallel. Here a lost worker would also strand
+						// every dependent still waiting on this ref to complete.
+						results := resource.ValidateSafe(ctx, item.resource, sys)
 						passed := true
 						for _, result := range results {
 							if result.Result == resource.FAIL {
@@ -208,12 +219,14 @@ func validateWithDependencies(sys *system.System, resources []resource.Resource,
 								break
 							}
 						}
+						stateMu.Lock()
 						if passed {
 							status[item.ref] = resource.SUCCESS
 						} else {
 							status[item.ref] = resource.FAIL
 						}
 						completed[item.ref] = true
+						stateMu.Unlock()
 						out <- results
 					}
 				}()

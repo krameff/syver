@@ -13,8 +13,9 @@ is the quick reference for what is and isn't different.
 
 ## Breaking changes
 
-Nothing that reads or writes a spec file changes. What breaks is limited to things
-that referenced the product by name.
+Nothing that reads or writes a spec file changes. Almost everything that breaks is
+something that referenced the product by name; the exception is the Go library API,
+which changed to carry a `context.Context` (last two rows).
 
 | What | goss | Syver | Affects you if |
 | --- | --- | --- | --- |
@@ -23,6 +24,8 @@ that referenced the product by name.
 | Checksum file | `goss_<ver>_SHA256SUMS` | `syver_<ver>_SHA256SUMS` | You verify release checksums by filename |
 | Container image | `ghcr.io/krameff/goss` | `ghcr.io/krameff/syver` | You pull the image |
 | Go module path | `github.com/krameff/goss` | `github.com/krameff/syver` | You import this as a library, not as a CLI |
+| `Resource` interface | `Validate(sys)` | `Validate(ctx, sys)` | You implement your own resource type against the library |
+| Library entry points | `Validate(c)`, `ValidateResults(c)`, `ValidateConfig(c, cfg)`, `Serve(c)` | same, each taking `ctx` first | You call these directly instead of using the CLI |
 
 The release archives themselves are still published under **both** names, so a
 `goss-<os>-<arch>` download URL keeps resolving. Only the checksum file is single-named.
@@ -56,6 +59,19 @@ These are the compatibility guarantees. If your setup relies on any of them, it 
 | gossfile syntax, resource types, matchers | Unchanged | No spec rewrite needed |
 
 ---
+
+## Behaviour differences
+
+One thing Syver does that goss does not: **Ctrl-C stops work in progress.** goss
+mints a fresh `context.Background()` inside each check, so interrupting a run
+leaves any command it had already started to run to completion, orphaned. Syver
+threads the signal handler's context all the way down to `exec`, so the child is
+killed with the parent. `syver serve` shuts down in an orderly way on SIGTERM
+rather than being killed mid-request, and a second signal always terminates the
+process outright, so nothing becomes unkillable.
+
+This is a difference, not a compatibility break: no spec file behaves differently,
+and a run that is allowed to finish produces identical results either way.
 
 ## Product identity
 

@@ -66,8 +66,8 @@ func (c *Command) GetExec() string {
 	return c.id
 }
 
-func (c *Command) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, c.ID())
+func (c *Command) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, c.ID())
 	skip := c.Skip
 
 	if c.Timeout == 0 {
@@ -79,10 +79,10 @@ func (c *Command) Validate(sys *system.System) []TestResult {
 
 	cExitStatus := deprecateAtoI(c.ExitStatus, fmt.Sprintf("%s: command.exit-status", c.ID()))
 	results = append(results, ValidateValue(c, "exit-status", cExitStatus, sysCommand.ExitStatus, skip))
-	if isSet(c.Stdout) {
+	if isSetWarnEmpty(c.Stdout, fmt.Sprintf("%s: command.stdout", c.ID()), c.Skip) {
 		results = append(results, ValidateValue(c, "stdout", c.Stdout, sysCommand.Stdout, skip))
 	}
-	if isSet(c.Stderr) {
+	if isSetWarnEmpty(c.Stderr, fmt.Sprintf("%s: command.stderr", c.ID()), c.Skip) {
 		results = append(results, ValidateValue(c, "stderr", c.Stderr, sysCommand.Stderr, skip))
 	}
 	return results

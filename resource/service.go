@@ -62,8 +62,8 @@ func (s *Service) GetName() string {
 	return s.id
 }
 
-func (s *Service) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, s.ID())
+func (s *Service) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, s.ID())
 	skip := s.Skip
 	sysservice := sys.NewService(ctx, s.GetName(), sys, util.Config{})
 
@@ -74,7 +74,7 @@ func (s *Service) Validate(sys *system.System) []TestResult {
 	if isSet(s.Running) {
 		results = append(results, ValidateValue(s, "running", s.Running, sysservice.Running, skip))
 	}
-	if isSet(s.RunLevels) {
+	if isSetWarnEmpty(s.RunLevels, fmt.Sprintf("%s: service.runlevels", s.ID()), s.Skip) {
 		results = append(results, ValidateValue(s, "runlevels", s.RunLevels, sysservice.RunLevels, skip))
 	}
 	return results

@@ -2,14 +2,30 @@
 #
 # golden-baseline.sh -- capture, or verify against, the FEAT-007 golden baseline.
 #
-# FEAT-007 (registry-driven dispatch) is a *verified no-op* refactor: it changes
-# how resource types are wired, and must change nothing a user can observe. The
-# only way to make that claim credible is a byte-comparison of the CLI's output
-# before and after.
+# A rolling regression gate: it records the CLI's observable output and exit
+# codes, so any later change that alters them shows up as a diff instead of a
+# surprise. It began life as the proof that FEAT-007 (registry-driven dispatch)
+# was a verified no-op, and it still serves that purpose for any change claiming
+# to be one -- but the baseline is NOT frozen at that point and no longer means
+# "FEAT-007 changed nothing". It means "nothing changes from here on".
 #
-# The order matters and is easy to get wrong: `capture` MUST run on a clean tree
-# BEFORE any refactor edits. A baseline taken mid-refactor still diffs clean
-# against itself and proves nothing, silently.
+# So the baseline moves when a behaviour change is deliberately accepted. When
+# you re-capture, say why in the commit message: an un-narrated re-capture makes
+# a real regression indistinguishable from an intended change.
+#
+# Two ordering rules, both easy to get wrong:
+#   * `capture` must run on a tree you have decided is CORRECT, not merely one
+#     that builds. A baseline taken mid-change still diffs clean against itself
+#     and proves nothing, silently.
+#   * Re-capture only AFTER reviewing the diff the old baseline produces. That
+#     diff is the evidence; overwriting it first throws the evidence away.
+#
+# Known limits, so nobody over-reads a PASS:
+#   * The add/ goldens capture THIS HOST (its interfaces, its listening ports,
+#     its shells), so they are a determinism check, not a portability one. This
+#     does not run in CI, and would fail wholesale on a different machine.
+#   * It is a manual gate -- nothing in the Makefile or .github/workflows runs
+#     it -- so "204/204" is only as current as the last hand-run.
 #
 #   ./ci/golden-baseline.sh capture [outdir]   # run first, on the pre-refactor tree
 #   ./ci/golden-baseline.sh verify  [outdir]   # run after; non-zero exit == behaviour changed
@@ -24,7 +40,12 @@
 #              those typed fields into a map would silently reorder every generated
 #              gossfile. Empirically confirmed: `autoadd root` emits service/user/group,
 #              which is struct field order (5,6,7), not alphabetical and not map order.
-#   validate/  both fixtures x all 9 output formats. Catches result-shape and
+#   validate/  both fixtures x all 9 output formats, INCLUDING the exit code.
+#              The exit code is the primary contract of a validation CLI -- it is
+#              what CI steps and `dgoss run` actually consume -- and for a long
+#              time this harness recorded a constant 0 for every case, so it was
+#              blind to exit-code-only changes. See the capture loop below.
+#              Catches result-shape and
 #              formatter regressions, including the resource-type string that
 #              validate.go derives (see the TypeName note in the FEAT-007 spec).
 #   add/       one `syver add` per addable type + `autoadd`. Directly exercises the
@@ -83,8 +104,33 @@ mkdir -p "$OUT/validate"
 for spec in passing failing; do
   for fmt in documentation json junit nagios prometheus rspecish structured tap silent; do
     f="$OUT/validate/${spec}.${fmt}"
-    "$BIN" -g "testdata/${spec}.goss.yaml" validate --no-color --format "$fmt" 2>&1 | sanitize > "$f" || true
-    echo "exit=$?" >> "$f"
+    set +e
+    "$BIN" -g "testdata/${spec}.goss.yaml" validate --no-color --format "$fmt" 2>&1 | sanitize > "$f"
+    # MUST stay the very next command: PIPESTATUS is clobbered by the next
+    # pipeline or simple command, so inserting anything above this line silently
+    # reverts this harness to recording a constant again.
+    #
+    # The whole array is copied in one assignment rather than read element by
+    # element, for the same reason: a `${PIPESTATUS[1]}` on the following line
+    # would be reading the array left by this assignment, not by the pipeline.
+    codes=("${PIPESTATUS[@]}")
+    set -e
+    # codes[0], not $?: $? is the exit of `sanitize` at the end of the pipe,
+    # and the old `|| true` made it 0 unconditionally -- so every golden recorded
+    # exit=0, including nagios which exits 2 on failure. The gate silently
+    # covered none of the exit codes it appeared to.
+    code=${codes[0]}
+    # codes[1] is sanitize, which writes the golden. A sed that fails leaves the
+    # file truncated or empty, and that damage is indistinguishable from a real
+    # output change -- or, if it fails the same way during `capture`, from no
+    # change at all. Neither is something to record. `set -e` cannot see this:
+    # the pipeline ran under `set +e` above, and `pipefail` only sets $?, which
+    # this loop no longer reads.
+    if [ "${codes[1]}" -ne 0 ]; then
+      echo "FATAL: sanitize failed (exit ${codes[1]}) while writing $f" >&2
+      exit 1
+    fi
+    echo "exit=$code" >> "$f"
   done
 done
 
@@ -132,6 +178,11 @@ cp "$OUT/work/aa.yaml" "$OUT/add/autoadd.yaml" 2>/dev/null || true
 #   * render's stderr carries Go's "2006/01/02 15:04:05" log prefix.
 # Normalise the whole tree, including the .err files that never went through
 # sanitize() above.
+# ORDER IS LOAD-BEARING: BASE is a strict prefix of OUT (.golden-baseline vs
+# .golden-baseline.actual), so OUT must be substituted first to consume the
+# .actual paths whole. Reverse these two and every .actual path normalises to
+# "<OUT>.actual", making every verify fail with a diff that looks like a real
+# behaviour change. Do not sort these -e expressions.
 find "$OUT/validate" "$OUT/render" "$OUT/add" -type f -print0 | xargs -0 sed -i -E \
   -e "s#${OUT}#<OUT>#g" \
   -e "s#${BASE:-__nomatch__}#<OUT>#g" \
@@ -151,7 +202,7 @@ fi
 echo "baseline HEAD: $(cat "$BASE/HEAD.txt")"
 echo "current  HEAD: $(cat "$OUT/HEAD.txt")"
 if diff -u "$BASE/MANIFEST.sha256" "$OUT/MANIFEST.sha256" > "$OUT/manifest.diff"; then
-  echo "PASS: all $count golden files byte-identical -- refactor is a verified no-op."
+  echo "PASS: all $count golden files byte-identical -- no observable change."
   exit 0
 fi
 echo "FAIL: golden output changed. Differing files:" >&2

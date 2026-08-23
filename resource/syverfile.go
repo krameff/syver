@@ -74,7 +74,7 @@ func (g *Syverfile) GetSyverfile() string {
 	return g.Path
 }
 
-func (g *Syverfile) Validate(sys *system.System) []TestResult {
+func (g *Syverfile) Validate(ctx context.Context, sys *system.System) []TestResult {
 	return []TestResult{}
 }
 

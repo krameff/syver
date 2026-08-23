@@ -1,6 +1,7 @@
 package syver
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 	"sync"
@@ -9,7 +10,7 @@ import (
 	"github.com/krameff/syver/system"
 )
 
-func validateDiscovery(sys *system.System, syverConfig SyverConfig, maxConcurrent int) (map[string]bool, error) {
+func validateDiscovery(ctx context.Context, sys *system.System, syverConfig SyverConfig, maxConcurrent int) (map[string]bool, error) {
 	entries, err := syverConfig.Discovery.Entries()
 	if err != nil {
 		return nil, err
@@ -47,7 +48,7 @@ func validateDiscovery(sys *system.System, syverConfig SyverConfig, maxConcurren
 		go func() {
 			defer wg.Done()
 			for entry := range work {
-				results := entry.Resource.Validate(sys)
+				results := entry.Resource.Validate(ctx, sys)
 				passed := true
 				for _, result := range results {
 					if result.Result == resource.FAIL {

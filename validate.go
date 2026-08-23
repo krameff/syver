@@ -1,6 +1,7 @@
 package syver
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -104,36 +105,36 @@ func getOutputer(c *bool, format string) (outputs.Outputer, error) {
 
 // ValidateResults performs validation and provides programmatic access to validation results
 // no retries or outputs are supported
-func ValidateResults(c *util.Config) (results <-chan []resource.TestResult, err error) {
-	syverConfig, err := loadSyverConfigWithDiscover(c)
+func ValidateResults(ctx context.Context, c *util.Config) (results <-chan []resource.TestResult, err error) {
+	syverConfig, err := loadSyverConfigWithDiscover(ctx, c)
 	if err != nil {
 		return nil, err
 	}
 
 	sys := system.New(c.PackageManager)
 
-	return runValidation(sys, *syverConfig, c.DisabledResourceTypes, c.MaxConcurrent)
+	return runValidation(ctx, sys, *syverConfig, c.DisabledResourceTypes, c.MaxConcurrent)
 }
 
 // Validate performs validation, writes formatted output to stdout by default
 // and supports retries and more, this is the full featured Validate used
 // by the CLI invocation and will produce output to StdOut.  Use
 // ValidateResults for programmatic access
-func Validate(c *util.Config) (code int, err error) {
+func Validate(ctx context.Context, c *util.Config) (code int, err error) {
 	err = setLogLevel(c)
 	if err != nil {
 		return 1, err
 	}
-	syverConfig, err := loadSyverConfigWithDiscover(c)
+	syverConfig, err := loadSyverConfigWithDiscover(ctx, c)
 	if err != nil {
 		return 78, err
 	}
-	return ValidateConfig(c, syverConfig)
+	return ValidateConfig(ctx, c, syverConfig)
 }
 
-func ValidateConfig(c *util.Config, syverConfig *SyverConfig) (code int, err error) {
+func ValidateConfig(ctx context.Context, c *util.Config, syverConfig *SyverConfig) (code int, err error) {
 	if c.OutputFormat == "discovery" {
-		return validateDiscoveryConfig(c, syverConfig)
+		return validateDiscoveryConfig(ctx, c, syverConfig)
 	}
 
 	// Needed for contains-elements
@@ -159,7 +160,7 @@ func ValidateConfig(c *util.Config, syverConfig *SyverConfig) (code int, err err
 	i := 1
 	startTime := time.Now()
 	for {
-		out, err := runValidation(sys, *syverConfig, c.DisabledResourceTypes, c.MaxConcurrent)
+		out, err := runValidation(ctx, sys, *syverConfig, c.DisabledResourceTypes, c.MaxConcurrent)
 		if err != nil {
 			return 1, err
 		}
@@ -173,15 +174,23 @@ func ValidateConfig(c *util.Config, syverConfig *SyverConfig) (code int, err err
 		}
 		color.Red("Retrying in %s (elapsed/timeout time: %.3fs/%s)\n\n\n", sleep, elapsed.Seconds(), retryTimeout)
 		sys = system.New(c.PackageManager)
-		time.Sleep(sleep)
+		// An interruptible sleep: `validate -r 60s` used to die instantly on
+		// Ctrl-C via the default signal disposition, which main's handler now
+		// suppresses. Without this select it would sit out the full retry
+		// interval before noticing.
+		select {
+		case <-time.After(sleep):
+		case <-ctx.Done():
+			return 3, ctx.Err()
+		}
 		i++
 		fmt.Printf("Attempt #%d:\n", i)
 	}
 }
 
-func validateDiscoveryConfig(c *util.Config, syverConfig *SyverConfig) (code int, err error) {
+func validateDiscoveryConfig(ctx context.Context, c *util.Config, syverConfig *SyverConfig) (code int, err error) {
 	sys := system.New(c.PackageManager)
-	discovered, err := validateDiscovery(sys, *syverConfig, c.MaxConcurrent)
+	discovered, err := validateDiscovery(ctx, sys, *syverConfig, c.MaxConcurrent)
 	if err != nil {
 		return 1, err
 	}
@@ -198,18 +207,18 @@ func validateDiscoveryConfig(c *util.Config, syverConfig *SyverConfig) (code int
 	return discoveryOutput.Output(ofh, discovered, outputConfig), nil
 }
 
-func runValidation(sys *system.System, syverConfig SyverConfig, skipList []string, maxConcurrent int) (<-chan []resource.TestResult, error) {
+func runValidation(ctx context.Context, sys *system.System, syverConfig SyverConfig, skipList []string, maxConcurrent int) (<-chan []resource.TestResult, error) {
 	resources := syverConfig.Resources()
 	applyDisabledTypes(resources, skipList)
 
 	if hasDependencies(resources) {
-		return validateWithDependencies(sys, resources, maxConcurrent)
+		return validateWithDependencies(ctx, sys, resources, maxConcurrent)
 	}
 
-	return validateParallel(sys, resources, maxConcurrent), nil
+	return validateParallel(ctx, sys, resources, maxConcurrent), nil
 }
 
-func validateParallel(sys *system.System, resources []resource.Resource, maxConcurrent int) <-chan []resource.TestResult {
+func validateParallel(ctx context.Context, sys *system.System, resources []resource.Resource, maxConcurrent int) <-chan []resource.TestResult {
 	out := make(chan []resource.TestResult)
 	in := make(chan resource.Resource)
 
@@ -230,7 +239,10 @@ func validateParallel(sys *system.System, resources []resource.Resource, maxConc
 		go func() {
 			defer wg.Done()
 			for f := range in {
-				out <- f.Validate(sys)
+				// ValidateSafe, not Validate: these are bare goroutines and a
+				// panic in any resource would otherwise kill the process. See
+				// resource/panic.go.
+				out <- resource.ValidateSafe(ctx, f, sys)
 			}
 		}()
 	}

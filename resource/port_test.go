@@ -50,7 +50,7 @@ func TestPortValidate(t *testing.T) {
 	t.Run("only listening is checked when ip/pid aren't configured", func(t *testing.T) {
 		p := &Port{Listening: true}
 		sys := newFakePort(&fakeSysPort{listening: true})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, len(results), 1)
 		assert.Equal(t, results[0].Property, "listening")
 	})
@@ -58,7 +58,7 @@ func TestPortValidate(t *testing.T) {
 	t.Run("ip and pid are checked when configured", func(t *testing.T) {
 		p := &Port{Listening: true, IP: []interface{}{"127.0.0.1"}, PID: []interface{}{1234}}
 		sys := newFakePort(&fakeSysPort{listening: true, ip: []string{"127.0.0.1"}, pid: []int{1234}})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, len(results), 3)
 		assert.Equal(t, results[0].Property, "listening")
 		assert.Equal(t, results[1].Property, "ip")
@@ -71,7 +71,7 @@ func TestPortValidate(t *testing.T) {
 	t.Run("a failed listening check skips subsequent ip/pid checks", func(t *testing.T) {
 		p := &Port{Listening: true, PID: []interface{}{1234}}
 		sys := newFakePort(&fakeSysPort{listening: false})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, len(results), 2)
 		assert.Equal(t, results[0].Result, FAIL)
 		assert.Equal(t, results[1].Result, SKIP)
@@ -80,7 +80,7 @@ func TestPortValidate(t *testing.T) {
 	t.Run("underlying error surfaces as a failed result", func(t *testing.T) {
 		p := &Port{Listening: true}
 		sys := newFakePort(&fakeSysPort{err: errors.New("boom")})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, results[0].Result, FAIL)
 	})
 }

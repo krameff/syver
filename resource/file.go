@@ -25,7 +25,7 @@ type File struct {
 	LinkedTo      matcher `json:"linked-to,omitempty" yaml:"linked-to,omitempty"`
 	Filetype      matcher `json:"filetype,omitempty" yaml:"filetype,omitempty"`
 	Contains      matcher `json:"contains,omitempty" yaml:"contains,omitempty"`
-	Contents      matcher `json:"contents" yaml:"contents"`
+	Contents      matcher `json:"contents,omitempty" yaml:"contents,omitempty"`
 	Md5           matcher `json:"md5,omitempty" yaml:"md5,omitempty"`
 	Sha256        matcher `json:"sha256,omitempty" yaml:"sha256,omitempty"`
 	Sha512        matcher `json:"sha512,omitempty" yaml:"sha512,omitempty"`
@@ -75,8 +75,8 @@ func (f *File) GetPath() string {
 	return f.id
 }
 
-func (f *File) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, f.ID())
+func (f *File) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, f.ID())
 	skip := f.Skip
 	sysFile := sys.NewFile(ctx, f.GetPath(), sys, util.Config{})
 
@@ -106,11 +106,11 @@ func (f *File) Validate(sys *system.System) []TestResult {
 	if isSet(f.Filetype) {
 		results = append(results, ValidateValue(f, "filetype", f.Filetype, sysFile.Filetype, skip))
 	}
-	if isSet(f.Contains) {
+	if isSetWarnEmpty(f.Contains, fmt.Sprintf("%s: file.contains", f.ID()), f.Skip) {
 		fmt.Fprintf(os.Stderr, "DEPRECATION WARNING: file.contains has been renamed to file.contents\n")
 		results = append(results, ValidateValue(f, "contains", f.Contains, sysFile.Contents, skip))
 	}
-	if isSet(f.Contents) {
+	if isSetWarnEmpty(f.Contents, fmt.Sprintf("%s: file.contents", f.ID()), f.Skip) {
 		results = append(results, ValidateValue(f, "contents", f.Contents, sysFile.Contents, skip))
 	}
 	if isSet(f.Size) {
@@ -134,10 +134,12 @@ func NewFile(sysFile system.File, config util.Config) (*File, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Contents is deliberately left unset. `[]` asserts nothing (isSet skips
+	// an empty list), so emitting it only writes a line the reader has to
+	// think about and dismiss.
 	f := &File{
-		id:       path,
-		Exists:   exists,
-		Contents: []string{},
+		id:     path,
+		Exists: exists,
 	}
 	if !contains(config.IgnoreList, "mode") {
 		if mode, err := sysFile.Mode(); err == nil {

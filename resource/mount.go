@@ -3,10 +3,11 @@ package resource
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
 	"github.com/urfave/cli/v3"
-	"time"
 )
 
 type Mount struct {
@@ -71,8 +72,8 @@ func (m *Mount) GetMountPoint() string {
 	return m.id
 }
 
-func (m *Mount) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, m.ID())
+func (m *Mount) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, m.ID())
 	skip := m.Skip
 
 	if m.Timeout == 0 {
@@ -86,10 +87,10 @@ func (m *Mount) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(m.Opts) {
+	if isSetWarnEmpty(m.Opts, fmt.Sprintf("%s: mount.opts", m.ID()), m.Skip) {
 		results = append(results, ValidateValue(m, "opts", m.Opts, sysMount.Opts, skip))
 	}
-	if isSet(m.VfsOpts) {
+	if isSetWarnEmpty(m.VfsOpts, fmt.Sprintf("%s: mount.vfs-opts", m.ID()), m.Skip) {
 		results = append(results, ValidateValue(m, "vfs-opts", m.VfsOpts, sysMount.VfsOpts, skip))
 	}
 	if isSet(m.Source) {
@@ -113,12 +114,12 @@ func NewMount(sysMount system.Mount, config util.Config) (*Mount, error) {
 		Timeout: config.TimeOutMilliSeconds(),
 	}
 	if !contains(config.IgnoreList, "opts") {
-		if opts, err := sysMount.Opts(); err == nil {
+		if opts, err := sysMount.Opts(); err == nil && len(opts) > 0 {
 			m.Opts = opts
 		}
 	}
 	if !contains(config.IgnoreList, "vfs-opts") {
-		if vfsOpts, err := sysMount.VfsOpts(); err == nil {
+		if vfsOpts, err := sysMount.VfsOpts(); err == nil && len(vfsOpts) > 0 {
 			m.VfsOpts = vfsOpts
 		}
 	}

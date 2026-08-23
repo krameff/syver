@@ -11,21 +11,24 @@ import (
 )
 
 type ServiceInit struct {
+	// ctx bounds and cancels the `service ... status` subprocess in Running.
+	// See the matching field on ServiceSystemd.
+	ctx      context.Context
 	service  string
 	alpine   bool
 	runlevel string
 }
 
-func NewServiceInit(_ context.Context, service string, system *System, config util.Config) Service {
-	return &ServiceInit{service: service}
+func NewServiceInit(ctx context.Context, service string, system *System, config util.Config) Service {
+	return &ServiceInit{ctx: ctx, service: service}
 }
 
-func NewAlpineServiceInit(_ context.Context, service string, system *System, config util.Config) Service {
+func NewAlpineServiceInit(ctx context.Context, service string, system *System, config util.Config) Service {
 	runlevel := config.RunLevel
 	if runlevel == "" {
 		runlevel = "sysinit"
 	}
-	return &ServiceInit{service: service, alpine: true, runlevel: runlevel}
+	return &ServiceInit{ctx: ctx, service: service, alpine: true, runlevel: runlevel}
 }
 
 func (s *ServiceInit) Service() string {
@@ -71,8 +74,10 @@ func (s *ServiceInit) Running() (bool, error) {
 	if invalidService(s.service) {
 		return false, nil
 	}
-	cmd := util.NewCommand("service", s.service, "status")
-	cmd.Run()
+	cmd, err := runHelperCommand(s.ctx, "service", s.service, "status")
+	if err != nil {
+		return false, err
+	}
 	if cmd.Status == 0 {
 		return true, cmd.Err
 	}

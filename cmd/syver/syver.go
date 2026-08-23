@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/krameff/syver"
@@ -270,7 +272,7 @@ func newApp() *cli.Command {
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					code, err := syver.Validate(newRuntimeConfigFromCLI(c))
+					code, err := syver.Validate(ctx, newRuntimeConfigFromCLI(c))
 					if err != nil {
 						color.Red(fmt.Sprintf("Error: %v\n", err))
 					}
@@ -327,7 +329,7 @@ func newApp() *cli.Command {
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					return syver.Serve(newRuntimeConfigFromCLI(c))
+					return syver.Serve(ctx, newRuntimeConfigFromCLI(c))
 				},
 			},
 			{
@@ -386,7 +388,26 @@ func main() {
 	app := newApp()
 
 	addAlphaFlagIfNeeded(app)
-	err := app.Run(context.Background(), os.Args)
+	// Cancel on SIGINT/SIGTERM rather than relying on the process dying. The
+	// context reaches system/command.go's exec, so Ctrl-C now stops in-flight
+	// commands instead of leaving them running until they finish on their own.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// NotifyContext suppresses the default "signal terminates the process"
+	// behaviour for as long as it is installed. That is the point for the first
+	// signal -- we want an orderly wind-down -- but it must not be permanent:
+	// any code path that does not watch ctx would otherwise become unkillable
+	// by anything short of SIGKILL. Restoring the default disposition as soon
+	// as the first signal lands means a second one behaves exactly as it did
+	// before this handler existed, so an impatient Ctrl-C or a supervisor's
+	// escalation still works.
+	go func() {
+		<-ctx.Done()
+		stop()
+	}()
+
+	err := app.Run(ctx, os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

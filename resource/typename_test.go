@@ -41,5 +41,5 @@ func TestTypeNameMatchesReflectType(t *testing.T) {
 	// returns zero results, so it never calls ValidateGomegaValue -- the
 	// only place the reflect-vs-TypeName() choice was ever observable.
 	sf := &Syverfile{}
-	assert.Equal(t, len(sf.Validate(nil)), 0)
+	assert.Equal(t, len(sf.Validate(t.Context(), nil)), 0)
 }

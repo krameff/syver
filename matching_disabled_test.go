@@ -26,7 +26,7 @@ func TestMatchingSetSkipDisablesValidation(t *testing.T) {
 
 	sys := system.New("")
 
-	out, err := runValidation(sys, cfg, []string{"matching"}, 1)
+	out, err := runValidation(t.Context(), sys, cfg, []string{"matching"}, 1)
 	checkErr(t, err, "runValidation failed")
 
 	var total, skipped, failed int

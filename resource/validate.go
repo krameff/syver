@@ -44,6 +44,12 @@ func HumanOutcomes() map[int]string {
 type ValidateError string
 
 func (g ValidateError) Error() string { return string(g) }
+
+// NewValidateError wraps an error as a *ValidateError so callers outside this
+// package can build a TestResult. serve.go needs it to turn a validation that
+// could not run at all into a visible failing result rather than an empty set.
+func NewValidateError(err error) *ValidateError { return toValidateError(err) }
+
 func toValidateError(err error) *ValidateError {
 	if err == nil {
 		return nil

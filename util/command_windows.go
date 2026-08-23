@@ -50,6 +50,30 @@ func NewCommandForWindowsCmdContext(ctx context.Context, name string, arg ...str
 	return command
 }
 
+// NewCommandForWindowsPowershellContext is NewCommandForWindowsPowershell with
+// a context attached. See NewCommandContext in command.go, and
+// runHelperCommand in system/helper_command.go for what uses it: the service
+// checks shell out to Get-Service, and a Get-Service that never returns used to
+// have nothing able to interrupt it.
+func NewCommandForWindowsPowershellContext(ctx context.Context, name string, arg ...string) *Command {
+	command := new(Command)
+	command.name = "powershell"
+
+	cmdLine := "-NoProfile -Command " + name
+	if len(arg) > 0 {
+		cmdLine += " " + strings.Join(arg, " ")
+	}
+
+	command.Cmd = exec.CommandContext(ctx, "powershell")
+	command.Cmd.SysProcAttr = &syscall.SysProcAttr{
+		HideWindow:    false,
+		CmdLine:       cmdLine,
+		CreationFlags: 0,
+	}
+
+	return command
+}
+
 func NewCommandForWindowsPowershell(name string, arg ...string) *Command {
 	command := new(Command)
 	command.name = "powershell"

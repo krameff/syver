@@ -62,8 +62,8 @@ func (p *Process) GetComm() string {
 	return p.id
 }
 
-func (p *Process) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, p.ID())
+func (p *Process) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, p.ID())
 	skip := p.Skip
 	sysProcess := sys.NewProcess(ctx, p.GetComm(), sys, util.Config{})
 
@@ -72,10 +72,10 @@ func (p *Process) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(p.Status) {
+	if isSetWarnEmpty(p.Status, fmt.Sprintf("%s: process.status", p.ID()), p.Skip) {
 		results = append(results, ValidateValue(p, "status", p.Status, sysProcess.Status, skip))
 	}
-	if isSet(p.User) {
+	if isSetWarnEmpty(p.User, fmt.Sprintf("%s: process.user", p.ID()), p.Skip) {
 		results = append(results, ValidateValue(p, "user", p.User, sysProcess.User, skip))
 	}
 	return results
@@ -91,13 +91,15 @@ func NewProcess(sysProcess system.Process, config util.Config) (*Process, error)
 		id:      executable,
 		Running: running,
 	}
+	// Only record these when the process actually reports them; an empty list
+	// asserts nothing and isSet skips it, so writing it out is noise.
 	if !contains(config.IgnoreList, "status") {
-		if status, err := sysProcess.Status(); err == nil {
+		if status, err := sysProcess.Status(); err == nil && len(status) > 0 {
 			p.Status = status
 		}
 	}
 	if !contains(config.IgnoreList, "user") {
-		if user, err := sysProcess.User(); err == nil {
+		if user, err := sysProcess.User(); err == nil && len(user) > 0 {
 			p.User = user
 		}
 	}

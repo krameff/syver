@@ -61,8 +61,8 @@ func (p *Package) GetName() string {
 	return p.id
 }
 
-func (p *Package) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, p.ID())
+func (p *Package) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, p.ID())
 	skip := p.Skip
 	sysPkg := sys.NewPackage(ctx, p.GetName(), sys, util.Config{})
 
@@ -71,7 +71,7 @@ func (p *Package) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(p.Versions) {
+	if isSetWarnEmpty(p.Versions, fmt.Sprintf("%s: package.versions", p.ID()), p.Skip) {
 		results = append(results, ValidateValue(p, "version", p.Versions, sysPkg.Versions, skip))
 	}
 	return results
@@ -85,7 +85,7 @@ func NewPackage(sysPackage system.Package, config util.Config) (*Package, error)
 		Installed: installed,
 	}
 	if !contains(config.IgnoreList, "versions") {
-		if versions, err := sysPackage.Versions(); err == nil {
+		if versions, err := sysPackage.Versions(); err == nil && len(versions) > 0 {
 			p.Versions = versions
 		}
 	}

@@ -2,6 +2,8 @@ package syver
 
 import (
 	"bytes"
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -18,13 +20,13 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func Serve(c *util.Config) error {
+func Serve(ctx context.Context, c *util.Config) error {
 	err := setLogLevel(c)
 	if err != nil {
 		return err
 	}
 	endpoint := c.Endpoint
-	health, err := newHealthHandler(c)
+	health, err := newHealthHandler(ctx, c)
 	if err != nil {
 		return err
 	}
@@ -64,8 +66,27 @@ func Serve(c *util.Config) error {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	// ListenAndServe blocks and never looks at a context, so without this the
+	// process ignores SIGINT/SIGTERM entirely (main's handler suppresses the
+	// default disposition) and has to be SIGKILLed. Worse than a hang: baseCtx
+	// is that same context, so every check after the signal fails with
+	// "context canceled" and the endpoint serves 503 to every probe while
+	// refusing to exit -- a container burning its whole termination grace
+	// period while reporting itself unhealthy.
+	shutdownErr := make(chan error, 1)
+	go func() {
+		<-ctx.Done()
+		log.Printf("[INFO] Shutting down")
+		shutdownCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		shutdownErr <- srv.Shutdown(shutdownCtx)
+	}()
+
 	log.Printf("[INFO] Starting to listen on: %s", c.ListenAddress)
-	return srv.ListenAndServe()
+	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return <-shutdownErr
 }
 
 // color.NoColor is a package global in fatih/color, and this used to assign it
@@ -79,7 +100,7 @@ func Serve(c *util.Config) error {
 // be reading the flag while the first writer sets it.
 var noColorOnce sync.Once
 
-func newHealthHandler(c *util.Config) (*healthHandler, error) {
+func newHealthHandler(ctx context.Context, c *util.Config) (*healthHandler, error) {
 	noColorOnce.Do(func() { color.NoColor = true })
 	cache := cache.New(c.Cache, 30*time.Second)
 
@@ -94,6 +115,7 @@ func newHealthHandler(c *util.Config) (*healthHandler, error) {
 	}
 
 	health := &healthHandler{
+		baseCtx:       ctx,
 		c:             c,
 		syverConfig:   *cfg,
 		sys:           system.New(c.PackageManager),
@@ -117,6 +139,14 @@ type healthHandler struct {
 	cache         *cache.Cache
 	syverMu       *sync.Mutex
 	maxConcurrent int
+
+	// baseCtx is the server's context, not any one request's. fillCache runs a
+	// single shared sweep and hands the same result to every waiter, so scoping
+	// it to r.Context() would let one client hanging up cancel the work the
+	// other waiters are blocked on -- turning a disconnect into a failed probe
+	// for everybody else. Cancelling the server cancels the sweep; cancelling a
+	// request does not.
+	baseCtx context.Context
 }
 
 func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -150,7 +180,29 @@ func (h healthHandler) processAndEnsureCached(negotiatedContentType string, outp
 		tra = h.fillCache(cacheKey)
 	}
 	trc := testResultArrayToChan(tra)
-	return h.output(trc, outputer)
+	return h.output(trc, outputer, anyFailed(tra))
+}
+
+// anyFailed reads the verdict from the results themselves.
+//
+// The health status must not be derived from the outputter's exit code. That
+// number answers "did this format render successfully", which for most formats
+// coincides with the verdict but for prometheus deliberately does not: it is an
+// encoding, its outcome lives in a label value, and it correctly returns 0 even
+// when every check failed. Deriving the status from it meant a client could ask
+// for `Accept: application/vnd.goss-prometheus` and get 200 from a host where
+// nothing passed -- the same inversion that `structured` had, one header over.
+// Metrics have their own endpoint now (/metrics), so /healthz has no reason to
+// inherit an encoder's return value.
+func anyFailed(tra [][]resource.TestResult) bool {
+	for _, group := range tra {
+		for _, r := range group {
+			if r.Result == resource.FAIL {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 // fillCache runs the validation and stores the result, serializing concurrent
@@ -176,33 +228,54 @@ func (h healthHandler) fillCache(cacheKey string) [][]resource.TestResult {
 
 	log.Printf("Stale cache[%s], running tests", cacheKey)
 	h.sys = system.New(h.c.PackageManager)
-	tra := h.validate()
+	tra := h.validate(h.baseCtx)
 	h.cache.SetDefault(cacheKey, tra)
 	return tra
 }
 
-func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs.Outputer) res {
+func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs.Outputer, failed bool) res {
 	var b bytes.Buffer
 	outputConfig := util.OutputConfig{
 		FormatOptions: h.c.FormatOptions,
 	}
-	exitCode := outputer.Output(&b, trc, outputConfig)
+	// The outputter still writes the body; its return value is deliberately
+	// ignored for the status. See anyFailed.
+	_ = outputer.Output(&b, trc, outputConfig)
 	resp := res{
 		body: b,
 	}
-	if exitCode == 0 {
-		resp.statusCode = http.StatusOK
-	} else {
+	if failed {
 		resp.statusCode = http.StatusServiceUnavailable
+	} else {
+		resp.statusCode = http.StatusOK
 	}
 	return resp
 }
-func (h healthHandler) validate() [][]resource.TestResult {
+func (h healthHandler) validate(ctx context.Context) [][]resource.TestResult {
 	h.sys = system.New(h.c.PackageManager)
 	res := make([][]resource.TestResult, 0)
-	tr, err := runValidation(h.sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
+	tr, err := runValidation(ctx, h.sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
 	if err != nil {
-		return res
+		// Returning the empty set here used to answer 200 having run zero checks:
+		// no results means no failures, so every verdict rule -- including the
+		// results-based one -- reads it as healthy, and the error was dropped
+		// without a log line, so nothing anywhere said otherwise. The triggers are
+		// all static properties of the spec (unknown or ambiguous depends-on ref,
+		// invalid ref syntax, duplicate resource ref, dependency cycle), so it is
+		// permanent from process start, and fillCache caches the green answer.
+		//
+		// A synthetic failing result makes the endpoint 503 and puts the reason in
+		// the body, where an operator looking at a failing probe will actually see
+		// it. `validate` already exits 1 on the same error; this makes serve agree.
+		log.Printf("[ERROR] Validation could not run: %s", err)
+		return [][]resource.TestResult{{{
+			Successful:   false,
+			Result:       resource.FAIL,
+			ResourceType: "Syverfile",
+			ResourceId:   h.c.Spec,
+			Property:     "validation",
+			Err:          resource.NewValidateError(err),
+		}}}
 	}
 	for i := range tr {
 		res = append(res, i)

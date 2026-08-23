@@ -48,7 +48,7 @@ func TestConformance(t *testing.T) {
 			// SetSkip() makes Validate produce only SKIP results.
 			skipped := d.New()
 			skipped.SetSkip()
-			for _, r := range skipped.Validate(sys) {
+			for _, r := range skipped.Validate(t.Context(), sys) {
 				assert.Equal(t, r.Result, SKIP, "property %q: SetSkip() did not skip it", r.Property)
 			}
 
@@ -61,7 +61,7 @@ func TestConformance(t *testing.T) {
 			// no single unconditional attribute at all. Pre-existing,
 			// correct behaviour; not something FEAT-007 changes.
 			baseline := d.New()
-			baseResults := baseline.Validate(sys)
+			baseResults := baseline.Validate(t.Context(), sys)
 			if d.Key != "gossfile" && d.Key != "service" {
 				assert.Assert(t, len(baseResults) >= 1, "zero-value %s produced no results -- mandatory attribute isn't unconditional", d.Name)
 			}
@@ -84,7 +84,7 @@ func TestConformance(t *testing.T) {
 					continue
 				}
 				fv.Set(reflect.ValueOf([]any{}))
-				results := fresh.Validate(sys)
+				results := fresh.Validate(t.Context(), sys)
 				assert.Equal(t, len(results), baseCount, "field %s: setting to an empty list changed the result count -- not isSet-guarded", f.Name)
 			}
 
@@ -103,7 +103,7 @@ func TestConformance(t *testing.T) {
 				}
 				fv.FieldByIndex(f.Index).Set(reflect.ValueOf([]any{"conformance-value"}))
 			}
-			for _, r := range full.Validate(sys) {
+			for _, r := range full.Validate(t.Context(), sys) {
 				if r.Err != nil {
 					assert.Assert(t, !strings.Contains(string(*r.Err), "unknown method signature"),
 						"property %q: system getter has an unsupported signature: %v", r.Property, *r.Err)

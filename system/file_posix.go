@@ -34,7 +34,7 @@ func (f *DefFile) Owner() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return getUserForUid(uid)
+	return getUserForUid(f.ctx, uid)
 }
 
 func (f *DefFile) Uid() (int, error) {
@@ -64,7 +64,7 @@ func (f *DefFile) Group() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return getGroupForGid(gid)
+	return getGroupForGid(f.ctx, gid)
 }
 
 func (f *DefFile) Gid() (int, error) {

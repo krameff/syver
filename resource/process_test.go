@@ -77,7 +77,7 @@ func TestProcessValidate(t *testing.T) {
 	t.Run("only running is checked when status/user aren't configured", func(t *testing.T) {
 		p := &Process{Running: true}
 		sys := newFakeProcess(&fakeSysProcess{running: true})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, len(results), 1)
 		assert.Equal(t, results[0].Property, "running")
 	})
@@ -85,7 +85,7 @@ func TestProcessValidate(t *testing.T) {
 	t.Run("status and user are checked when configured", func(t *testing.T) {
 		p := &Process{Running: true, Status: []interface{}{"zombie"}, User: "root"}
 		sys := newFakeProcess(&fakeSysProcess{running: true, status: []string{"zombie"}, user: []string{"root"}})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, len(results), 3)
 		assert.Equal(t, results[0].Property, "running")
 		assert.Equal(t, results[1].Property, "status")
@@ -98,7 +98,7 @@ func TestProcessValidate(t *testing.T) {
 	t.Run("a failed running check skips subsequent status/user checks", func(t *testing.T) {
 		p := &Process{Running: true, Status: []interface{}{"zombie"}}
 		sys := newFakeProcess(&fakeSysProcess{running: false})
-		results := p.Validate(sys)
+		results := p.Validate(t.Context(), sys)
 		assert.Equal(t, len(results), 2)
 		assert.Equal(t, results[0].Result, FAIL)
 		assert.Equal(t, results[1].Result, SKIP)

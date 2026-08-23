@@ -63,8 +63,8 @@ func (i *Interface) GetName() string {
 	return i.id
 }
 
-func (i *Interface) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, i.ID())
+func (i *Interface) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, i.ID())
 	skip := i.Skip
 	sysInterface := sys.NewInterface(ctx, i.GetName(), sys, util.Config{})
 
@@ -73,7 +73,7 @@ func (i *Interface) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(i.Addrs) {
+	if isSetWarnEmpty(i.Addrs, fmt.Sprintf("%s: interface.addrs", i.ID()), i.Skip) {
 		results = append(results, ValidateValue(i, "addrs", i.Addrs, sysInterface.Addrs, skip))
 	}
 	if isSet(i.MTU) {
@@ -90,7 +90,13 @@ func NewInterface(sysInterface system.Interface, config util.Config) (*Interface
 		Exists: exists,
 	}
 	if !contains(config.IgnoreList, "addrs") {
-		if addrs, err := sysInterface.Addrs(); err == nil {
+		// Only record addrs when the interface actually has some. system's
+		// Addrs() builds with `var ret []string` + append, so a down or
+		// unaddressed interface returns a typed nil with a nil error -- which
+		// the err == nil guard happily passes and which omitempty does NOT
+		// drop, because matcher is an interface and yaml.v2's isZero for an
+		// interface field is IsNil(), true only for a nil interface.
+		if addrs, err := sysInterface.Addrs(); err == nil && len(addrs) > 0 {
 			i.Addrs = addrs
 		}
 	}

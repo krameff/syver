@@ -72,8 +72,8 @@ func (d *DNS) GetResolve() string {
 	return d.id
 }
 
-func (d *DNS) Validate(sys *system.System) []TestResult {
-	ctx := context.WithValue(context.Background(), idKey{}, d.ID())
+func (d *DNS) Validate(ctx context.Context, sys *system.System) []TestResult {
+	ctx = withID(ctx, d.ID())
 	skip := d.Skip
 	if d.Timeout == 0 {
 		d.Timeout = 500
@@ -90,7 +90,7 @@ func (d *DNS) Validate(sys *system.System) []TestResult {
 	if shouldSkip(results) {
 		skip = true
 	}
-	if isSet(d.Addrs) {
+	if isSetWarnEmpty(d.Addrs, fmt.Sprintf("%s: dns.addrs", d.ID()), d.Skip) {
 		results = append(results, ValidateValue(d, "addrs", d.Addrs, sysDNS.Addrs, skip))
 	}
 	return results
@@ -114,8 +114,12 @@ func NewDNS(sysDNS system.DNS, config util.Config) (*DNS, error) {
 		Server:     server,
 	}
 	if !contains(config.IgnoreList, "addrs") {
-		addrs, _ := sysDNS.Addrs()
-		d.Addrs = addrs
+		// system's Addrs() sets addrs = []string{} and returns a nil error for a
+		// net.DNSError, so an unresolvable host would otherwise be written out
+		// as `addrs: []` -- guaranteed for that case, not merely possible.
+		if addrs, _ := sysDNS.Addrs(); len(addrs) > 0 {
+			d.Addrs = addrs
+		}
 	}
 	return d, err
 }
