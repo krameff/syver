@@ -239,7 +239,10 @@ func validateParallel(ctx context.Context, sys *system.System, resources []resou
 		go func() {
 			defer wg.Done()
 			for f := range in {
-				out <- f.Validate(ctx, sys)
+				// ValidateSafe, not Validate: these are bare goroutines and a
+				// panic in any resource would otherwise kill the process. See
+				// resource/panic.go.
+				out <- resource.ValidateSafe(ctx, f, sys)
 			}
 		}()
 	}

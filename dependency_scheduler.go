@@ -208,7 +208,10 @@ func validateWithDependencies(ctx context.Context, sys *system.System, resources
 				go func() {
 					defer wg.Done()
 					for item := range work {
-						results := item.resource.Validate(ctx, sys)
+						// ValidateSafe, not Validate -- same reason as in
+						// validateParallel. Here a lost worker would also strand
+						// every dependent still waiting on this ref to complete.
+						results := resource.ValidateSafe(ctx, item.resource, sys)
 						passed := true
 						for _, result := range results {
 							if result.Result == resource.FAIL {
