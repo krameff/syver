@@ -17,6 +17,13 @@ type Command struct {
 	Status         int
 }
 
+// NewCommand builds a context-free command: nothing can interrupt its Run.
+//
+// Nothing in syver calls it any more, and new code should not. Every internal
+// caller was moved to NewCommandContext because a context-free child has no
+// cancellation and no bound, which under `serve` wedges the health endpoint for
+// the life of the process -- see system/helper_command.go. It stays exported
+// because it is part of the package's published surface.
 func NewCommand(name string, arg ...string) *Command {
 	//fmt.Println(arg)
 	command := new(Command)

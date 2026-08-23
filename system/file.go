@@ -43,18 +43,22 @@ const (
 )
 
 type DefFile struct {
+	// ctx bounds and cancels the `getent` fallbacks in Owner and Group. Those
+	// run only when the local passwd/group lookup misses, which on a host using
+	// a remote nsswitch backend is exactly the case that can block.
+	ctx      context.Context
 	path     string
 	realPath string
 	loaded   bool
 	err      error
 }
 
-func NewDefFile(_ context.Context, path string, system *System, config util.Config) File {
+func NewDefFile(ctx context.Context, path string, system *System, config util.Config) File {
 	var err error
 	if !strings.HasPrefix(path, "~") {
 		path, err = filepath.Abs(path)
 	}
-	return &DefFile{path: path, err: err}
+	return &DefFile{ctx: ctx, path: path, err: err}
 }
 
 func (f *DefFile) setup() error {
@@ -223,28 +227,34 @@ func (f *DefFile) Sha512() (string, error) {
 	return f.hash(sha512Hash)
 }
 
-func getUserForUid(uid int) (string, error) {
+func getUserForUid(ctx context.Context, uid int) (string, error) {
 	if user, err := user.LookupId(strconv.Itoa(uid)); err == nil {
 		return user.Username, nil
 	}
 
-	cmd := util.NewCommand("getent", "passwd", strconv.Itoa(uid))
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("no matching entries in passwd file. getent passwd: %w", err)
+	cmd, ctxErr := runHelperCommand(ctx, "getent", "passwd", strconv.Itoa(uid))
+	if ctxErr != nil {
+		return "", ctxErr
+	}
+	if cmd.Err != nil {
+		return "", fmt.Errorf("no matching entries in passwd file. getent passwd: %w", cmd.Err)
 	}
 	userS := strings.Split(cmd.Stdout.String(), ":")[0]
 
 	return userS, nil
 }
 
-func getGroupForGid(gid int) (string, error) {
+func getGroupForGid(ctx context.Context, gid int) (string, error) {
 	if group, err := user.LookupGroupId(strconv.Itoa(gid)); err == nil {
 		return group.Name, nil
 	}
 
-	cmd := util.NewCommand("getent", "group", strconv.Itoa(gid))
-	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("no matching entries in group file. getent group: %w", err)
+	cmd, ctxErr := runHelperCommand(ctx, "getent", "group", strconv.Itoa(gid))
+	if ctxErr != nil {
+		return "", ctxErr
+	}
+	if cmd.Err != nil {
+		return "", fmt.Errorf("no matching entries in group file. getent group: %w", cmd.Err)
 	}
 	groupS := strings.Split(cmd.Stdout.String(), ":")[0]
 

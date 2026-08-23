@@ -12,14 +12,17 @@ import (
 )
 
 type ServiceUpstart struct {
+	// ctx bounds and cancels the `service ... status` subprocess in Running.
+	// See the matching field on ServiceSystemd.
+	ctx     context.Context
 	service string
 }
 
 var upstartEnabled = regexp.MustCompile(`^\s*start on`)
 var upstartDisabled = regexp.MustCompile(`^manual`)
 
-func NewServiceUpstart(_ context.Context, service string, system *System, config util.Config) Service {
-	return &ServiceUpstart{service: service}
+func NewServiceUpstart(ctx context.Context, service string, system *System, config util.Config) Service {
+	return &ServiceUpstart{ctx: ctx, service: service}
 }
 
 func (s *ServiceUpstart) Service() string {
@@ -32,7 +35,7 @@ func (s *ServiceUpstart) Exists() (bool, error) {
 		return true, nil
 	}
 	// Fallback on sysv
-	sysv := &ServiceInit{service: s.service}
+	sysv := &ServiceInit{ctx: s.ctx, service: s.service}
 	if e, err := sysv.Exists(); e && err == nil {
 		return true, nil
 	}
@@ -67,7 +70,7 @@ func (s *ServiceUpstart) Enabled() (bool, error) {
 		}
 	}
 	// Fallback on sysv
-	sysv := &ServiceInit{service: s.service}
+	sysv := &ServiceInit{ctx: s.ctx, service: s.service}
 	if en, err := sysv.Enabled(); en && err == nil {
 		return true, nil
 	}
@@ -75,8 +78,10 @@ func (s *ServiceUpstart) Enabled() (bool, error) {
 }
 
 func (s *ServiceUpstart) Running() (bool, error) {
-	cmd := util.NewCommand("service", s.service, "status")
-	cmd.Run()
+	cmd, err := runHelperCommand(s.ctx, "service", s.service, "status")
+	if err != nil {
+		return false, err
+	}
 	out := cmd.Stdout.String()
 	if cmd.Status == 0 && (strings.Contains(out, "running") || strings.Contains(out, "online")) {
 		return true, cmd.Err
@@ -84,6 +89,6 @@ func (s *ServiceUpstart) Running() (bool, error) {
 	return false, nil
 }
 func (s *ServiceUpstart) RunLevels() ([]string, error) {
-	sysv := &ServiceInit{service: s.service}
+	sysv := &ServiceInit{ctx: s.ctx, service: s.service}
 	return sysv.RunLevels()
 }
