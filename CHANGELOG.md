@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- feat/yaml-fork branch
+  - moved both yaml dependencies to `go.yaml.in/yaml`, the maintained fork.
+    `gopkg.in/yaml.v2` and `v3` were archived together, so v3 was never the
+    supported option. Marshal output is byte-identical
+  - a malformed gossfile that uses `<<:` in the same mapping as a complex key
+    (a list or map used as a key) now reports a parse error instead of
+    crashing with a stack trace. Picked up from the newer yaml v3
+  - the binary now carries two yaml implementations instead of three, because
+    ours dedupe against the one gomega already pulled in
+
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch

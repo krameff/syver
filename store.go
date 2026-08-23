@@ -14,8 +14,8 @@ import (
 	"sync"
 
 	"dario.cat/mergo"
-	yamlv2 "gopkg.in/yaml.v2"
-	"gopkg.in/yaml.v3"
+	yamlv2 "go.yaml.in/yaml/v2"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/util"
@@ -422,6 +422,19 @@ func marshalYAML(syverConfig any) ([]byte, error) {
 	// yaml.v3 always indents block sequences under their parent key; yaml.v2 uses
 	// indentless sequences, matching the format `goss add`-generated gossfiles have
 	// always had. Kept on v2 for writes only -- unmarshalYAML below still uses v3.
+	//
+	// v3 CAN now match the sequence indentation -- Encoder.CompactSeqIndent(),
+	// added after v3.0.1, does exactly that -- but it still does not reproduce
+	// v2's output. v2 folds long scalars at ~80 columns and v3 emits them on one
+	// line, so consolidating onto v3 was measured to reflow 7 of the 204 goldens
+	// (long `exec:` commands in the windows and linux fixtures). That would
+	// silently rewrite those lines in any gossfile the next `syver add` touched,
+	// for no functional gain, so the marshal side stays on v2. (The seven are
+	// long `exec:` commands in the per-platform integration fixtures: 3 windows,
+	// 2 darwin, 2 linux.)
+	//
+	// Both are on go.yaml.in/yaml, the maintained fork: gopkg.in/yaml.v2 AND v3
+	// were archived together, so v3 was never the "supported" option, the fork is.
 	return yamlv2.Marshal(syverConfig)
 }
 
