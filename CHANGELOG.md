@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch
   - an empty matcher such as `stdout: {}` now reports a syntax error instead
