@@ -128,3 +128,47 @@ func TestIsSetWarnEmpty(t *testing.T) {
 		})
 	}
 }
+
+// The warning states a static property of the spec, but it is emitted from
+// Validate, which runs once per sweep. Under `serve` that meant one line per
+// empty attribute per probe -- tens of thousands a day at the default cache,
+// unsuppressable because it bypasses the levelled logger, burying anything
+// worth reading. Once per process per attribute is the right frequency.
+//
+// Distinct attributes must still each be reported: deduping too aggressively
+// would hide the second and subsequent problems in a spec.
+func TestEmptyListWarnsOncePerAttribute(t *testing.T) {
+	warnedEmpty.Range(func(k, _ any) bool { warnedEmpty.Delete(k); return true })
+	t.Cleanup(func() {
+		warnedEmpty.Range(func(k, _ any) bool { warnedEmpty.Delete(k); return true })
+	})
+
+	capture := func(fn func()) string {
+		orig := os.Stderr
+		r, w, err := os.Pipe()
+		assert.NilError(t, err)
+		os.Stderr = w
+		fn()
+		_ = w.Close()
+		os.Stderr = orig
+		out, err := io.ReadAll(r)
+		assert.NilError(t, err)
+		return string(out)
+	}
+
+	empty := []interface{}{}
+
+	first := capture(func() { isSetWarnEmpty(empty, "id: mount.opts", false) })
+	assert.Assert(t, strings.Contains(first, "mount.opts"), "first call must warn, got %q", first)
+
+	repeat := capture(func() {
+		for i := 0; i < 5; i++ {
+			isSetWarnEmpty(empty, "id: mount.opts", false)
+		}
+	})
+	assert.Equal(t, repeat, "", "same attribute must not warn again; serve revalidates every sweep")
+
+	other := capture(func() { isSetWarnEmpty(empty, "id: user.groups", false) })
+	assert.Assert(t, strings.Contains(other, "user.groups"),
+		"a different attribute must still warn, got %q", other)
+}

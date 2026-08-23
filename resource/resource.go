@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	"github.com/krameff/syver/system"
 )
@@ -115,6 +116,26 @@ func isSet(i interface{}) bool {
 // desc follows the "<id>: <type>.<property>" shape the deprecation warnings
 // use. Wired only where a list is a plausible thing to write; on a scalar
 // attribute the type assertion below could never match anyway.
+// warnedEmpty tracks which empty-list attributes have already been reported.
+//
+// The warning describes a STATIC property of the spec, but it is emitted from
+// Validate, which runs once per sweep. Under `serve` that is not one line, it is
+// one line per empty attribute per probe -- at the default 5s cache, tens of
+// thousands a day all saying the same thing, and unsuppressable because this
+// writes to stderr directly rather than through the levelled logger. Anything
+// genuinely worth reading gets buried.
+//
+// Once per process per attribute is the right frequency for a fact that cannot
+// change while the process runs.
+var warnedEmpty sync.Map
+
+func warnEmptyOnce(desc string) {
+	if _, seen := warnedEmpty.LoadOrStore(desc, struct{}{}); seen {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "WARNING: %s is an empty list, which asserts nothing and always passes. Give it a value, or remove it.\n", desc)
+}
+
 func isSetWarnEmpty(i interface{}, desc string, skip bool) bool {
 	// Say nothing about a resource the user has declared they do not want
 	// checked: some specs carry an empty list precisely as a documented
@@ -130,7 +151,7 @@ func isSetWarnEmpty(i interface{}, desc string, skip bool) bool {
 	// once the mandatory attribute starts passing. It would also be inconsistent:
 	// command and service never promote skip at all.
 	if v, ok := i.([]interface{}); ok && len(v) == 0 && !skip {
-		fmt.Fprintf(os.Stderr, "WARNING: %s is an empty list, which asserts nothing and always passes. Give it a value, or remove it.\n", desc)
+		warnEmptyOnce(desc)
 	}
 	return isSet(i)
 }

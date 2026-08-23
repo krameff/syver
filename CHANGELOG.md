@@ -28,6 +28,8 @@
     forever; helpers now time out after 30s and cancel on shutdown
   - a panic while checking one resource now fails that check instead of killing
     the process
+  - the empty-list warning is now emitted once per attribute, not once per
+    check, so it no longer floods the log under `serve`
 
 ## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 
