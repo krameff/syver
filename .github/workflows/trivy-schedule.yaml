@@ -10,6 +10,10 @@ jobs:
     name: Trivy scan
     runs-on: ubuntu-latest
     permissions:
+      # contents: read is required by actions/checkout below. GitHub sets every
+      # unlisted scope to none as soon as a permissions block exists, so adding
+      # a checkout to a job that never had one needs this too.
+      contents: read
       packages: read
       security-events: write
       # Same reason as docker-syver.yaml: codeql-action's upload-sarif
@@ -29,3 +33,20 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: "trivy-results.sarif"
+
+      # Deliberately LAST, and deliberately after the SARIF upload. Steps default
+      # to `if: success()`, so a strict failure here skips everything below it --
+      # and a stale .trivyignore entry must never cancel the vulnerability scan
+      # or its upload. A stale suppression is not a vulnerability.
+      #
+      # Strict on the schedule but NOT on PRs (see golangci.yaml): this check is
+      # driven by trivy's database, which cannot be pinned the way the scanner
+      # version is, so it can start failing with no repo change. Weekly that is a
+      # "go look" signal; on a PR it would block unrelated work.
+      - name: Check out
+        uses: actions/checkout@v7.0.1
+
+      - name: Validate .trivyignore entries (strict)
+        env:
+          TRIVYIGNORE_STRICT: "1"
+        run: ./ci/trivyignore-check.sh

@@ -59,11 +59,29 @@ jobs:
 
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          # Pinning the action SHA pins the INSTALLER, not the scanner: this
+          # action's `version` input defaults to 'latest'. Security scan findings
+          # now fail the build, so an unpinned scanner could turn CI red with no
+          # repo change. Keep in step with SYVER_TRIVY_IMAGE in ci/security-scan.sh.
+          version: v0.74.0
 
       - name: Security scan
         env:
           SECURITY_STRICT: "1"
         run: ./ci/security-scan.sh
+
+      # Its only other caller is .githooks/pre-commit, which needs an opt-in
+      # `git config core.hooksPath .githooks`, so without this a suppression
+      # could go stale and nothing would notice.
+      # Deliberately NOT strict here. A stale suppression is not a
+      # vulnerability, and this check depends on trivy's DB, which cannot be
+      # pinned the way the scanner version is -- so strict would fail unrelated
+      # PRs the day upstream ships a fix or retires an ID. The strict run lives
+      # in trivy-schedule.yaml, where a red build means "go look" rather than
+      # "your PR is blocked".
+      - name: Validate .trivyignore entries
+        run: ./ci/trivyignore-check.sh
 
   integration-test-linux:
     needs: [coverage]
