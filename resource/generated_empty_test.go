@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/krameff/syver/util"
-	"gopkg.in/yaml.v2"
+	"go.yaml.in/yaml/v2"
 	"gotest.tools/v3/assert"
 )
 

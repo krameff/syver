@@ -124,6 +124,11 @@ dist
 
 [Full documentation](docs/index.md)
 
+## Releases
+
+[Release history](RELEASES.md) records every release and the commit it points
+at. [CHANGELOG.md](CHANGELOG.md) has the detail of what changed in each.
+
 ## Using the container image
 
 [Using the Syver container image](docs/container_image.md)

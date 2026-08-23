@@ -18,6 +18,7 @@ else
   run_lint \
     "docs/**/*.md" \
     "README.md" \
+    "RELEASES.md" \
     "extras/**/README.md" \
     ".github/CONTRIBUTING.md"
 fi
