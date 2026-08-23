@@ -12,6 +12,36 @@
   - the binary now carries two yaml implementations instead of three, because
     ours dedupe against the one gomega already pulled in
 
+- feat/trivy-gate branch
+  - the Trivy dependency scan now fails the build on findings. It ran without
+    `--exit-code`, so `make check` and `make pre-push` passed with HIGH CVEs on
+    screen and `.trivyignore` suppressed entries in a report nothing acted on
+  - bumped `golang.org/x/mod` to v0.40.0, clearing CVE-2026-56864 and
+    CVE-2026-56865. This also pulled x/crypto, x/net, x/text and x/tools forward
+  - `ci/trivyignore-check.sh` scanned without `--ignorefile`, so Trivy silently
+    applied the very `.trivyignore` it was validating. Every entry eventually
+    reported as "no longer found", advising you to delete a live suppression
+  - the Trivy version is pinned for both the container path and CI, rather than
+    floating on `:latest`. A blocking scanner should not float
+  - the scan summary now separates "found vulnerabilities" from "scanner failed
+    to run", which matters because Trivy exits 1 for its own errors. Findings
+    use exit 2, so a scan that never ran is never reported as a clean bill or
+    as vulnerabilities, at any enforcement setting
+  - the Trivy DB is cached between containerised runs instead of re-pulled
+  - the scan had `--scanners vuln`, which is a narrowing rather than a default:
+    Trivy's own default is `vuln,secret`, so secret detection was off on the
+    security gate. Now `vuln,secret`
+  - `govulncheck` was fetched and executed at `@latest` inside the security gate
+    on any machine without it installed, CI included. Pinned to v1.7.0, and a
+    govulncheck failure now reports rather than dying silently
+  - Trivy is pinned by image digest rather than a version tag, which is still
+    re-pointable. The source tree is mounted read-only into the scanner
+  - `ci/trivyignore-check.sh` also carried a severity filter, so an entry for a
+    finding below the threshold read as "no longer found". It now asks only
+    whether the ID still exists, and CI runs it on every PR rather than relying
+    on an opt-in git hook. The strict run is weekly, not per-PR: a stale
+    suppression is not a vulnerability and should not block unrelated work
+
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch
