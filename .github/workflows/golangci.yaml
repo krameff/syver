@@ -8,7 +8,6 @@ on:
   push:
     branches:
       - main
-      - "/^v\\d+\\.\\d+(\\.\\d+)?(-\\S*)?$/"
       - devel
     paths-ignore:
       - "**/*.md"
