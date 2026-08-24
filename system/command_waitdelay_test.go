@@ -21,7 +21,11 @@ import (
 // proves the race and the message end to end, which this cannot.
 func TestWaitDelayTracksTheBudget(t *testing.T) {
 	for _, ms := range []int{1234, 10000, 45000} {
-		cmd := commandWrapper(context.Background(), "true")
+		// `echo` deliberately: a builtin in both sh and cmd.exe, so this untagged
+		// test carries no assumption about what binaries the platform ships. The
+		// command's outcome is irrelevant anyway -- WaitDelay is set before Run,
+		// and the error is discarded.
+		cmd := commandWrapper(context.Background(), "echo waitdelay-probe")
 		_ = runCommand(cmd, ms)
 		want := time.Duration(ms) * time.Millisecond
 		if cmd.Cmd.WaitDelay != want {

@@ -4,6 +4,7 @@ package system
 
 import (
 	"context"
+	"os/exec"
 	"strings"
 	"testing"
 	"time"
@@ -28,6 +29,19 @@ import (
 // the Go-internal "exec: WaitDelay expired before I/O complete". A fixture below
 // the delay cannot reach the failing state.
 func TestGrandchildEscapesTheBound(t *testing.T) {
+	// setsid is util-linux; macOS does not ship it, and this file is tagged
+	// linux||darwin because everything ELSE about it is POSIX. Skip loudly rather
+	// than narrowing the tag to linux: a test that silently does not exist on a
+	// platform is how this branch's defects kept surviving review.
+	//
+	// There is no portable substitute. A plain `&` child stays in the process
+	// group (util/procgroup_posix.go applies on darwin too), so Cancel's group
+	// signal reaps it and the escape never happens.
+	if _, err := exec.LookPath("setsid"); err != nil {
+		t.Skip("setsid not available (expected on macOS); the escaped-grandchild " +
+			"path is covered on linux only")
+	}
+
 	const budget = 3 * time.Second
 
 	start := time.Now()
