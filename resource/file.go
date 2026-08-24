@@ -3,7 +3,6 @@ package resource
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
@@ -107,7 +106,8 @@ func (f *File) Validate(ctx context.Context, sys *system.System) []TestResult {
 		results = append(results, ValidateValue(f, "filetype", f.Filetype, sysFile.Filetype, skip))
 	}
 	if isSetWarnEmpty(f.Contains, fmt.Sprintf("%s: file.contains", f.ID()), f.Skip) {
-		fmt.Fprintf(os.Stderr, "DEPRECATION WARNING: file.contains has been renamed to file.contents\n")
+		warnSpecOnce("deprecated-contains:"+f.ID(),
+			"DEPRECATION WARNING: file.contains has been renamed to file.contents")
 		results = append(results, ValidateValue(f, "contains", f.Contains, sysFile.Contents, skip))
 	}
 	if isSetWarnEmpty(f.Contents, fmt.Sprintf("%s: file.contents", f.ID()), f.Skip) {

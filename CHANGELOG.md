@@ -42,6 +42,31 @@
     on an opt-in git hook. The strict run is weekly, not per-PR: a stale
     suppression is not a vulnerability and should not block unrelated work
 
+- fix/timeout-message branch
+  - a timed-out command reported `context deadline exceeded`, which names
+    neither the timeout nor its value, and which of two messages you got
+    depended on the host. It now always reports the budget it exceeded
+  - fixed a data race in the timeout path: the command's output buffers were
+    read while the child was still writing to them. It affected every timed-out
+    command, not only ones producing output, and predates v0.8.0
+  - a command that failed to start could report exit status 0, so a spec
+    asserting `exit-status: 0` would have passed. Reachable in principle rather
+    than observed: it needed an error to arrive before the caller was ready
+  - all three had the same cause, a redundant second timer, and are fixed by
+    removing it rather than by patching each one. `syver` now relies on the
+    context that already bounds the command, so a `timeout` of 0 also stops
+    failing instantly and runs to completion as documented
+  - a negative `timeout:` left a command completely unbounded rather than
+    erroring. Only a timeout of exactly 0 was rescued to the 10s default. It now
+    uses the default and warns, since a negative duration is a spec mistake
+    rather than a request for the default
+  - spec warnings are now emitted once per process rather than once per check.
+    The two deprecation warnings still repeated on every `serve` cache refresh,
+    which is what made the empty-list warning unreadable before it was fixed
+  - the Windows `ConvertFrom-Json` test loaded the user profile on every run,
+    unlike its three neighbours. It is the slowest check in that file and had
+    started timing out on cold CI runners
+
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch
