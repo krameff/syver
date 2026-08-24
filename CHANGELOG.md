@@ -42,6 +42,15 @@
     on an opt-in git hook. The strict run is weekly, not per-PR: a stale
     suppression is not a vulnerability and should not block unrelated work
 
+- fix/ci-branch-filter branch
+  - the lint and test workflow's release-branch filter was a regex string, but
+    GitHub branch filters are glob-only, so it matched nothing: a release branch
+    would have run no CI at all. Inherited from upstream goss
+  - a hanging-helper test whose PATH shim failed to apply reported only `probe
+    reported <nil>`, which reads as a timing flake. It now names the binary that
+    actually resolved, and separately detects a shim that resolved but could not
+    execute
+
 - fix/timeout-message branch
   - a timed-out command reported `context deadline exceeded`, which names
     neither the timeout nor its value, and which of two messages you got

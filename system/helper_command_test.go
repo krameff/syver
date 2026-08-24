@@ -24,7 +24,14 @@ import (
 func hangingShim(t *testing.T, name string) {
 	t.Helper()
 	dir := t.TempDir()
-	script := "#!/bin/sh\nsleep 3600\n"
+	// The shim touches a sentinel before sleeping. LookPath only checks the mode
+	// bits, so a shim that resolves correctly and then FAILS TO EXECUTE -- a
+	// noexec TMPDIR, a missing interpreter -- passes the resolution check below
+	// and still yields "probe reported <nil>" for 6 of the 11 probes, whose
+	// checks treat an exec failure as "absent". That is the same string as a
+	// PATH failure, so without this the diagnostic closes only half the case.
+	ran := filepath.Join(dir, name+".ran")
+	script := "#!/bin/sh\n: >" + ran + "\nsleep 3600\n"
 	if err := os.WriteFile(filepath.Join(dir, name), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -40,11 +47,34 @@ func hangingShim(t *testing.T, name string) {
 	if err != nil {
 		t.Fatalf("%s: shim written to %s but not resolvable on PATH: %v", name, dir, err)
 	}
-	if filepath.Dir(resolved) != dir {
+	// filepath.Clean(dir), not dir. LookPath builds its result with filepath.Join,
+	// which cleans; t.TempDir() does not -- os.TempDir() strips only TRAILING
+	// slashes, so a TMPDIR containing "//", "/./" or ".." yields a non-clean dir
+	// and this compares a real path against lexical noise. Verified: TMPDIR with
+	// a "/./" segment failed every subtest while the shim had in fact won.
+	if filepath.Dir(resolved) != filepath.Clean(dir) {
 		t.Fatalf("%s resolved to %s, not the hanging shim in %s -- the real binary "+
 			"would answer immediately and the probe would report nil, which is NOT a "+
 			"timing failure", name, resolved, dir)
 	}
+
+	// Registered AFTER the resolution check above, deliberately. If the shim did
+	// not resolve, that check Fatalf's here and this cleanup is never registered
+	// -- otherwise a PATH failure fired BOTH diagnostics and they contradicted
+	// each other ("not the hanging shim" vs "resolved but never executed"), both
+	// insisting they were not a timing failure. Registering after t.TempDir()
+	// also puts this Stat before the directory is removed, LIFO. Both orderings
+	// are load-bearing.
+	t.Cleanup(func() {
+		if !t.Failed() {
+			return
+		}
+		if _, err := os.Stat(ran); err != nil {
+			t.Errorf("%s: the shim at %s resolved but never executed (no %s) -- exec "+
+				"failed, e.g. a noexec TMPDIR or a bad interpreter. NOT a timing failure",
+				name, resolved, ran)
+		}
+	})
 }
 
 // probe is one system-layer check that shells out to an internal helper. Each
