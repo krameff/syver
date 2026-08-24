@@ -6,15 +6,26 @@ cd "${ROOT}"
 
 # UNKNOWN is included deliberately. Trivy reports Go vulndb GO-IDs with no CVSS
 # score as UNKNOWN, and GO-2026-5932 -- the sole entry in this repo's
-# .trivyignore -- is exactly that. Without UNKNOWN the gate never looked at the
-# severity class its own suppression file governs, so the .trivyignore and the
+# .trivyignore.yaml -- is exactly that. Without UNKNOWN the gate never looked at
+# the severity class its own suppression file governs, so the suppressions and the
 # validator that guards it were protecting a door the gate did not use.
 TRIVY_SEVERITY="${TRIVY_SEVERITY:-HIGH,CRITICAL,MEDIUM,UNKNOWN}"
 TRIVY_SKIP_DIRS="${TRIVY_SKIP_DIRS:-integration-tests,release,site,.venv,.git}"
+# Passed explicitly because trivy does NOT auto-detect the YAML variant:
+# --ignorefile defaults literally to ".trivyignore". Verified -- with only
+# .trivyignore.yaml present and no flag, the suppression does not apply. If this
+# flag is dropped the gate goes red rather than silently unsuppressing, which is
+# the safe direction, but it will look like a regression rather than a config
+# slip. Keep in step with ci/trivyignore-check.sh.
+#
+# Must be REPO-RELATIVE. The container path bind-mounts only the repo at /src,
+# so an absolute path outside it does not exist inside the container and trivy
+# exits 1 ("FAILED TO RUN") rather than scanning unsuppressed.
+SYVER_TRIVY_IGNOREFILE="${SYVER_TRIVY_IGNOREFILE:-.trivyignore.yaml}"
 # trivy's own default is [vuln,secret]. Naming just "vuln" is not a no-op, it
 # NARROWS -- it turned the secret scanner off on what is now a blocking gate.
 # Verified against `trivy fs --help` on 0.74.0.
-SYVER_TRIVY_SCANNERS="${SYVER_TRIVY_SCANNERS:-vuln,secret}"
+SYVER_TRIVY_SCANNERS="${SYVER_TRIVY_SCANNERS:-vuln,secret,misconfig}"
 # Findings must FAIL the run, not just print. Without --exit-code trivy exits 0
 # with HIGH CVEs on screen, so `make check` and `make pre-push` went green while
 # the summary below said "both ran" -- and .trivyignore suppressed entries in a
@@ -90,6 +101,7 @@ run_govulncheck() {
 run_trivy() {
   trivy fs --scanners "${SYVER_TRIVY_SCANNERS}" --severity "${TRIVY_SEVERITY}" \
     --exit-code "${SYVER_TRIVY_EXIT_CODE}" \
+    --ignorefile "${SYVER_TRIVY_IGNOREFILE}" \
     --skip-dirs "${TRIVY_SKIP_DIRS}" \
     .
 }
@@ -109,6 +121,7 @@ run_trivy_container() {
     "${SYVER_TRIVY_IMAGE}" \
     fs --scanners "${SYVER_TRIVY_SCANNERS}" --severity "${TRIVY_SEVERITY}" \
     --exit-code "${SYVER_TRIVY_EXIT_CODE}" \
+    --ignorefile "${SYVER_TRIVY_IGNOREFILE}" \
     --skip-dirs "${TRIVY_SKIP_DIRS}" \
     .
 }
@@ -172,8 +185,8 @@ elif [[ "${trivy_skipped}" == "1" ]]; then
 elif (( trivy_status != 0 && trivy_status == SYVER_TRIVY_EXIT_CODE )); then
   echo "==> SUMMARY: govulncheck ran; trivy FOUND VULNERABILITIES (listed above)"
   echo "    Severities scanned: ${TRIVY_SEVERITY}"
-  echo "    Fix the dependency, or add a documented .trivyignore entry if there"
-  echo "    is genuinely no fix -- ci/trivyignore-check.sh re-validates those."
+  echo "    Fix the dependency, or add a documented .trivyignore.yaml entry if"
+  echo "    there is genuinely no fix -- ci/trivyignore-check.sh re-validates those."
   exit "${trivy_status}"
 elif (( trivy_status != 0 )); then
   # Reachable precisely because our findings code is 2: trivy uses 1 for its own

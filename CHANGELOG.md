@@ -42,6 +42,15 @@
     on an opt-in git hook. The strict run is weekly, not per-PR: a stale
     suppression is not a vulnerability and should not block unrelated work
 
+- feat/trivy-ignore-yaml branch
+  - suppressions moved to `.trivyignore.yaml`, so each one carries a machine
+    readable `statement` instead of a comment block nothing can check.
+    Trivy does not auto-detect that filename, so `--ignorefile` is explicit
+  - the Dockerfile is now scanned for misconfigurations. `DS-0002` (image runs
+    as root) is suppressed with the reasoning recorded: Syver reads package
+    databases, file ownership, process lists and service state, so a `USER`
+    instruction would break the tool rather than harden it
+
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch
