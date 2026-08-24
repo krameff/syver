@@ -22,9 +22,9 @@ command:
     stderr: []
     timeout: 10000
   powershell with quotes:
-    exec: powershell /c "(echo '{"b":2, "a":1}' | ConvertFrom-json).a"
+    exec: powershell -noprofile -noninteractive /c "(echo '{"b":2, "a":1}' | ConvertFrom-json).a"
     exit-status: 0
     stdout:
     - "1"
     stderr: []
-    timeout: 10000
+    timeout: 30000

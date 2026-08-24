@@ -138,9 +138,9 @@ func TestIsSetWarnEmpty(t *testing.T) {
 // Distinct attributes must still each be reported: deduping too aggressively
 // would hide the second and subsequent problems in a spec.
 func TestEmptyListWarnsOncePerAttribute(t *testing.T) {
-	warnedEmpty.Range(func(k, _ any) bool { warnedEmpty.Delete(k); return true })
+	warnedSpec.Range(func(k, _ any) bool { warnedSpec.Delete(k); return true })
 	t.Cleanup(func() {
-		warnedEmpty.Range(func(k, _ any) bool { warnedEmpty.Delete(k); return true })
+		warnedSpec.Range(func(k, _ any) bool { warnedSpec.Delete(k); return true })
 	})
 
 	capture := func(fn func()) string {
