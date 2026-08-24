@@ -189,6 +189,17 @@ the hash for backwards compatibility
     On timeout the command is killed along with any child processes it started
     (on Linux and macOS; see [platform support](platforms.md) for Windows).
 
+!!! note "timeout values"
+
+    `timeout` is in milliseconds and defaults to `10000` when omitted or set to
+    `0`. A negative value is a mistake rather than a way to disable the bound:
+    syver warns once and uses the default. There is no way to run a command
+    unbounded.
+
+    A command whose child processes outlive it can take up to twice the timeout
+    to return, because syver waits that long for their output streams to close
+    before reading the result. Commands that exit normally return immediately.
+
 ### dns
 
 Validates that the provided address is resolvable and the addrs it resolves to.
