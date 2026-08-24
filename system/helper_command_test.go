@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 	"time"
@@ -28,6 +29,22 @@ func hangingShim(t *testing.T, name string) {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	// Confirm the shim is what actually resolves, rather than assuming the PATH
+	// prepend took. systemctl and getent exist on most Linux hosts including CI
+	// runners, so if the real binary wins it answers in milliseconds and the
+	// probe returns nil -- which surfaces as the deeply unhelpful "probe reported
+	// <nil>, want context.DeadlineExceeded" and looks like a timing flake rather
+	// than a PATH problem. Say which it is.
+	resolved, err := exec.LookPath(name)
+	if err != nil {
+		t.Fatalf("%s: shim written to %s but not resolvable on PATH: %v", name, dir, err)
+	}
+	if filepath.Dir(resolved) != dir {
+		t.Fatalf("%s resolved to %s, not the hanging shim in %s -- the real binary "+
+			"would answer immediately and the probe would report nil, which is NOT a "+
+			"timing failure", name, resolved, dir)
+	}
 }
 
 // probe is one system-layer check that shells out to an internal helper. Each

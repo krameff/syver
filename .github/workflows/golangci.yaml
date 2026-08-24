@@ -8,7 +8,11 @@ on:
   push:
     branches:
       - main
-      - "/^v\\d+\\.\\d+(\\.\\d+)?(-\\S*)?$/"
+      # A glob, not a regex. GitHub branch filters are glob-only, so the previous
+      # "/^v\\d+\\.\\d+.../" matched NOTHING -- a release branch would have run
+      # no CI at all. Kept rather than deleted so v0.9, v1.0.1 and v2.0-rc1 style
+      # branches are covered if one is ever cut.
+      - "v[0-9]*"
       - devel
     paths-ignore:
       - "**/*.md"
