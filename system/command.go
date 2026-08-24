@@ -93,8 +93,18 @@ func (c *DefCommand) setup() error {
 	// wording and the same spec reported "Command execution timed out (10s)" on
 	// one host and "context deadline exceeded" on another. That timer is gone --
 	// see runCommand -- and the message is now produced in exactly one place.
-	if ctxErr := ctx.Err(); ctxErr != nil {
-		if errors.Is(ctxErr, context.DeadlineExceeded) && c.Timeout > 0 {
+	// Either timer means "this command exceeded its budget", and BOTH must produce
+	// the same sentence. WaitDelay's clock starts at process exit, not at the
+	// deadline, so for a command whose own process exits early while a grandchild
+	// holds the pipe the two expire at almost the same instant -- and whichever
+	// wins would otherwise decide the wording. That is the same non-determinism
+	// this function was rewritten to remove; it reappeared here as a load-
+	// dependent test failure leaking "exec: WaitDelay expired before I/O
+	// complete" to the operator.
+	timedOut := errors.Is(ctx.Err(), context.DeadlineExceeded) ||
+		errors.Is(c.err, exec.ErrWaitDelay)
+	if ctxErr := ctx.Err(); ctxErr != nil || timedOut {
+		if timedOut && c.Timeout > 0 {
 			c.err = fmt.Errorf("Command execution timed out (%s)",
 				time.Duration(c.Timeout)*time.Millisecond)
 		} else if c.err == nil {
