@@ -13,10 +13,10 @@ export PATH="/usr/local/go/bin:/opt/go/bin:${PATH}"
 export GOPATH="/opt/go"
 
 staged_go_files=$(git diff --cached --name-only --diff-filter=ACM -- '*.go' || true)
-staged_trivy_related=$(git diff --cached --name-only --diff-filter=ACM -- '.trivyignore' 'go.mod' 'go.sum' || true)
+staged_trivy_related=$(git diff --cached --name-only --diff-filter=ACM -- '.trivyignore.yaml' 'go.mod' 'go.sum' || true)
 
 if [[ -n "${staged_trivy_related}" ]]; then
-  echo "[pre-commit] .trivyignore/go.mod/go.sum changed, re-validating .trivyignore"
+  echo "[pre-commit] .trivyignore.yaml/go.mod/go.sum changed, re-validating suppressions"
   ./ci/trivyignore-check.sh
 fi
 
