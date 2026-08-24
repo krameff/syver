@@ -276,8 +276,8 @@ Steps performed:
 
 1. **`govulncheck ./...`** — Go vulnerability database scan for the module and its dependencies
 2. **Trivy filesystem scan** — checks `go.mod` and `docs/requirements.txt` for
-   known CVEs at **MEDIUM** severity and above, and scans the tree for
-   committed secrets
+   known CVEs at **MEDIUM** severity and above, scans the tree for committed
+   secrets, and checks the `Dockerfile` for misconfigurations
 
 Both scanners are pinned: Trivy by image digest, `govulncheck` by version. A
 blocking gate should not float, and neither should code the gate executes.
@@ -285,10 +285,13 @@ blocking gate should not float, and neither should code the gate executes.
 **Findings fail the build.** Trivy previously ran without `--exit-code`, so it
 printed CVEs and still exited 0, which meant `make check` and `make pre-push`
 passed with vulnerabilities on screen. Fix the dependency, or add a documented
-`.trivyignore` entry if there is genuinely no fix — `ci/trivyignore-check.sh`
-re-validates those. It runs on every PR (reporting only), strictly on the
+`.trivyignore.yaml` entry if there is genuinely no fix — `ci/trivyignore-check.sh`
+re-validates those. Suppressions live in `.trivyignore.yaml`, which records a
+`statement` for each entry and supports `expired_at` for anything expected to be
+fixed upstream. Trivy does not auto-detect that filename, so the scripts pass
+`--ignorefile` explicitly. It runs on every PR (reporting only), strictly on the
 weekly `trivy-schedule.yaml` run, and via `.githooks/pre-commit` on any change
-to `go.mod`, `go.sum` or `.trivyignore` if you have opted in with
+to `go.mod`, `go.sum` or `.trivyignore.yaml` if you have opted in with
 `git config core.hooksPath .githooks`. It is deliberately non-blocking on PRs:
 a stale suppression is not a vulnerability, and it depends on Trivy's database,
 which cannot be pinned the way the scanner version is. To
