@@ -189,6 +189,15 @@ the hash for backwards compatibility
     On timeout the command is killed along with any child processes it started
     (on Linux and macOS; see [platform support](platforms.md) for Windows).
 
+    One exception, and it is deliberate rather than an oversight: a process that
+    detaches itself into a new session -- `setsid`, `nohup`, most daemons -- has
+    left the group syver signals, so it survives the timeout and is reparented to
+    init. Syver has no portable way to find it again. Under `serve` each such
+    timeout leaves one process behind for as long as it chooses to run, so a spec
+    that repeatedly times out a daemonising command will accumulate them. If a
+    check needs to start a daemon, have it start the daemon and exit, rather than
+    relying on the timeout to clean up.
+
 !!! note "timeout values"
 
     `timeout` is in milliseconds and defaults to `10000` when omitted or set to
@@ -199,6 +208,17 @@ the hash for backwards compatibility
     A command whose child processes outlive it can take up to twice the timeout
     to return, because syver waits that long for their output streams to close
     before reading the result. Commands that exit normally return immediately.
+
+    `timeout` applies only to `command`. The checks syver runs on your behalf for
+    other resource types -- `systemctl`, `service`, `rpm`, `dpkg-query`, `apk`,
+    `pacman`, `getent` -- carry their own fixed bound of 30 seconds, which is not
+    configurable, because how long they take is a property of the host's tooling
+    rather than of your spec. On top of that syver allows a few more seconds to
+    collect whatever output is still arriving, so one of these takes at most about
+    35 seconds to give up on a host whose package or service manager has stopped
+    answering. Checks run in parallel, so several stuck ones mostly overlap rather
+    than queue -- though if more are stuck at once than syver runs in parallel,
+    the ones still waiting for a slot do add to the total.
 
 ### dns
 
