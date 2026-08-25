@@ -42,6 +42,15 @@
     on an opt-in git hook. The strict run is weekly, not per-PR: a stale
     suppression is not a vulnerability and should not block unrelated work
 
+- fix/release-path-gating branch
+  - releases are now gated. The release workflow fires on a tag push, and no
+    branch filter can match a tag, so nothing verified the commit a tag pointed
+    at. Signing and publishing now depend on a job that runs the tests and the
+    security scan first
+  - CodeQL now runs on `main` as well as `devel`. Under the devel to main release
+    model, main is the release branch, so the release path was getting no code
+    analysis at all
+
 - fix/ci-branch-filter branch
   - removed the lint and test workflow's release-branch filter. It was a regex
     string, but GitHub branch filters are glob-only, so it matched nothing and

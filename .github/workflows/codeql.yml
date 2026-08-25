@@ -12,10 +12,15 @@
 name: "CodeQL Advanced"
 
 on:
+  # main as well as devel. Under the devel -> main release model, main is the
+  # RELEASE branch, so a devel -> main PR and the resulting push both got no
+  # CodeQL when this listed devel only -- the release path was the least analysed
+  # part of the pipeline. See also the `gate` job in release.yaml, which covers
+  # the tag push that no branch filter can reach.
   push:
-    branches: [ "devel" ]
+    branches: [ "devel", "main" ]
   pull_request:
-    branches: [ "devel" ]
+    branches: [ "devel", "main" ]
   schedule:
     - cron: '37 2 * * 3'
 
