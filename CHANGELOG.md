@@ -7,6 +7,9 @@
     kept so pre-rename download links would keep working, but the first release
     from this repository was already renamed, so those links never pointed here.
     The `dgoss` and `dcgoss` wrapper scripts are unaffected and still shipped
+  - the release build fired on any tag starting with `v`, so a scratch tag like
+    `vtest` or `vbackup` would have signed and published a release. It now only
+    matches tags that look like versions
   - raised the timeout on the Windows powershell checks. Powershell start-up on
     a cold CI runner was taking longer than the 10 second budget, which failed
     the Windows job for reasons that had nothing to do with syver
