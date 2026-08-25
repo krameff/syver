@@ -7,6 +7,12 @@
   - a scratch tag such as `vtest` can no longer trigger a signed release
   - raised the Windows powershell timeouts, which were failing CI on slow runners
 
+- feat/command-output-ownership branch
+  - `serve` no longer hangs forever when a check starts a background process. It
+    now gives up on that check after about 35 seconds instead
+  - documented that a command which detaches itself survives its own timeout
+  - documented the fixed 30 second bound on the checks syver runs for you
+
 ## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
 
 - feat/yaml-fork branch
