@@ -14,6 +14,12 @@ on:
       - .github/CONTRIBUTING.md
   workflow_dispatch:
 
+concurrency:
+  # Cancel only for pull requests. A push to main PUBLISHES the docs site, and
+  # killing that mid-publish can leave it half-updated; those queue instead.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   lint:
     name: Lint Documentation
