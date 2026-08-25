@@ -11,6 +11,9 @@ entry links to its changelog section rather than repeating it.
 Newest first. Syver continues goss's version numbering rather than restarting
 at 1.0, so that `v0.6.0` means the same lineage point in both projects.
 
+Releases are assembled on `devel` and merged to `main` at release time, so from
+0.9.1 onward a release carries several branches rather than one.
+
 "Released" is the date the tag object was created, which is not always the
 commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
 v0.6.0 has no tag in this repository and uses the date its changelog entry
@@ -18,7 +21,7 @@ records.
 
 ## Contents
 
-* [Unreleased](#unreleased)
+* [Unreleased - 0.9.1](#unreleased---091)
 * [v0.9.0 - Correctness and shutdown fixes](#v090---correctness-and-shutdown-fixes)
 * [v0.8.0 - Registry-driven dispatch](#v080---registry-driven-dispatch)
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
@@ -27,26 +30,50 @@ records.
 
 ---
 
-## Unreleased
+## Unreleased - 0.9.1
 
 | Field | Value |
 | --- | --- |
-| Branch | `feat/yaml-fork` |
+| Released | not yet tagged |
+| Tag | `v0.9.1` (pending) |
+| Commit | pending |
 | Base | krameff/goss v0.6.0 |
+| Integration branch | `devel` |
+| Scope | 17 commits, 33 files, +1168 / -110 |
+| Changelog | [0.9.1](CHANGELOG.md#091-based-on-krameffgoss-v060---correctness-fixes-and-ci-gating) |
 
-Both yaml dependencies moved to `go.yaml.in/yaml`, the maintained fork.
-`gopkg.in/yaml.v2` and `v3` were archived together, so v3 was never the
-supported option. Marshal output is byte-identical, verified against all 204
-goldens.
+The first release assembled on `devel` rather than straight to `main`, and the
+first cut through a gated release path: signing and publishing now depend on a
+job that runs the tests and the security scan, which a tag push previously
+bypassed entirely.
 
-Not purely a no-op on the decode side: the newer yaml v3 converts an
-unrecovered panic into a normal parse error for a gossfile that uses `<<:` in
-the same mapping as a complex key (a list or map used as a key). Such a file
-previously crashed Syver with a stack trace. This is a startup-path fix, not a
-request-triggered one, and the exit code for that input changes from 2 to 1
-(render, serve) or 78 (validate).
+Six branches, in merge order: `feat/yaml-fork`, `feat/trivy-gate`,
+`feat/trivy-ignore-yaml`, `fix/timeout-message`, `fix/ci-branch-filter`,
+`fix/release-path-gating`.
 
-**Breaking:** none.
+Correctness fixes, none of which change the CLI contract or the gossfile format:
+
+* a malformed gossfile using `<<:` alongside a complex key reports a parse error
+  instead of crashing with a stack trace
+* a timed-out command names the budget it exceeded, and says the same thing on
+  every host. It previously reported whichever of two racing timers won
+* a negative `timeout:` warns and uses the default, instead of leaving the
+  command completely unbounded
+* a command that failed to start could report exit status 0, so a spec asserting
+  `exit-status: 0` would have passed
+* spec warnings appear once per process rather than once per check, which made
+  them unreadable under `serve`
+
+Also fixed a data race in the command timeout path, present since before v0.8.0,
+which affected every timed-out command rather than only ones producing output.
+
+**Breaking:** none. The one behaviour change users may notice is that a negative
+`timeout:` now warns; it was silently unbounded before.
+
+**Gate at release:** 480 tests / 7 packages `-race` clean (up from 474);
+204/204 goldens byte-identical; `make check` clean; Docker suite green on all
+six distros with the per-distro counts 106 arch / 127 alpine3 / 126 others
+unchanged, and serve 8/8.
 
 ---
 

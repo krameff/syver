@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
 
 - feat/yaml-fork branch
   - moved both yaml dependencies to `go.yaml.in/yaml`, the maintained fork.
@@ -42,25 +42,14 @@
     on an opt-in git hook. The strict run is weekly, not per-PR: a stale
     suppression is not a vulnerability and should not block unrelated work
 
-- fix/release-path-gating branch
-  - releases are now gated. The release workflow fires on a tag push, and no
-    branch filter can match a tag, so nothing verified the commit a tag pointed
-    at. Signing and publishing now depend on a job that runs the tests and the
-    security scan first
-  - CodeQL now runs on `main` as well as `devel`. Under the devel to main release
-    model, main is the release branch, so the release path was getting no code
-    analysis at all
-
-- fix/ci-branch-filter branch
-  - removed the lint and test workflow's release-branch filter. It was a regex
-    string, but GitHub branch filters are glob-only, so it matched nothing and
-    had never fired. Nothing is lost: the `pull_request` trigger has no branch
-    filter, so a release branch already runs the full gate. Inherited from
-    upstream goss, and the only such entry across ten workflows
-  - a hanging-helper test whose PATH shim failed to apply reported only `probe
-    reported <nil>`, which reads as a timing flake. It now names the binary that
-    actually resolved, and separately detects a shim that resolved but could not
-    execute
+- feat/trivy-ignore-yaml branch
+  - suppressions moved to `.trivyignore.yaml`, so each one carries a machine
+    readable `statement` instead of a comment block nothing can check.
+    Trivy does not auto-detect that filename, so `--ignorefile` is explicit
+  - the Dockerfile is now scanned for misconfigurations. `DS-0002` (image runs
+    as root) is suppressed with the reasoning recorded: Syver reads package
+    databases, file ownership, process lists and service state, so a `USER`
+    instruction would break the tool rather than harden it
 
 - fix/timeout-message branch
   - a timed-out command reported `context deadline exceeded`, which names
@@ -86,14 +75,26 @@
   - the Windows `ConvertFrom-Json` test loaded the user profile on every run,
     unlike its three neighbours. It is the slowest check in that file and had
     started timing out on cold CI runners
-- feat/trivy-ignore-yaml branch
-  - suppressions moved to `.trivyignore.yaml`, so each one carries a machine
-    readable `statement` instead of a comment block nothing can check.
-    Trivy does not auto-detect that filename, so `--ignorefile` is explicit
-  - the Dockerfile is now scanned for misconfigurations. `DS-0002` (image runs
-    as root) is suppressed with the reasoning recorded: Syver reads package
-    databases, file ownership, process lists and service state, so a `USER`
-    instruction would break the tool rather than harden it
+
+- fix/ci-branch-filter branch
+  - removed the lint and test workflow's release-branch filter. It was a regex
+    string, but GitHub branch filters are glob-only, so it matched nothing and
+    had never fired. Nothing is lost: the `pull_request` trigger has no branch
+    filter, so a release branch already runs the full gate. Inherited from
+    upstream goss, and the only such entry across ten workflows
+  - a hanging-helper test whose PATH shim failed to apply reported only `probe
+    reported <nil>`, which reads as a timing flake. It now names the binary that
+    actually resolved, and separately detects a shim that resolved but could not
+    execute
+
+- fix/release-path-gating branch
+  - releases are now gated. The release workflow fires on a tag push, and no
+    branch filter can match a tag, so nothing verified the commit a tag pointed
+    at. Signing and publishing now depend on a job that runs the tests and the
+    security scan first
+  - CodeQL now runs on `main` as well as `devel`. Under the devel to main release
+    model, main is the release branch, so the release path was getting no code
+    analysis at all
 
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
