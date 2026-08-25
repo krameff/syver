@@ -7,6 +7,9 @@
   - a scratch tag such as `vtest` can no longer trigger a signed release
   - raised the Windows powershell timeouts, which were failing CI on slow runners
 
+- fix/windows-powershell-timeouts branch
+  - the rest of the Windows integration tests no longer fail on a slow CI runner
+
 ## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
 
 - feat/yaml-fork branch

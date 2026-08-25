@@ -1,4 +1,12 @@
 ---
+# Every command: budget in the Windows fixtures is 30000, and that is not
+# generosity for its own sake. A cold windows-latest runner pays powershell
+# start-up and Defender's scan of a freshly built, unsigned exe before the
+# command does any work; an 8-check file was measured at 11.5s total. Three
+# entries here failed at 10000 across two separate CI runs. Do not lower these:
+# nothing is under test in the budget itself, so a tight one buys only flakes.
+# The addr:, dns: and http: budgets are different -- there the timeout IS the
+# thing being tested, and they are deliberately left alone. See BUG-003.
 # TODO: coverage for the add {test} permutations
 command:
   "validate":
@@ -9,4 +17,4 @@ command:
       - 'Failed: 0'
       - 'Skipped: 0'
     stderr: []
-    timeout: 5000
+    timeout: 30000
