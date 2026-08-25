@@ -12,7 +12,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Gate. The release path was previously ungated: this workflow fires on a TAG
+  # push, and golangci.yaml only has `push.branches`, which per GitHub's docs does
+  # not run for tag pushes at all. So nothing verified the commit a tag pointed at
+  # -- in the normal flow the gate had run earlier via the PR, but that was
+  # convention, not enforcement, and nothing stopped a tag being cut on a commit
+  # whose scan failed or never ran. Signing keys and packages: write are handed
+  # out in `build` below, so this runs first and that job `needs:` it.
+  gate:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - name: Install Trivy
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
+        with:
+          # Keep in step with SYVER_TRIVY_IMAGE in ci/security-scan.sh.
+          version: v0.74.0
+
+      - name: Unit tests
+        run: make test
+
+      - name: Security scan
+        env:
+          SECURITY_STRICT: "1"
+        run: ./ci/security-scan.sh
+
   build:
+    needs: [gate]
     runs-on: ubuntu-latest
 
     permissions:
