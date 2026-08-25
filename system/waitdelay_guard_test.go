@@ -5,7 +5,6 @@ import (
 	"go/parser"
 	"go/token"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -21,44 +20,53 @@ import (
 // notice. No Windows host exists in this sandbox or on the remote either, so
 // "run it on Windows CI" is not a substitute.
 //
-// go/parser ignores build constraints, so parsing the directory reaches every
-// file for every GOOS from wherever this runs. That is the whole point: this
-// asserts a property of code it cannot execute.
+// It reads the directory itself and parses each file with parser.ParseFile,
+// rather than calling parser.ParseDir. ParseDir is deprecated as of Go 1.25, and
+// the stated reason -- "does not consider build tags when associating files with
+// packages" -- is precisely the behaviour this test needs, so the deprecation
+// notice's suggested replacement is the wrong tool here: golang.org/x/tools/go/
+// packages resolves per-GOOS, which would hide service_windows.go from a Linux
+// run and defeat the check entirely. Parsing file-by-file keeps the build-tag
+// blindness without the deprecated call.
 //
 // The rule is narrow on purpose. A function that CONSTRUCTS a command without
 // running it (commandWrapper in command_posix.go and command_windows.go) is not
 // in scope -- its caller owns the bound. Only the function that calls Run does.
 func TestEveryCommandRunnerBoundsItsIO(t *testing.T) {
 	fset := token.NewFileSet()
-	pkgs, err := parser.ParseDir(fset, ".", func(fi os.FileInfo) bool {
-		return !strings.HasSuffix(fi.Name(), "_test.go")
-	}, 0)
+	entries, err := os.ReadDir(".")
 	if err != nil {
-		t.Fatalf("parsing package system: %v", err)
+		t.Fatalf("reading the package directory: %v", err)
 	}
 
 	checked := 0
-	for _, pkg := range pkgs {
-		for path, file := range pkg.Files {
-			for _, decl := range file.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok || fn.Body == nil {
-					continue
-				}
-				if !callsRun(fn.Body) {
-					continue
-				}
-				checked++
-				if !setsWaitDelay(fn.Body) {
-					t.Errorf("%s: %s calls Run() on a command but never sets "+
-						"WaitDelay. The context bounds the PROCESS; only WaitDelay "+
-						"bounds Wait, which blocks for as long as anything holds the "+
-						"stdout pipe -- an escaped grandchild holds it for its own "+
-						"lifetime. Under `serve` that wedges syverMu for the life of "+
-						"the process. Derive it from the caller's budget, never a "+
-						"constant.", filepath.Base(fset.Position(fn.Pos()).Filename), fn.Name.Name)
-					_ = path
-				}
+	for _, entry := range entries {
+		name := entry.Name()
+		if entry.IsDir() || !strings.HasSuffix(name, ".go") ||
+			strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		file, err := parser.ParseFile(fset, name, nil, 0)
+		if err != nil {
+			t.Fatalf("parsing %s: %v", name, err)
+		}
+		for _, decl := range file.Decls {
+			fn, ok := decl.(*ast.FuncDecl)
+			if !ok || fn.Body == nil {
+				continue
+			}
+			if !callsRun(fn.Body) {
+				continue
+			}
+			checked++
+			if !setsWaitDelay(fn.Body) {
+				t.Errorf("%s: %s calls Run() on a command but never sets "+
+					"WaitDelay. The context bounds the PROCESS; only WaitDelay "+
+					"bounds Wait, which blocks for as long as anything holds the "+
+					"stdout pipe -- an escaped grandchild holds it for its own "+
+					"lifetime. Under `serve` that wedges syverMu for the life of "+
+					"the process. Derive it from the caller's budget, never a "+
+					"constant.", name, fn.Name.Name)
 			}
 		}
 	}
