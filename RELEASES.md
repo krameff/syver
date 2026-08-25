@@ -15,12 +15,18 @@ Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
 "Released" is the date the tag object was created, which is not always the
-commit date. v0.9.1 is the exception: it was tagged through the GitHub release
-UI, which creates a lightweight tag with no tag object and no signature, so its
-date is the commit date instead. v0.7.0 through v0.9.0 are annotated and
-GPG-signed. v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
-v0.6.0 has no tag in this repository and uses the date its changelog entry
-records.
+commit date. Every tag from v0.7.0 onward is annotated and GPG-signed with the
+same key. v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20. v0.6.0
+has no tag in this repository and uses the date its changelog entry records.
+
+v0.9.1 was tagged twice, and the second tag is the real one. It was first cut
+through the GitHub release UI, which creates a lightweight tag: no tag object,
+no signature. It was re-cut the same day as an annotated, signed tag pointing at
+the same commit, so that every release from v0.7.0 on carries a signature. The
+commit never moved and the release contents are unaffected. The only practical
+consequence is for anyone who fetched v0.9.1 during that window: they hold the
+old lightweight tag, and `git fetch --tags --force` is needed to pick up the
+signed one, because git will not overwrite an existing tag ref on its own.
 
 ## Contents
 
