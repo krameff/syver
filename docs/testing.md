@@ -52,7 +52,7 @@ On macOS/Windows, `make test-discovery-e2e` builds a temporary syver binary and 
 | `test-discovery-e2e` | `./ci/discovery-e2e.sh` | `--discover` pipeline (flag, inline, discover+depends-on) |
 | `test-depends-on-e2e` | `./ci/depends-on-e2e.sh` | `depends-on` skip when prerequisite fails |
 | `lint-markdown` | `./ci/lint-markdown.sh` | Markdownlint on docs and README files |
-| `test-security` | `./ci/security-scan.sh` | `govulncheck` + Trivy scan of `go.mod` and `docs/requirements.txt` |
+| `test-security` | `./ci/security-scan.sh` | `govulncheck` + Trivy scan of `go.mod` and `docs/requirements.txt`; **fails on findings** |
 | `lint-yaml` | `yamllint` | YAML lint for integration-test gossfiles |
 | `test-short-all` | `fmt lint vet test` | Formatter, golangci-lint, vet, unit tests |
 | `test-int-*` | Docker / platform scripts | Full integration matrix (slow) |
@@ -65,7 +65,7 @@ with `|| true`), so `test-short-all`, `pre-push`, and CI's separate lint job agr
 | Workflow | Job | Tests run |
 | --- | --- | --- |
 | [`.github/workflows/golangci.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/golangci.yaml) | `lint` | golangci-lint |
-| | `coverage` | `make cov`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`** |
+| | `coverage` | `make cov`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`**, **`./ci/trivyignore-check.sh`** |
 | | `integration-test-*` | `make rockylinux9`, `jammy`, darwin, windows, etc. (includes discovery + depends-on E2E) |
 | [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml) | `analyze` | CodeQL static analysis for Go and GitHub Actions workflows |
 | [`.github/workflows/docs.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docs.yaml) | `lint` | markdownlint-cli2 on docs |
@@ -275,11 +275,37 @@ Runs on every `make check` and in the `coverage` CI job after dependency or docs
 Steps performed:
 
 1. **`govulncheck ./...`** — Go vulnerability database scan for the module and its dependencies
-2. **Trivy filesystem scan** — checks `go.mod` and `docs/requirements.txt` for known CVEs at **MEDIUM** severity and above
+2. **Trivy filesystem scan** — checks `go.mod` and `docs/requirements.txt` for
+   known CVEs at **MEDIUM** severity and above, scans the tree for committed
+   secrets, and checks the `Dockerfile` for misconfigurations
 
-Locally, Trivy runs via the `trivy` binary if installed, otherwise via Docker
-(`aquasec/trivy`). If neither is available, the scan is skipped with a warning unless
+Both scanners are pinned: Trivy by image digest, `govulncheck` by version. A
+blocking gate should not float, and neither should code the gate executes.
+
+**Findings fail the build.** Trivy previously ran without `--exit-code`, so it
+printed CVEs and still exited 0, which meant `make check` and `make pre-push`
+passed with vulnerabilities on screen. Fix the dependency, or add a documented
+`.trivyignore.yaml` entry if there is genuinely no fix — `ci/trivyignore-check.sh`
+re-validates those. Suppressions live in `.trivyignore.yaml`, which records a
+`statement` for each entry and supports `expired_at` for anything expected to be
+fixed upstream. Trivy does not auto-detect that filename, so the scripts pass
+`--ignorefile` explicitly. It runs on every PR (reporting only), strictly on the
+weekly `trivy-schedule.yaml` run, and via `.githooks/pre-commit` on any change
+to `go.mod`, `go.sum` or `.trivyignore.yaml` if you have opted in with
+`git config core.hooksPath .githooks`. It is deliberately non-blocking on PRs:
+a stale suppression is not a vulnerability, and it depends on Trivy's database,
+which cannot be pinned the way the scanner version is. To
+inspect findings without failing, set `SYVER_TRIVY_EXIT_CODE=0`; the summary
+line says explicitly when enforcement is off.
+
+Locally, Trivy runs via the `trivy` binary if installed, otherwise via a
+container runtime (Docker or Podman, `aquasec/trivy` pinned by digest). If
+neither is available, the scan is skipped with a warning unless
 `SECURITY_STRICT=1` (always set in CI).
+
+The scan distinguishes three failure modes in its summary line, because they
+need different responses: findings (exit 2), scanner failed to run such as an
+unreachable vulnerability DB (exit 1, nothing was scanned), and skipped.
 
 Docker image scanning (Alpine packages and compiled binary) continues to run in
 [`.github/workflows/docker-syver.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docker-syver.yaml)

@@ -1,0 +1,64 @@
+# Trivy suppressions. See ci/trivyignore-check.sh, which re-validates every
+# entry here against an unfiltered scan.
+#
+# This is the YAML format rather than the plain .trivyignore list, for two
+# reasons: `statement` gives the rationale a machine-readable home instead of a
+# comment block that nothing can check, and `expired_at` makes a suppression
+# self-limiting.
+#
+# NOTE: trivy does NOT auto-detect this file. `--ignorefile` defaults literally
+# to ".trivyignore", so ci/security-scan.sh passes this path explicitly. If that
+# flag is ever dropped, suppressions stop applying and the gate goes red, which
+# is the safe direction but will look like a regression.
+#
+# On expired_at: use it for anything expected to be fixed upstream, so the
+# suppression cannot outlive its justification. Do NOT use it for a finding with
+# no possible fix -- an expiry that fires on something nobody can action is a
+# scheduled red build for no decision, which is the failure mode the blocking
+# gate was deliberately designed to avoid.
+
+vulnerabilities:
+  - id: GO-2026-5932
+    statement: |
+      golang.org/x/crypto/openpgp is unmaintained and unsafe by design. It is a
+      deprecated package, not a patched CVE, so there is no fixed version and
+      there will not be one. Deliberately no expired_at: see the note above.
+
+      Reachability: x/crypto arrives transitively via
+      github.com/Masterminds/sprig/v3 (template.go:12,41 -- sprig.TxtFuncMap()
+      backs gossfile templating), which needs x/crypto/bcrypt, not openpgp. The
+      openpgp subpackage is not in the build graph.
+
+      That reachability claim is not asserted once and left to rot: govulncheck
+      runs on every `make check` and every CI build, reports reachable call
+      paths rather than affected versions, and has never flagged this. If a
+      dependency starts importing openpgp, govulncheck fails the build on its
+      own, independently of this file.
+
+misconfigurations:
+  - id: DS-0002
+    statement: |
+      "Image user should not be root" -- accepted, deliberately, because the
+      product does not work otherwise.
+
+      Syver's job is to inspect the system it runs on: package databases
+      (rpm/dpkg/apk), file ownership and permissions, process lists, service
+      state via systemctl, and kernel parameters. Most of those are root-only
+      reads. The dgoss/dcgoss/kgoss wrappers additionally inspect OTHER
+      containers. Adding a USER instruction would break the primary use case
+      rather than harden it.
+
+      The combination worth naming: `syver serve` exposes unauthenticated
+      /healthz and /metrics from this same root container. That is a real
+      consideration, so the boundary is stated explicitly rather than assumed.
+      The spec is parsed ONCE at startup (serve.go, getSyverConfig called from
+      newHealthHandler before ListenAndServe), and /healthz re-runs the checks
+      already in that spec. A request cannot introduce or alter a `command`
+      resource. So an unauthenticated caller can trigger execution of commands
+      the operator already put in the gossfile and read their results: that is
+      information disclosure and resource consumption, not remote code
+      execution.
+
+      Operators exposing `serve` beyond localhost should put it behind their own
+      authenticating proxy. Deliberately no expired_at: this is a property of
+      what the tool does, not a defect awaiting an upstream fix.

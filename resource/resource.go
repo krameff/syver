@@ -3,6 +3,7 @@ package resource
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -48,7 +49,8 @@ func deprecateAtoI(depr any, desc string) any {
 	if !ok {
 		return depr
 	}
-	fmt.Fprintf(os.Stderr, "DEPRECATION WARNING: %s should be an integer not a string\n", desc)
+	warnSpecOnce("deprecated-atoi:"+desc,
+		"DEPRECATION WARNING: %s should be an integer not a string", desc)
 	i, err := strconv.Atoi(s)
 	if err != nil {
 		panic(err)
@@ -127,13 +129,46 @@ func isSet(i interface{}) bool {
 //
 // Once per process per attribute is the right frequency for a fact that cannot
 // change while the process runs.
-var warnedEmpty sync.Map
+var warnedSpec sync.Map
 
-func warnEmptyOnce(desc string) {
-	if _, seen := warnedEmpty.LoadOrStore(desc, struct{}{}); seen {
+// warnSpecOnce emits a spec-mistake warning at most once per process per key.
+//
+// Every caller must route through here rather than calling Fprintf directly.
+// Under `serve` the checks re-run on every cache refresh, so an unguarded
+// warning becomes one line per attribute per sweep, forever -- which is what
+// buried the empty-list warning until it was guarded. A caller that happens to
+// be self-limiting today (because some other code path mutates the offending
+// value on first use, say) is relying on a side effect nobody will preserve
+// through a refactor. State the property here instead.
+func warnSpecOnce(key, format string, args ...interface{}) {
+	if _, seen := warnedSpec.LoadOrStore(key, struct{}{}); seen {
 		return
 	}
-	fmt.Fprintf(os.Stderr, "WARNING: %s is an empty list, which asserts nothing and always passes. Give it a value, or remove it.\n", desc)
+	fmt.Fprintf(warnWriter(), "WARNING: "+format+"\n", args...)
+}
+
+// warnOut overrides the warning destination; nil means stderr. It exists so the
+// once-ness can be asserted directly rather than inferred from a caller.
+//
+// Resolved per call rather than captured at init: TestEmptyListWarnsOncePerAttribute
+// captures warnings by swapping os.Stderr for a pipe, which an init-time copy
+// would silently bypass -- the warning would go to the real stderr and the test
+// would see an empty string.
+// Not mutex-guarded, and that is only safe because of something non-local: no
+// test in this package calls t.Parallel(). Validate runs concurrently, so
+// warnWriter() reads this from many goroutines; the day a resource test that
+// triggers a warning is parallelised, this becomes a data race.
+var warnOut io.Writer
+
+func warnWriter() io.Writer {
+	if warnOut != nil {
+		return warnOut
+	}
+	return os.Stderr
+}
+
+func warnEmptyOnce(desc string) {
+	warnSpecOnce("empty-list:"+desc, "%s is an empty list, which asserts nothing and always passes. Give it a value, or remove it.", desc)
 }
 
 func isSetWarnEmpty(i interface{}, desc string, skip bool) bool {

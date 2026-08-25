@@ -66,12 +66,38 @@ func (c *Command) GetExec() string {
 	return c.id
 }
 
+// The timeout applied when a spec sets none, or sets one that is not a usable
+// duration. Matches what `syver add` writes into every generated spec, so
+// generated and hand-written files agree.
+const defaultCommandTimeoutMs = 10000
+
 func (c *Command) Validate(ctx context.Context, sys *system.System) []TestResult {
 	ctx = withID(ctx, c.ID())
 	skip := c.Skip
 
-	if c.Timeout == 0 {
-		c.Timeout = 10000
+	// <= 0, not == 0. A negative `timeout:` used to fail instantly with a bogus
+	// "timed out (-1ms)"; once runCommand stopped carrying its own timer, a
+	// negative value instead reached setup() with no context deadline attached
+	// and nothing bounded the command at all. Under serve that holds syverMu for
+	// the command's entire runtime, which is the wedge helper_command.go exists
+	// to prevent.
+	if c.Timeout < 0 {
+		// A negative timeout is a spec mistake, not a request for the default, so
+		// say so rather than silently substituting something else. 0 stays quiet
+		// below: it has always meant "use the default".
+		//
+		// Guarded explicitly, NOT left to the mutation on the next line. That
+		// assignment happens to make this fire once today, but a Validate that
+		// stopped mutating its receiver -- an entirely reasonable refactor -- would
+		// bring back one warning per check per sweep under serve. Measured: 8
+		// sweeps, 8 warnings.
+		warnSpecOnce("neg-timeout:"+c.ID(),
+			"%s: command.timeout is negative (%d), which is not a duration. Using "+
+				"the %dms default. Remove it, or give it a positive value.",
+			c.ID(), c.Timeout, defaultCommandTimeoutMs)
+	}
+	if c.Timeout <= 0 {
+		c.Timeout = defaultCommandTimeoutMs
 	}
 
 	var results []TestResult

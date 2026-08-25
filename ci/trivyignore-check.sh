@@ -10,31 +10,82 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
 
-IGNORE_FILE=".trivyignore"
-TRIVY_SEVERITY="${TRIVY_SEVERITY:-HIGH,CRITICAL,MEDIUM,UNKNOWN}"
+IGNORE_FILE="${SYVER_TRIVY_IGNOREFILE:-.trivyignore.yaml}"
+# NO severity filter here, deliberately. This script asks "does this suppressed
+# ID still exist?", not "does it breach the gate?" -- a filter is the same bug
+# class as the missing --ignorefile was: an entry for a finding below the
+# threshold reads as "no longer found" and the script advises deleting a live
+# suppression. The old default omitted LOW entirely. Verified: unfiltered, the
+# scan still returns exactly GO-2026-5932 and nothing spurious.
 TRIVY_SKIP_DIRS="${TRIVY_SKIP_DIRS:-integration-tests,release,site,.venv,.git}"
+# Keep in step with ci/security-scan.sh: the validator must look wherever the
+# gate looks, or a suppressed secret/misconfig ID would read as "no longer found".
+SYVER_TRIVY_SCANNERS="${SYVER_TRIVY_SCANNERS:-vuln,secret,misconfig}"
+SYVER_TRIVY_CACHE_DIR="${SYVER_TRIVY_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/trivy}"
+# Pinned for the same reasons as ci/security-scan.sh; keep the two in step.
+SYVER_TRIVY_IMAGE="${SYVER_TRIVY_IMAGE:-docker.io/aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969}"  # 0.74.0
 
 if [[ ! -f "${IGNORE_FILE}" ]]; then
   echo "[trivyignore-check] no ${IGNORE_FILE}, skipping"
   exit 0
 fi
 
-mapfile -t ignored_ids < <(grep -vE '^\s*(#|$)' "${IGNORE_FILE}")
+# The YAML format nests IDs under vulnerabilities/misconfigurations/secrets/
+# licenses, so a flat grep would read `id:` keys, statement prose and comments
+# alike. Parsed properly instead. yq is not a dependency here; python3 already
+# is, via ci/lint-markdown.sh's toolchain and the hooks.
+mapfile -t ignored_ids < <(python3 -c '
+import sys, yaml
+try:
+    doc = yaml.safe_load(open(sys.argv[1])) or {}
+except Exception as e:
+    print("PARSE_ERROR:%s" % e, file=sys.stderr); sys.exit(1)
+for section in ("vulnerabilities", "misconfigurations", "secrets", "licenses"):
+    for entry in (doc.get(section) or []):
+        if isinstance(entry, dict) and entry.get("id"):
+            print(entry["id"])
+' "${IGNORE_FILE}") || {
+  echo "ERROR: [trivyignore-check] could not parse ${IGNORE_FILE}" >&2
+  exit 1
+}
 
 if [[ ${#ignored_ids[@]} -eq 0 ]]; then
   echo "[trivyignore-check] ${IGNORE_FILE} has no active entries, skipping"
   exit 0
 fi
 
+# --ignorefile /dev/null is load-bearing, not tidiness. trivy picks up
+# ./.trivyignore automatically, so without it this scans FILTERED BY THE VERY
+# FILE IT IS VALIDATING: every suppressed ID is missing from the results, the
+# loop below reports each one as "no longer found", and following that advice
+# deletes a suppression that was still doing its job. Verified: with the
+# auto-loaded ignorefile the scan returns only the two x/mod CVEs; with it
+# bypassed the same scan also returns GO-2026-5932, the sole .trivyignore entry.
+# --exit-code 0 is explicit and load-bearing: this script reports staleness and
+# must never fail on findings. trivy reads TRIVY_<FLAG> from the environment, so
+# without it an exported TRIVY_EXIT_CODE (which ci/security-scan.sh invites you
+# to set) makes trivy exit non-zero here, and the check below silently degrades
+# to "cannot validate" -- defeating the --ignorefile fix. Our own knob is now
+# SYVER_-prefixed, but the bare name still arrives from muscle memory or other
+# tooling, so this guard stays. Verified: exporting
+# TRIVY_EXIT_CODE=1 turned this into "trivy scan failed to run".
 run_trivy_json() {
-  trivy fs --scanners vuln --severity "${TRIVY_SEVERITY}" \
+  trivy fs --scanners "${SYVER_TRIVY_SCANNERS}" \
+    --ignorefile /dev/null --exit-code 0 \
     --skip-dirs "${TRIVY_SKIP_DIRS}" --format json --quiet .
 }
 
 run_trivy_json_container() {
   local engine="$1"
-  "${engine}" run --rm -v "${ROOT}:/src" -w /src docker.io/aquasec/trivy:latest \
-    fs --scanners vuln --severity "${TRIVY_SEVERITY}" \
+  mkdir -p "${SYVER_TRIVY_CACHE_DIR}" || echo "WARN: cannot create ${SYVER_TRIVY_CACHE_DIR}" >&2
+  # :z relabels for SELinux -- security-scan.sh already does this and this one
+  # did not, so on a RHEL-family host the bind mount could be unreadable here
+  # while the other scan worked.
+  "${engine}" run --rm -v "${ROOT}:/src:ro,z" \
+    -v "${SYVER_TRIVY_CACHE_DIR}:/root/.cache/trivy:z" \
+    -w /src "${SYVER_TRIVY_IMAGE}" \
+    fs --scanners "${SYVER_TRIVY_SCANNERS}" \
+    --ignorefile /dev/null --exit-code 0 \
     --skip-dirs "${TRIVY_SKIP_DIRS}" --format json --quiet .
 }
 
@@ -64,7 +115,9 @@ fi
 status=0
 for id in "${ignored_ids[@]}"; do
   match="$(echo "${scan_json}" | jq -r --arg id "${id}" \
-    '[.Results[]?.Vulnerabilities[]? | select(.VulnerabilityID == $id)] | .[0] // empty')"
+    '[.Results[]? | (.Vulnerabilities[]? | select(.VulnerabilityID == $id)),
+        (.Secrets[]? | select(.RuleID == $id)),
+        (.Misconfigurations[]? | select(.ID == $id))] | .[0] // empty')"
 
   if [[ -z "${match}" ]]; then
     echo "WARN: [trivyignore-check] ${id} no longer found in scan results -- consider removing it from ${IGNORE_FILE}" >&2

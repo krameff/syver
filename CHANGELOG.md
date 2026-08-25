@@ -1,5 +1,101 @@
 # Changelog
 
+## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
+
+- feat/yaml-fork branch
+  - moved both yaml dependencies to `go.yaml.in/yaml`, the maintained fork.
+    `gopkg.in/yaml.v2` and `v3` were archived together, so v3 was never the
+    supported option. Marshal output is byte-identical
+  - a malformed gossfile that uses `<<:` in the same mapping as a complex key
+    (a list or map used as a key) now reports a parse error instead of
+    crashing with a stack trace. Picked up from the newer yaml v3
+  - the binary now carries two yaml implementations instead of three, because
+    ours dedupe against the one gomega already pulled in
+
+- feat/trivy-gate branch
+  - the Trivy dependency scan now fails the build on findings. It ran without
+    `--exit-code`, so `make check` and `make pre-push` passed with HIGH CVEs on
+    screen and `.trivyignore` suppressed entries in a report nothing acted on
+  - bumped `golang.org/x/mod` to v0.40.0, clearing CVE-2026-56864 and
+    CVE-2026-56865. This also pulled x/crypto, x/net, x/text and x/tools forward
+  - `ci/trivyignore-check.sh` scanned without `--ignorefile`, so Trivy silently
+    applied the very `.trivyignore` it was validating. Every entry eventually
+    reported as "no longer found", advising you to delete a live suppression
+  - the Trivy version is pinned for both the container path and CI, rather than
+    floating on `:latest`. A blocking scanner should not float
+  - the scan summary now separates "found vulnerabilities" from "scanner failed
+    to run", which matters because Trivy exits 1 for its own errors. Findings
+    use exit 2, so a scan that never ran is never reported as a clean bill or
+    as vulnerabilities, at any enforcement setting
+  - the Trivy DB is cached between containerised runs instead of re-pulled
+  - the scan had `--scanners vuln`, which is a narrowing rather than a default:
+    Trivy's own default is `vuln,secret`, so secret detection was off on the
+    security gate. Now `vuln,secret`
+  - `govulncheck` was fetched and executed at `@latest` inside the security gate
+    on any machine without it installed, CI included. Pinned to v1.7.0, and a
+    govulncheck failure now reports rather than dying silently
+  - Trivy is pinned by image digest rather than a version tag, which is still
+    re-pointable. The source tree is mounted read-only into the scanner
+  - `ci/trivyignore-check.sh` also carried a severity filter, so an entry for a
+    finding below the threshold read as "no longer found". It now asks only
+    whether the ID still exists, and CI runs it on every PR rather than relying
+    on an opt-in git hook. The strict run is weekly, not per-PR: a stale
+    suppression is not a vulnerability and should not block unrelated work
+
+- feat/trivy-ignore-yaml branch
+  - suppressions moved to `.trivyignore.yaml`, so each one carries a machine
+    readable `statement` instead of a comment block nothing can check.
+    Trivy does not auto-detect that filename, so `--ignorefile` is explicit
+  - the Dockerfile is now scanned for misconfigurations. `DS-0002` (image runs
+    as root) is suppressed with the reasoning recorded: Syver reads package
+    databases, file ownership, process lists and service state, so a `USER`
+    instruction would break the tool rather than harden it
+
+- fix/timeout-message branch
+  - a timed-out command reported `context deadline exceeded`, which names
+    neither the timeout nor its value, and which of two messages you got
+    depended on the host. It now always reports the budget it exceeded
+  - fixed a data race in the timeout path: the command's output buffers were
+    read while the child was still writing to them. It affected every timed-out
+    command, not only ones producing output, and predates v0.8.0
+  - a command that failed to start could report exit status 0, so a spec
+    asserting `exit-status: 0` would have passed. Reachable in principle rather
+    than observed: it needed an error to arrive before the caller was ready
+  - all three had the same cause, a redundant second timer, and are fixed by
+    removing it rather than by patching each one. `syver` now relies on the
+    context that already bounds the command, so a `timeout` of 0 also stops
+    failing instantly and runs to completion as documented
+  - a negative `timeout:` left a command completely unbounded rather than
+    erroring. Only a timeout of exactly 0 was rescued to the 10s default. It now
+    uses the default and warns, since a negative duration is a spec mistake
+    rather than a request for the default
+  - spec warnings are now emitted once per process rather than once per check.
+    The two deprecation warnings still repeated on every `serve` cache refresh,
+    which is what made the empty-list warning unreadable before it was fixed
+  - the Windows `ConvertFrom-Json` test loaded the user profile on every run,
+    unlike its three neighbours. It is the slowest check in that file and had
+    started timing out on cold CI runners
+
+- fix/ci-branch-filter branch
+  - removed the lint and test workflow's release-branch filter. It was a regex
+    string, but GitHub branch filters are glob-only, so it matched nothing and
+    had never fired. Nothing is lost: the `pull_request` trigger has no branch
+    filter, so a release branch already runs the full gate. Inherited from
+    upstream goss, and the only such entry across ten workflows
+  - a hanging-helper test whose PATH shim failed to apply reported only `probe
+    reported <nil>`, which reads as a timing flake. It now names the binary that
+    actually resolved, and separately detects a shim that resolved but could not
+    execute
+
+- fix/release-path-gating branch
+  - releases are now gated. The release workflow fires on a tag push, and no
+    branch filter can match a tag, so nothing verified the commit a tag pointed
+    at. Signing and publishing now depend on a job that runs the tests and the
+    security scan first
+  - CodeQL now runs on `main` as well as `devel`. Under the devel to main release
+    model, main is the release branch, so the release path was getting no code
+    analysis at all
+
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch
