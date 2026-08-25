@@ -55,18 +55,6 @@ archives:
       {{- .Os }}-
       {{- .Arch }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
-  # Legacy-named archive, kept for one major version so install.sh's
-  # hardcoded goss-<os>-<arch> download URL keeps resolving. See PLAN
-  # §5.5 -- there is no archive filesystem, so a symlink is not available;
-  # this second entry is the only mechanism that reproduces the old name.
-  - formats:
-      - binary
-    id: archives-legacy
-    name_template: >-
-      goss-
-      {{- .Os }}-
-      {{- .Arch }}
-      {{- if .Arm }}v{{ .Arm }}{{ end }}
 
 dockers_v2:
   - id: images
