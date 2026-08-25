@@ -10,6 +10,8 @@
 - fix/add-swallows-timeout branch
   - `syver add` no longer records a package as missing when the package manager
     stops responding. It reports the failure instead
+  - `syver add` no longer drops file owner and group when the directory service
+    stops responding. It reports the failure instead
 
 ## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
 
