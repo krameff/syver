@@ -15,13 +15,16 @@ Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
 "Released" is the date the tag object was created, which is not always the
-commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
+commit date. v0.9.1 is the exception: it was tagged through the GitHub release
+UI, which creates a lightweight tag with no tag object and no signature, so its
+date is the commit date instead. v0.7.0 through v0.9.0 are annotated and
+GPG-signed. v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
 v0.6.0 has no tag in this repository and uses the date its changelog entry
 records.
 
 ## Contents
 
-* [Unreleased - 0.9.1](#unreleased---091)
+* [v0.9.1 - Correctness fixes and CI gating](#v091---correctness-fixes-and-ci-gating)
 * [v0.9.0 - Correctness and shutdown fixes](#v090---correctness-and-shutdown-fixes)
 * [v0.8.0 - Registry-driven dispatch](#v080---registry-driven-dispatch)
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
@@ -30,16 +33,16 @@ records.
 
 ---
 
-## Unreleased - 0.9.1
+## v0.9.1 - Correctness fixes and CI gating
 
 | Field | Value |
 | --- | --- |
-| Released | not yet tagged |
-| Tag | `v0.9.1` (pending) |
-| Commit | pending |
+| Released | 2026-08-25 |
+| Tag | `v0.9.1` |
+| Commit | `b18a8bd` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel` |
-| Scope | 17 commits, 33 files, +1168 / -110 |
+| Scope | 20 commits, 33 files, +1196 / -110 |
 | Changelog | [0.9.1](CHANGELOG.md#091-based-on-krameffgoss-v060---correctness-fixes-and-ci-gating) |
 
 The first release assembled on `devel` rather than straight to `main`, and the
