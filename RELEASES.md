@@ -69,6 +69,25 @@ Correctness fixes, none of which change the CLI contract or the gossfile format:
 
 Also fixed a data race in the command timeout path, present since before v0.8.0,
 which affected every timed-out command rather than only ones producing output.
+It is narrowed rather than closed: a child that escapes the process group can
+still outlive the wait. See FEAT-008.
+
+### CI, in more detail than the changelog carries
+
+The security scan reported findings and exited 0, so `make check` and
+`make pre-push` passed with HIGH CVEs on screen and the suppression file governed
+a report nothing acted on. Findings now fail the build. Because Trivy exits 1 for
+its own errors, findings use exit 2, so a scan that never ran is never reported
+as a clean bill.
+
+`ci/trivyignore-check.sh` scanned without `--ignorefile`, and Trivy auto-loads
+`.trivyignore` from the working directory, so it validated suppressions against a
+scan those suppressions had already filtered. Every entry eventually read as "no
+longer found", advising deletion of a live suppression.
+
+Two filters silently matched nothing: the lint workflow's release-branch filter
+was a regex where GitHub accepts only globs, and CodeQL ran on `devel` only.
+Neither failed as a parse error, so both looked correct.
 
 **Breaking:** none. The one behaviour change users may notice is that a negative
 `timeout:` now warns; it was silently unbounded before.
