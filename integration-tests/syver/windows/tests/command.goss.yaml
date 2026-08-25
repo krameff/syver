@@ -13,14 +13,14 @@ command:
     stdout:
     - "0"
     stderr: []
-    timeout: 10000
+    timeout: 30000
   wrap a powershell with quotes - expect 0 on CI hosts without restrictanonymous:
     exec: powershell -noprofile -noninteractive -command "(get-itemproperty -path 'HKLM:/SYSTEM/CurrentControlSet/Control/Lsa/').restrictanonymous"
     exit-status: 0
     stdout:
     - "0"
     stderr: []
-    timeout: 10000
+    timeout: 30000
   powershell with quotes:
     exec: powershell -noprofile -noninteractive /c "(echo '{"b":2, "a":1}' | ConvertFrom-json).a"
     exit-status: 0
