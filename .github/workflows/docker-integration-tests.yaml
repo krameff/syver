@@ -10,6 +10,15 @@ on:
 env:
   PLATFORMS: "linux/amd64"
 
+concurrency:
+  # Queue, never cancel, and deliberately NOT keyed by ref. This drives docker
+  # containers whose names are fixed, so two runs at once clobber each other
+  # regardless of which branch they came from -- the same constraint that limits
+  # the go-builder host to one agent at a time. Cancelling mid-run would also
+  # leave containers behind.
+  group: docker-integration-tests
+  cancel-in-progress: false
+
 jobs:
   list-dockerfiles:
     name: Create list of existing dockerfiles

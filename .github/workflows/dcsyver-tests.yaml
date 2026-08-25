@@ -26,6 +26,11 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  # Pure check, nothing published. See golangci.yaml.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   dcsyver-e2e:
     name: dcsyver end-to-end against a compose service
