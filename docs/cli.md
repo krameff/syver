@@ -297,7 +297,7 @@ The end-point will return the stest results in the format requested and an http 
     Lower levels of tracing include all upper levels traces also (ie. `INFO` include `WARN` and `ERROR`).
     `level` can be one of:
     - `ERROR` - Critical errors that halt syver or significantly affect its functionality, requiring immediate intervention.
-    - `WARN` - Non-critical issues that may require attention, such as overwritten keys or deprecated features.
+    - `WARN` - Non-critical issues, such as overwritten keys, an unrecognised top-level key, or deprecated features.
     - `INFO` - General operational messages, useful for tasks where a more structured output is needed (e.g. syver serve).
     - `DEBUG` - Information useful for the syver user to debug.
     - `TRACE` - Detailed internal system activities useful for syver developers to debug.
@@ -362,7 +362,7 @@ Exits with status 0 on success, non-0 otherwise.
     Lower levels of tracing include all upper levels also (ie. `INFO` includes `WARN` and `ERROR`).
     `level` can be one of:
     - `ERROR` - Critical errors that halt syver or significantly affect its functionality.
-    - `WARN` - Non-critical issues that may require attention, such as overwritten keys or deprecated features.
+    - `WARN` - Non-critical issues, such as overwritten keys, an unrecognised top-level key, or deprecated features.
     - `INFO` - General operational messages.
     - `DEBUG` - Information useful for the syver user to debug.
     - `TRACE` - Detailed internal system activities useful for syver developers to debug.
@@ -390,6 +390,19 @@ Exits with status 0 on success, non-0 otherwise.
 :   Time to sleep between retries
 
     *default: `1s`*
+
+An unrecognised top-level key in the gossfile (a typo, or a key syver
+doesn't know yet) also produces a `WARN` line here, naming the file, the
+line, and a suggestion if the key is close to a real one:
+
+```console
+[WARN] syver.yaml:4: unknown top-level key "prot" -- ignored (did you mean "port"?)
+```
+
+It doesn't fail the run or change `Count`/`Failed` -- the key is still
+skipped, syver just tells you it happened. See
+[Unknown top-level keys](gossfile.md#unknown-top-level-keys) for the full
+picture, including the two cases that are deliberately exempt.
 
 !!! example
 

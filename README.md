@@ -264,6 +264,10 @@ In addition, Syver files can also be further manually edited (without yet full j
 * [Templates](https://github.com/krameff/syver/blob/main/docs/gossfile.md#templates)
 * `title` and `meta` (arbitrary data) attributes are persisted when adding other resources with `syver add`
 
+A typo'd top-level key (writing `prot:` instead of `port:`, for example) no
+longer validates silently: syver logs a `[WARN]` for it, with a suggestion
+when it can make one. See [Unknown top-level keys](https://github.com/krameff/syver/blob/main/docs/gossfile.md#unknown-top-level-keys).
+
 Some examples:
 
 ```yaml+jinja

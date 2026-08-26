@@ -116,6 +116,70 @@ with arguments such as:
 * `schema version=Json schema version 7`
 * `file path pattern=*/goss.yaml`
 
+### Unknown top-level keys
+
+A "top-level key" is one of the un-indented keys at the very start of a
+gossfile -- `file:`, `port:`, `command:`, `gossfile:` and so on, the ones
+listed in [Available tests](#available-tests) below plus a handful of
+others like `discovery:`. If you write one of these with a typo, or one
+that a future syver understands but the version you're running does not,
+that whole block is not rejected. It is skipped, silently, and syver runs
+the rest of the file as if it had never been written -- same exit code,
+same `Count`/`Failed`, nothing to tell you a block went untested.
+
+A spec that silently skips a block you thought was being checked is worse
+than one that fails outright: nobody investigates a green result. Syver
+still skips the key -- nothing about what gets tested changes -- but it
+now says so:
+
+```console
+$ syver -g syver.yaml validate
+[WARN] syver.yaml:4: unknown top-level key "some-vendor-thing" -- ignored
+[WARN] syver.yaml:7: unknown top-level key "prot" -- ignored (did you mean "port"?)
+```
+
+If the key is close to a real one, the warning suggests the fix. The warning
+is informational only -- it does not fail the run or change `Count`/`Failed`
+in the result.
+
+Two kinds of top-level key are deliberately exempt, and neither produces a
+warning:
+
+* **A key prefixed `x-`.** This is the same convention docker-compose uses
+  for extension fields: a documented, explicit way to say "this block is
+  mine, leave it alone."
+* **A key whose value carries a YAML anchor**, such as a shared block
+  referenced elsewhere with `<<:`:
+
+  ```yaml
+  common-checks: &common
+    exit-status: 0
+
+  command:
+    echo one:
+      <<: *common
+    echo two:
+      <<: *common
+  ```
+
+  `common-checks:` is not a key syver understands on its own, but it exists
+  only to carry the anchor `command:` merges in below, so it is not warned
+  about. This is detected structurally (does the value define an anchor?),
+  not by name -- a block with no anchor is not covered by this exemption,
+  which is exactly what the `x-` prefix is for.
+
+**This check only applies to YAML gossfiles.** JSON gossfiles have the same
+gap -- an unknown JSON top-level key is dropped the same way -- and it is not
+yet covered.
+
+**A `--vars` file is never checked against this.** A vars file is arbitrary
+user-supplied data with no fixed vocabulary, so every key in it is expected
+to be "unknown" to syver and none of them warn.
+
+See [`examples/unknown-top-level-key.yaml`](https://github.com/krameff/syver/blob/main/examples/unknown-top-level-key.yaml)
+for a runnable spec that shows both sides of this: a genuine typo that
+warns, and a legitimate anchor-carrying block next to it that does not.
+
 ## Available tests
 
 * [addr](#addr)

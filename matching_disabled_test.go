@@ -21,7 +21,7 @@ import (
 // failed=0.
 func TestMatchingSetSkipDisablesValidation(t *testing.T) {
 	json := `{"matching":{"test1":{"content":"actual","matches":"expected-but-does-not-match"}}}`
-	cfg, err := ReadJSONData([]byte(json), true)
+	cfg, err := ReadJSONData([]byte(json), true, "")
 	checkErr(t, err, "reading config failed")
 
 	sys := system.New("")

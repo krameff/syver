@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+- feat/toplevel-key-guard branch
+  - a gossfile with a typo'd or unrecognised top-level key -- `prot:` instead
+    of `port:`, or a key from a newer syver than the one running -- now gets a
+    warning naming the file, the line, and a suggestion when one is close
+    enough. It used to be dropped without a word, and the run would report a
+    clean pass having checked less than it claimed
+  - this warning does not fail the run or change its result. A top-level key
+    beginning `x-`, and any block that exists only to carry a shared YAML
+    anchor, is exempt and never warns
+  - covers YAML gossfiles only; JSON gossfiles have the same gap and are not
+    covered yet. `--vars` files are never checked, since they have no fixed
+    vocabulary to check against
+  - breaking change for library users only, not for the CLI: the exported
+    `ReadJSONData` function takes an additional `path string` argument, naming
+    the spec the data came from (used only to say which file a warning above
+    came from). Nothing shells out to `syver` differently, and gossfile
+    behaviour is unchanged either way. If you call `ReadJSONData` directly as
+    a library, pass the file path if you have one, or `""` if you don't
+
 - fix/drop-legacy-artifacts branch
   - releases no longer build duplicate `goss-` named binaries. Nothing used them
   - a scratch tag such as `vtest` can no longer trigger a signed release
