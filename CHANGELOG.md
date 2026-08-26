@@ -7,6 +7,8 @@
   - a scratch tag such as `vtest` can no longer trigger a signed release
   - raised the Windows powershell timeouts, which were failing CI on slow runners
 
+- fix/windows-powershell-timeouts branch
+  - the rest of the Windows integration tests no longer fail on a slow CI runner
 - fix/add-swallows-timeout branch
   - `syver add` no longer records a package as missing when the package manager
     stops responding. It reports the failure instead
