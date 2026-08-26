@@ -40,6 +40,20 @@ func runHelperPowershell(ctx context.Context, name string, arg ...string) (*util
 	defer cancel()
 
 	cmd := util.NewCommandForWindowsPowershellContext(ctx, name, arg...)
+	// Must stay in step with runHelperCommand's WaitDelay. This function is a
+	// deliberate near-duplicate of it, and that duplication has already cost
+	// once: the bound was added to runHelperCommand and this copy was missed,
+	// leaving the Windows service path with cancellation and no I/O bound.
+	//
+	// The consequence is worse here than on POSIX rather than merely equal.
+	// util/procgroup_windows.go is a documented no-op, so there is no process
+	// group to kill and ANY grandchild survives -- not just one that deliberately
+	// detached. Every powershell that spawns something outliving it therefore
+	// takes the wedge path, where on Linux it takes a setsid to get there.
+	//
+	// helperIOGrace, matching runHelperCommand. See that var's comment for why
+	// this path deliberately does not derive the grace from the deadline.
+	cmd.Cmd.WaitDelay = helperIOGrace
 	cmd.Run()
 
 	if err := ctx.Err(); err != nil {
