@@ -21,6 +21,8 @@
     behaviour is unchanged either way. If you call `ReadJSONData` directly as
     a library, pass the file path if you have one, or `""` if you don't
 
+## 0.9.2 based on krameff/goss v0.6.0 - bu fixes and improvements
+
 - fix/drop-legacy-artifacts branch
   - releases no longer build duplicate `goss-` named binaries. Nothing used them
   - a scratch tag such as `vtest` can no longer trigger a signed release
