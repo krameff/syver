@@ -25,6 +25,34 @@ import (
 // writes it.
 var helperCommandTimeout = 30 * time.Second
 
+// helperIOGrace is how long Wait may spend draining output AFTER syver has given
+// up on the helper -- a separate concern from helperCommandTimeout, which is how
+// long the helper gets to answer at all.
+//
+// Deliberately NOT derived from helperCommandTimeout, and that is a departure
+// worth explaining, because the `command:` path derives its WaitDelay and a
+// fixed constant there was a real defect (system/command.go:205-216).
+//
+// The reason that rule does not carry over: on the `command:` path the number
+// being overridden is the USER'S, set per-resource via `timeout:`, and a
+// constant below it silently overrules what they asked for. Here there is no
+// user-supplied budget -- helperCommandTimeout is syver's own fixed 30s for its
+// own argv -- so there is nothing to overrule.
+//
+// And the two do different jobs. The deadline decides a host tool has stopped
+// answering. The grace only drains pipes once that decision is made, which for
+// any process that has actually exited takes microseconds; it runs long only
+// when a grandchild is holding the pipe open, which is exactly the case syver
+// wants to abandon quickly rather than wait out. Deriving it made the worst case
+// 2 x 30s = 60s of held syverMu, on an endpoint whose whole job is to answer
+// promptly: default Kubernetes probe settings (single-digit periodSeconds,
+// failureThreshold 3) can restart a healthy container inside that window, which
+// would be an outage caused by the health check itself. 5s brings the worst case
+// to ~35s while leaving far more drain time than a live process ever needs.
+//
+// A var, not a const, so tests can vary it.
+var helperIOGrace = 5 * time.Second
+
 // runHelperCommand runs one of those helpers with the caller's context and a
 // bounded lifetime, and reports whether the context ended the run.
 //
@@ -67,6 +95,42 @@ func runHelperCommand(ctx context.Context, name string, arg ...string) (*util.Co
 	defer cancel()
 
 	cmd := util.NewCommandContext(ctx, name, arg...)
+	// The context bounds the PROCESS. It does not bound Wait.
+	//
+	// Cancelling kills the helper, but exec's copy goroutine stays blocked for as
+	// long as ANYTHING holds the write end of the stdout pipe -- and a grandchild
+	// that escaped the process group (setsid, nohup, a service that daemonises)
+	// inherits it and holds it for its own lifetime. Wait then returns when the
+	// GRANDCHILD exits, not when the budget expires. Measured before this line
+	// existed: a 1s budget did not return within 15s.
+	//
+	// Under `serve` that is not one slow probe. fillCache holds syverMu for the
+	// sweep and WriteTimeout is deliberately unset (see serve.go), so one wedged
+	// helper parks every subsequent request behind the mutex for the life of the
+	// process -- reachable from an unauthenticated /healthz against any spec whose
+	// service or package check shells out. That is precisely the failure this file
+	// was written to prevent; the context closed the cancellation half and left
+	// the I/O half open.
+	//
+	// helperIOGrace, not helperCommandTimeout -- see that var's comment for why
+	// this path deliberately does NOT follow the `command:` path's derive-it rule.
+	//
+	// WaitDelay is synchronising even when it expires: os/exec closes the parent
+	// pipes and then blocks on the copy goroutines before returning ErrWaitDelay
+	// (go1.26.6 os/exec/exec.go:867-872, for go.dev/issue/23019). So the buffers
+	// this returns are never read while still being written.
+	//
+	// Worst case is helperCommandTimeout + helperIOGrace, not either alone.
+	// WaitDelay's timer starts at whichever comes first, the context being done or
+	// the process exiting, so a helper that runs its full 30s and then leaves a
+	// grandchild holding the pipe takes the grace on top: ~35s of held syverMu,
+	// reachable unauthenticated. Bounded where it used to be infinite, and stated
+	// here rather than left to be rediscovered. docs/gossfile.md tells users the
+	// same number.
+	//
+	// system/service_windows.go's runHelperPowershell is a near-duplicate of this
+	// function and needs the same line. Change one, change both.
+	cmd.Cmd.WaitDelay = helperIOGrace
 	cmd.Run()
 
 	if err := ctx.Err(); err != nil {

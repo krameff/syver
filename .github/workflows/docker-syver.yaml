@@ -10,6 +10,13 @@ on:
 env:
   PLATFORMS: "linux/amd64,linux/arm64"
 
+concurrency:
+  # Queue, never cancel. This pushes an image to ghcr.io, and cancelling partway
+  # through can leave a partially uploaded manifest behind. Serialising is the
+  # point here, not speed.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   syver:
     name: Build and push Docker image

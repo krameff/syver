@@ -24,6 +24,14 @@ on:
   schedule:
     - cron: '37 2 * * 3'
 
+concurrency:
+  # event_name is in the group deliberately. A scheduled scan runs against the
+  # default branch, so on a plain workflow-plus-ref group a routine push would
+  # cancel the weekly security scan. Separating by event keeps push churn
+  # collapsing while leaving the schedule alone.
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze (${{ matrix.language }})

@@ -9,6 +9,11 @@ on:
     paths:
       - "**/*.ya?ml"
 
+concurrency:
+  # Pure check, nothing published. See golangci.yaml.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   validate-yaml:
     runs-on: ubuntu-latest

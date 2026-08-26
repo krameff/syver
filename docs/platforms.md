@@ -24,6 +24,14 @@ To try out the alpha functionality, you must do one of:
 * set an environment variable `SYVER_USE_ALPHA=1` (or the legacy `GOSS_USE_ALPHA=1`,
   which is still honoured; `SYVER_USE_ALPHA` wins when both are set to a non-empty value).
 
+One concrete difference worth knowing before you rely on Windows: syver puts a
+timed-out check's process into its own process group and kills the group, and
+Windows has no equivalent, so there the started process is killed and anything it
+spawned survives. On Linux and macOS only a process that deliberately detaches
+into a new session escapes that way. Syver still bounds how long it waits, so a
+check fails rather than hanging, but on Windows expect leftover processes after a
+timeout more often than the other platforms.
+
 The macOS and Windows support is community driven;
 there is no commitment to adding features / fixing bugs for those platforms.
 [See thread](https://github.com/krameff/syver/pull/585#discussion_r429968540).
