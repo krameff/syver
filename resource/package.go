@@ -79,7 +79,21 @@ func (p *Package) Validate(ctx context.Context, sys *system.System) []TestResult
 
 func NewPackage(sysPackage system.Package, config util.Config) (*Package, error) {
 	name := sysPackage.Name()
-	installed, _ := sysPackage.Installed()
+	// Propagate, do not swallow. A non-nil error here means the run did not
+	// happen: the system layer folds a non-zero exit and a missing binary into
+	// (false, nil) on purpose, and returns an error only when the helper was
+	// cancelled or exceeded its bound. package_rpm.go and its three siblings each
+	// say so in a comment -- reporting that as "not installed" is "a confident
+	// wrong answer rather than an unknown one".
+	//
+	// Discarding it here threw that distinction away one layer above where it was
+	// made, and wrote `installed: false` into the generated gossfile: an
+	// assertion the user never made, on a host syver had learned nothing about.
+	// NewService (service.go) has always propagated; this matches it.
+	installed, err := sysPackage.Installed()
+	if err != nil {
+		return nil, err
+	}
 	p := &Package{
 		id:        name,
 		Installed: installed,

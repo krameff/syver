@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/krameff/syver/system"
@@ -146,13 +147,38 @@ func NewFile(sysFile system.File, config util.Config) (*File, error) {
 			f.Mode = mode
 		}
 	}
+	// Owner and group are the only two attributes here that can fail because the
+	// lookup never RAN, as opposed to running and finding nothing. Both resolve
+	// through getent (system/file.go's getUserForUid/getGroupForGid), and only
+	// after user.LookupId misses -- so this is the LDAP/NIS/SSSD case, which is
+	// also where a 30 second hang is plausible.
+	//
+	// These were previously guarded like the rest, with `err == nil`. A wedged
+	// directory service therefore dropped `owner:` and `group:` from the emitted
+	// spec, `syver add` exited 0, and nothing was printed. The committed gossfile
+	// then asserted ownership forever without ever checking it -- silent
+	// under-testing, which for a verification tool is worse than a hard failure.
+	//
+	// Note the asymmetry with NewPackage: there the system layer folds "absent"
+	// into (false, nil), so any error means the run failed. Here getUserForUid
+	// returns a real error for a uid with no name anywhere, which is the lookup
+	// succeeding and finding nothing. That must still omit the key quietly, so
+	// the distinction has to be made here rather than inherited.
 	if !contains(config.IgnoreList, "owner") {
-		if owner, err := sysFile.Owner(); err == nil {
+		owner, err := sysFile.Owner()
+		if lookupDidNotRun(err) {
+			return nil, err
+		}
+		if err == nil {
 			f.Owner = owner
 		}
 	}
 	if !contains(config.IgnoreList, "group") {
-		if group, err := sysFile.Group(); err == nil {
+		group, err := sysFile.Group()
+		if lookupDidNotRun(err) {
+			return nil, err
+		}
+		if err == nil {
 			f.Group = group
 		}
 	}
@@ -184,4 +210,11 @@ func (f *File) fromSystem(sys *system.System, key string, config util.Config) (s
 	}
 	*f = *n
 	return sysRes, nil
+}
+
+// lookupDidNotRun reports whether err means the system call never completed, as
+// opposed to completing and finding nothing. Only the former is fatal: a spec
+// built from a host syver could not read is worse than no spec at all.
+func lookupDidNotRun(err error) bool {
+	return errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled)
 }

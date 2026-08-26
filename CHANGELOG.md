@@ -7,6 +7,11 @@
   - a scratch tag such as `vtest` can no longer trigger a signed release
   - raised the Windows powershell timeouts, which were failing CI on slow runners
 
+- fix/add-swallows-timeout branch
+  - `syver add` no longer records a package as missing when the package manager
+    stops responding. It reports the failure instead
+  - `syver add` no longer drops file owner and group when the directory service
+    stops responding. It reports the failure instead
 - feat/command-output-ownership branch
   - `serve` no longer hangs forever when a check starts a background process. It
     now gives up on that check after about 35 seconds instead
