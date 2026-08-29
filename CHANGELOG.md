@@ -1,11 +1,15 @@
 # Changelog
 
-## 0.9.3 based on krameff/goss v0.6.0 - go get -u bumps
+## 0.9.3 based on krameff/goss v0.6.0 - dependency maintenance
 
-- Updated and requires
-  - dns
-  - cli
-  - gomega
+- deps/update-2026-08-29 branch
+  - a routine refresh of fourteen dependencies. Nothing changes for anyone
+    running syver: no check behaves differently, no output moved, and the CLI
+    and gossfile format are untouched
+  - this is maintenance rather than a security fix. The vulnerability scanners
+    were already reporting nothing before the update, and still are
+  - of the three direct dependencies that moved, two are the DNS client behind
+    the `dns` resource and the command line framework. The rest are indirect
 
 ## 0.9.2 based on krameff/goss v0.6.0 - timeout reporting, unknown key warnings and release plumbing
 
