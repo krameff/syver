@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.2 based on krameff/goss v0.6.0 - timeout reporting, unknown key warnings and release plumbing
 
 - feat/toplevel-key-guard branch
   - a gossfile with a typo'd or unrecognised top-level key -- `prot:` instead
@@ -26,13 +26,17 @@
 - fix/drop-legacy-artifacts branch
   - releases no longer build duplicate `goss-` named binaries. Nothing used them
   - a scratch tag such as `vtest` can no longer trigger a signed release
-  - raised the Windows powershell timeouts, which were failing CI on slow runners
 
 - feat/command-output-ownership branch
   - `serve` no longer hangs forever when a check starts a background process. It
     now gives up on that check after about 35 seconds instead
   - documented that a command which detaches itself survives its own timeout
   - documented the fixed 30 second bound on the checks syver runs for you
+
+- fix/ci-concurrency branch
+  - pushing again to a branch now cancels the CI run still in flight for the
+    previous push, so results arrive sooner and only the newest commit is
+    reported on
 
 - fix/add-swallows-timeout branch
   - `syver add` no longer records a package as missing when the package manager
@@ -41,7 +45,27 @@
     stops responding. It reports the failure instead
 
 - fix/windows-powershell-timeouts branch
-  - the rest of the Windows integration tests no longer fail on a slow CI runner
+  - raised the Windows powershell timeouts, which were failing CI on slow runners
+  - Windows integration tests no longer fail on a slow CI runner
+
+- feat/toplevel-key-guard branch
+  - a gossfile with a typo'd or unrecognised top-level key -- `prot:` instead
+    of `port:`, or a key from a newer syver than the one running -- now gets a
+    warning naming the file, the line, and a suggestion when one is close
+    enough. It used to be dropped without a word, and the run would report a
+    clean pass having checked less than it claimed
+  - this warning does not fail the run or change its result. A top-level key
+    beginning `x-`, and any block that exists only to carry a shared YAML
+    anchor, is exempt and never warns
+  - covers YAML gossfiles only; JSON gossfiles have the same gap and are not
+    covered yet. `--vars` files are never checked, since they have no fixed
+    vocabulary to check against
+  - breaking change for library users only, not for the CLI: the exported
+    `ReadJSONData` function takes an additional `path string` argument, naming
+    the spec the data came from (used only to say which file a warning above
+    came from). Nothing shells out to `syver` differently, and gossfile
+    behaviour is unchanged either way. If you call `ReadJSONData` directly as
+    a library, pass the file path if you have one, or `""` if you don't
 
 ## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
 
