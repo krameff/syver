@@ -30,6 +30,7 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ## Contents
 
+* [v0.9.3 - Dependency maintenance](#v093---dependency-maintenance)
 * [v0.9.2 - Timeout reporting, unknown key warnings and release plumbing](#v092---timeout-reporting-unknown-key-warnings-and-release-plumbing)
 * [v0.9.1 - Correctness fixes and CI gating](#v091---correctness-fixes-and-ci-gating)
 * [v0.9.0 - Correctness and shutdown fixes](#v090---correctness-and-shutdown-fixes)
@@ -37,6 +38,46 @@ signed one, because git will not overwrite an existing tag ref on its own.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.9.3 - Dependency maintenance
+
+| Field | Value |
+| --- | --- |
+| Released | **Not yet released.** Prepared 2026-08-29, held for the CI reset |
+| Tag | `v0.9.3`, not yet cut |
+| Commit | `d713323` on the branch. The release commit will be the merge to `main` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `deps/update-2026-08-29`, not `devel` |
+| Scope | 1 commit, 3 files, +50 / -43 |
+| Changelog | [0.9.3](CHANGELOG.md#093-based-on-krameffgoss-v060---dependency-maintenance) |
+
+A dependency refresh and nothing else. Fourteen modules moved; three of them are
+direct dependencies and the rest are indirect. No source file changed.
+
+It is a release of its own rather than part of 0.9.2 for a reason worth
+recording. A dependency sweep is the change most likely to break on a platform
+the local gate cannot reach, and the Windows integration, macOS integration and
+CodeQL legs were unavailable when this was prepared. Folding it into 0.9.2 would
+have shipped the riskiest surface unvalidated inside a release whose purpose was
+to prove the release plumbing works.
+
+Two of the moves are worth naming because they touch what users see rather than
+what builds: the command line framework, which owns flag parsing and help text,
+and the assertion library behind every matcher message. Neither changed any
+observable output, which the golden files confirm.
+
+**Breaking:** none. No behaviour changed for any gossfile.
+
+**Gate at release:** 509 tests / 7 packages `-race` clean; 205/205 goldens
+byte-identical; `make check` clean with govulncheck and Trivy both reporting
+nothing; Docker suite green on all six distros with the per-distro counts
+106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
+
+**Not run at preparation time:** Windows integration, macOS integration, CodeQL.
+These must be green before this is tagged. That is the entire reason it was held
+back rather than merged.
 
 ---
 
