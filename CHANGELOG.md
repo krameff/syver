@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.2 - based on krameff/goss 0.6.0 - timeout improvements for test no longer build goss binaries 
 
 - fix/drop-legacy-artifacts branch
   - releases no longer build duplicate `goss-` named binaries. Nothing used them
