@@ -96,7 +96,7 @@ back rather than merged.
 | --- | --- |
 | Released | 2026-08-29 |
 | Tag | `v0.9.2` |
-| Commit | pending |
+| Commit | `759d36d` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel` |
 | Scope | 26 commits (18 excluding merges), 39 files, +1588 / -153 |
