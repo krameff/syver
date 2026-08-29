@@ -11,7 +11,7 @@ require (
 	github.com/fatih/color v1.19.0
 	github.com/hashicorp/logutils v1.0.0
 	github.com/lorenzosaino/go-sysctl v0.3.1
-	github.com/miekg/dns v1.1.72
+	github.com/miekg/dns v1.1.73
 	github.com/moby/sys/mountinfo v0.7.2
 	github.com/onsi/gomega v1.42.1
 	github.com/patrickmn/go-cache v2.1.0+incompatible
