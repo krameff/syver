@@ -62,7 +62,7 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 			return nil, err
 		}
 
-		syverConfig, err = ReadJSONData(data, true)
+		syverConfig, err = ReadJSONData(data, true, source)
 		if err != nil {
 			return nil, err
 		}

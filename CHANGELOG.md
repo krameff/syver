@@ -1,131 +1,115 @@
 # Changelog
 
+## 0.9.2 based on krameff/goss v0.6.0 - timeout reporting, unknown key warnings and release plumbing
+
+- fix/drop-legacy-artifacts branch
+  - releases no longer build duplicate `goss-` named binaries. Nothing used them
+  - a scratch tag such as `vtest` can no longer trigger a signed release
+
+- feat/command-output-ownership branch
+  - `serve` no longer hangs forever when a check starts a background process. It
+    now gives up on that check after about 35 seconds instead
+  - documented that a command which detaches itself survives its own timeout
+  - documented the fixed 30 second bound on the checks syver runs for you
+
+- fix/ci-concurrency branch
+  - pushing again to a branch now cancels the CI run still in flight for the
+    previous push, so results arrive sooner and only the newest commit is
+    reported on
+
+- fix/add-swallows-timeout branch
+  - `syver add` no longer records a package as missing when the package manager
+    stops responding. It reports the failure instead
+  - `syver add` no longer drops file owner and group when the directory service
+    stops responding. It reports the failure instead
+
+- fix/windows-powershell-timeouts branch
+  - raised the Windows powershell timeouts, which were failing CI on slow runners
+  - Windows integration tests no longer fail on a slow CI runner
+
+- feat/toplevel-key-guard branch
+  - a gossfile with a typo'd or unrecognised top-level key -- `prot:` instead
+    of `port:`, or a key from a newer syver than the one running -- now gets a
+    warning naming the file, the line, and a suggestion when one is close
+    enough. It used to be dropped without a word, and the run would report a
+    clean pass having checked less than it claimed
+  - this warning does not fail the run or change its result. A top-level key
+    beginning `x-`, and any block that exists only to carry a shared YAML
+    anchor, is exempt and never warns
+  - covers YAML gossfiles only; JSON gossfiles have the same gap and are not
+    covered yet. `--vars` files are never checked, since they have no fixed
+    vocabulary to check against
+  - breaking change for library users only, not for the CLI: the exported
+    `ReadJSONData` function takes an additional `path string` argument, naming
+    the spec the data came from (used only to say which file a warning above
+    came from). Nothing shells out to `syver` differently, and gossfile
+    behaviour is unchanged either way. If you call `ReadJSONData` directly as
+    a library, pass the file path if you have one, or `""` if you don't
+
 ## 0.9.1 based on krameff/goss v0.6.0 - Correctness fixes and CI gating
 
 - feat/yaml-fork branch
-  - moved both yaml dependencies to `go.yaml.in/yaml`, the maintained fork.
-    `gopkg.in/yaml.v2` and `v3` were archived together, so v3 was never the
-    supported option. Marshal output is byte-identical
-  - a malformed gossfile that uses `<<:` in the same mapping as a complex key
-    (a list or map used as a key) now reports a parse error instead of
-    crashing with a stack trace. Picked up from the newer yaml v3
-  - the binary now carries two yaml implementations instead of three, because
-    ours dedupe against the one gomega already pulled in
+  - YAML handling moved to the maintained fork of go-yaml. Output is unchanged
+  - a gossfile that mixes a `<<:` merge with an unusual key now reports a parse
+    error instead of crashing
 
 - feat/trivy-gate branch
-  - the Trivy dependency scan now fails the build on findings. It ran without
-    `--exit-code`, so `make check` and `make pre-push` passed with HIGH CVEs on
-    screen and `.trivyignore` suppressed entries in a report nothing acted on
-  - bumped `golang.org/x/mod` to v0.40.0, clearing CVE-2026-56864 and
-    CVE-2026-56865. This also pulled x/crypto, x/net, x/text and x/tools forward
-  - `ci/trivyignore-check.sh` scanned without `--ignorefile`, so Trivy silently
-    applied the very `.trivyignore` it was validating. Every entry eventually
-    reported as "no longer found", advising you to delete a live suppression
-  - the Trivy version is pinned for both the container path and CI, rather than
-    floating on `:latest`. A blocking scanner should not float
-  - the scan summary now separates "found vulnerabilities" from "scanner failed
-    to run", which matters because Trivy exits 1 for its own errors. Findings
-    use exit 2, so a scan that never ran is never reported as a clean bill or
-    as vulnerabilities, at any enforcement setting
-  - the Trivy DB is cached between containerised runs instead of re-pulled
-  - the scan had `--scanners vuln`, which is a narrowing rather than a default:
-    Trivy's own default is `vuln,secret`, so secret detection was off on the
-    security gate. Now `vuln,secret`
-  - `govulncheck` was fetched and executed at `@latest` inside the security gate
-    on any machine without it installed, CI included. Pinned to v1.7.0, and a
-    govulncheck failure now reports rather than dying silently
-  - Trivy is pinned by image digest rather than a version tag, which is still
-    re-pointable. The source tree is mounted read-only into the scanner
-  - `ci/trivyignore-check.sh` also carried a severity filter, so an entry for a
-    finding below the threshold read as "no longer found". It now asks only
-    whether the ID still exists, and CI runs it on every PR rather than relying
-    on an opt-in git hook. The strict run is weekly, not per-PR: a stale
-    suppression is not a vulnerability and should not block unrelated work
+  - security scanning now fails the build on findings. It used to print them and
+    pass anyway
+  - updated a dependency, clearing two high severity advisories
+  - the scanner is pinned, also checks for committed secrets and Dockerfile
+    problems, and can tell "found something" from "could not run"
+  - fixed a check that kept advising us to remove suppressions still in use
 
 - feat/trivy-ignore-yaml branch
-  - suppressions moved to `.trivyignore.yaml`, so each one carries a machine
-    readable `statement` instead of a comment block nothing can check.
-    Trivy does not auto-detect that filename, so `--ignorefile` is explicit
-  - the Dockerfile is now scanned for misconfigurations. `DS-0002` (image runs
-    as root) is suppressed with the reasoning recorded: Syver reads package
-    databases, file ownership, process lists and service state, so a `USER`
-    instruction would break the tool rather than harden it
+  - accepted risks now record why they were accepted, in a form tooling can read
+  - the Dockerfile is scanned too. It runs as root, which is deliberate and now
+    written down
 
 - fix/timeout-message branch
-  - a timed-out command reported `context deadline exceeded`, which names
-    neither the timeout nor its value, and which of two messages you got
-    depended on the host. It now always reports the budget it exceeded
-  - fixed a data race in the timeout path: the command's output buffers were
-    read while the child was still writing to them. It affected every timed-out
-    command, not only ones producing output, and predates v0.8.0
-  - a command that failed to start could report exit status 0, so a spec
-    asserting `exit-status: 0` would have passed. Reachable in principle rather
-    than observed: it needed an error to arrive before the caller was ready
-  - all three had the same cause, a redundant second timer, and are fixed by
-    removing it rather than by patching each one. `syver` now relies on the
-    context that already bounds the command, so a `timeout` of 0 also stops
-    failing instantly and runs to completion as documented
-  - a negative `timeout:` left a command completely unbounded rather than
-    erroring. Only a timeout of exactly 0 was rescued to the 10s default. It now
-    uses the default and warns, since a negative duration is a spec mistake
-    rather than a request for the default
-  - spec warnings are now emitted once per process rather than once per check.
-    The two deprecation warnings still repeated on every `serve` cache refresh,
-    which is what made the empty-list warning unreadable before it was fixed
-  - the Windows `ConvertFrom-Json` test loaded the user profile on every run,
-    unlike its three neighbours. It is the slowest check in that file and had
-    started timing out on cold CI runners
+  - a command that times out now says how long it waited
+  - a command that failed to start could report success, so a check expecting
+    exit status 0 would have passed for a command that never ran
+  - a negative `timeout:` left a command running with no limit. It now warns and
+    uses the default
+  - fixed a race that could corrupt what a timed-out command reported
+  - warnings about a spec now appear once, instead of on every check
 
 - fix/ci-branch-filter branch
-  - removed the lint and test workflow's release-branch filter. It was a regex
-    string, but GitHub branch filters are glob-only, so it matched nothing and
-    had never fired. Nothing is lost: the `pull_request` trigger has no branch
-    filter, so a release branch already runs the full gate. Inherited from
-    upstream goss, and the only such entry across ten workflows
-  - a hanging-helper test whose PATH shim failed to apply reported only `probe
-    reported <nil>`, which reads as a timing flake. It now names the binary that
-    actually resolved, and separately detects a shim that resolved but could not
-    execute
+  - removed a workflow filter that had never matched anything
+  - a test that failed because of its own setup now says so, instead of looking
+    like a timing problem
 
 - fix/release-path-gating branch
-  - releases are now gated. The release workflow fires on a tag push, and no
-    branch filter can match a tag, so nothing verified the commit a tag pointed
-    at. Signing and publishing now depend on a job that runs the tests and the
-    security scan first
-  - CodeQL now runs on `main` as well as `devel`. Under the devel to main release
-    model, main is the release branch, so the release path was getting no code
-    analysis at all
+  - releases are now gated. Nothing previously checked the commit a release tag
+    pointed at
+  - code analysis runs on the release branch, not just the development branch
 
 ## 0.9.0 based on krameff/goss v0.6.0 - Correctness and shutdown fixes
 
 - feat/patches branch
-  - an empty matcher such as `stdout: {}` now reports a syntax error instead
-    of crashing
-  - `syver add` no longer writes empty list matchers (`contents`, `ip`, `body`,
-    `status`, `user`), and `render` no longer prints `contents: null`. None of
-    them asserted anything
-  - an empty list matcher such as `opts: []` now warns that it asserts nothing,
-    unless the resource is skipped
-  - Ctrl-C now stops commands that are already running, instead of leaving them
-    orphaned, and `syver serve` shuts down cleanly on SIGTERM. Library API:
-    `Validate` and friends take a `context.Context`
-  - **the one deliberate behaviour change:** `--format structured` now exits
-    non-zero when checks fail. It always exited 0, so a failing run reported
-    success. If you monitor `/healthz` with
-    `Accept: application/vnd.goss-structured`, it has been answering 200 on
-    failing hosts and will now correctly answer 503
-  - `/healthz`'s status is taken from the results rather than the output
-    format's exit code, so no `Accept` header can report a failing host as
-    healthy. `--format prometheus` still exits 0 by design: it renders metrics,
-    not a verdict
-  - a cancelled run now reports `context canceled` instead of exit status -1,
-    which was indistinguishable from a process genuinely killed by a signal
+  - **breaking:** `--format structured` now exits non-zero when checks fail. It
+    always exited 0, so a failing run reported success to anything reading the
+    exit code
+  - **breaking:** `/healthz` no longer reports a failing host as healthy. Its
+    status comes from the results, so no `Accept` header can override it.
+    `--format prometheus` still exits 0 by design: it renders metrics, not a
+    verdict
+  - **library API:** `Validate` and the top-level entry points now take a
+    `context.Context` as their first argument
+  - an empty matcher such as `stdout: {}` now reports a syntax error instead of
+    crashing, and a panic in one check fails that check rather than the process
+  - `syver add` no longer writes empty list matchers, and `render` no longer
+    prints `contents: null`. None of them asserted anything. Writing one
+    yourself now warns
+  - Ctrl-C stops commands that are already running instead of orphaning them,
+    and `syver serve` shuts down cleanly on SIGTERM
+  - a cancelled run reports `context canceled` instead of exit status -1, which
+    was indistinguishable from a process killed by a signal
   - a hung `systemctl`, `rpm`, `apk` or `getent` no longer wedges `serve`
-    forever; helpers now time out after 30s and cancel on shutdown
-  - a panic while checking one resource now fails that check instead of killing
-    the process
-  - the empty-list warning is now emitted once per attribute, not once per
-    check, so it no longer floods the log under `serve`
+    forever
+  - warnings appear once per attribute instead of once per check, so they no
+    longer flood the log under `serve`
 
 ## 0.8.0 based on krameff/goss v0.6.0 - Registry-driven dispatch
 

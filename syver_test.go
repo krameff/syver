@@ -37,14 +37,14 @@ func TestConfigMerge(t *testing.T) {
     running: true
 `
 
-	g1, err := ReadJSONData([]byte(g1json), true)
+	g1, err := ReadJSONData([]byte(g1json), true, "")
 	checkErr(t, err, "reading g1 failed")
 	_, ok := g1.Services["sshd"]
 	if ok {
 		t.Fatalf("did not expect sshd service")
 	}
 
-	g2, err := ReadJSONData([]byte(g2json), true)
+	g2, err := ReadJSONData([]byte(g2json), true, "")
 	checkErr(t, err, "reading g1 failed")
 
 	g1.Merge(g2)

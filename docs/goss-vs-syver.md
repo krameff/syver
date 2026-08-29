@@ -73,6 +73,19 @@ process outright, so nothing becomes unkillable.
 This is a difference, not a compatibility break: no spec file behaves differently,
 and a run that is allowed to finish produces identical results either way.
 
+Another: **a top-level key syver doesn't recognise now gets a warning.** goss
+(and syver before this) silently dropped the whole block under an unknown
+top-level key -- a typo'd resource name, most often -- and validated the rest
+of the file as if it had never been written, still exiting 0. A spec that
+silently skips a block you thought was being checked is worse than one that
+fails, so syver now logs a `[WARN]` naming the file, the line, and (if it's
+close to a real key) a suggested fix. See
+[Unknown top-level keys](gossfile.md#unknown-top-level-keys) for the details,
+including the two patterns -- an `x-`-prefixed key, and a YAML anchor carrier
+-- that are deliberately exempt and never warn. This is worth checking if
+you're migrating a large gossfile collection: a key that validated clean
+under goss may turn out to have been ignored the whole time.
+
 ## Product identity
 
 | Item | goss | Syver |
@@ -97,6 +110,7 @@ and a run that is allowed to finish produces identical results either way.
 | Both keys present in one file | n/a | `gossfile:` wins, logs one `WARN` |
 | Spec filenames probed | `goss.yaml`, `goss.yml` | `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml` |
 | Where `add` writes | The gossfile | Whichever file the read resolved to |
+| Unrecognised top-level key (typo, or a key syver doesn't know) | Silently ignored -- the block is dropped and the run still exits 0 | Still ignored, but now logs a `WARN` naming the file, line, and a suggestion if one is close |
 
 ---
 

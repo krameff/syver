@@ -4,7 +4,12 @@ name: "Build release artifacts"
 on:
   push:
     tags:
-      - "v*"
+      # v[0-9]*, not v*. A glob's `*` matches zero or more characters, so `v*`
+      # fired on any tag starting with v -- vtest, vbackup, v-wip, or a bare v.
+      # Each of those would have run the gate and then signed and published a
+      # release from a scratch tag. This still matches every release ever cut
+      # (v0.7.0 through v0.9.1, and prerelease forms like v1.0.0-rc1).
+      - "v[0-9]*"
   workflow_dispatch:
 
 concurrency:

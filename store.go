@@ -107,7 +107,7 @@ func ReadJSON(filePath string) (SyverConfig, error) {
 		return SyverConfig{}, fmt.Errorf("file error: %w", err)
 	}
 
-	return ReadJSONData(file, false)
+	return ReadJSONData(file, false, filePath)
 }
 
 type TmplVars struct {
@@ -223,8 +223,11 @@ func varsFromString(varsString string) (map[string]any, error) {
 	return vars, nil
 }
 
-// ReadJSONData Reads json byte array returning SyverConfig
-func ReadJSONData(data []byte, detectFormat bool) (SyverConfig, error) {
+// ReadJSONData Reads json byte array returning SyverConfig. path names the
+// spec this data came from and is used only for the top-level key guard's
+// warnings below (D7 in PLAN_toplevel_key_guard.md) -- pass "" if there is
+// none (e.g. content assembled in memory rather than read from a file).
+func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, error) {
 	var err error
 	if currentTemplateFilter != nil {
 		data, err = currentTemplateFilter(data)
@@ -242,6 +245,19 @@ func ReadJSONData(data []byte, detectFormat bool) (SyverConfig, error) {
 		format, err = getStoreFormatFromData(data)
 		if err != nil {
 			return SyverConfig{}, err
+		}
+	}
+
+	// Top-level key guard (D1/D5): report any top-level key the real decode
+	// below is about to silently drop. YAML only (D4 -- JSON is a known,
+	// documented gap, see docs/gossfile.md) and gated on quietDecode for the
+	// same reason the gossfile:/syverfile: collision WARN a few lines down
+	// is -- every spec is decoded twice per validate invocation (peek, then
+	// the real load), and an ungated warning here would fire twice per
+	// unknown key, which is the exact defect BUG-001 already fixed once.
+	if format == YAML && !quietDecode {
+		for _, w := range checkTopLevelKeys(data, path) {
+			log.Printf("[WARN] %s", w)
 		}
 	}
 

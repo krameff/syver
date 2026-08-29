@@ -116,6 +116,70 @@ with arguments such as:
 * `schema version=Json schema version 7`
 * `file path pattern=*/goss.yaml`
 
+### Unknown top-level keys
+
+A "top-level key" is one of the un-indented keys at the very start of a
+gossfile -- `file:`, `port:`, `command:`, `gossfile:` and so on, the ones
+listed in [Available tests](#available-tests) below plus a handful of
+others like `discovery:`. If you write one of these with a typo, or one
+that a future syver understands but the version you're running does not,
+that whole block is not rejected. It is skipped, silently, and syver runs
+the rest of the file as if it had never been written -- same exit code,
+same `Count`/`Failed`, nothing to tell you a block went untested.
+
+A spec that silently skips a block you thought was being checked is worse
+than one that fails outright: nobody investigates a green result. Syver
+still skips the key -- nothing about what gets tested changes -- but it
+now says so:
+
+```console
+$ syver -g syver.yaml validate
+[WARN] syver.yaml:4: unknown top-level key "some-vendor-thing" -- ignored
+[WARN] syver.yaml:7: unknown top-level key "prot" -- ignored (did you mean "port"?)
+```
+
+If the key is close to a real one, the warning suggests the fix. The warning
+is informational only -- it does not fail the run or change `Count`/`Failed`
+in the result.
+
+Two kinds of top-level key are deliberately exempt, and neither produces a
+warning:
+
+* **A key prefixed `x-`.** This is the same convention docker-compose uses
+  for extension fields: a documented, explicit way to say "this block is
+  mine, leave it alone."
+* **A key whose value carries a YAML anchor**, such as a shared block
+  referenced elsewhere with `<<:`:
+
+  ```yaml
+  common-checks: &common
+    exit-status: 0
+
+  command:
+    echo one:
+      <<: *common
+    echo two:
+      <<: *common
+  ```
+
+  `common-checks:` is not a key syver understands on its own, but it exists
+  only to carry the anchor `command:` merges in below, so it is not warned
+  about. This is detected structurally (does the value define an anchor?),
+  not by name -- a block with no anchor is not covered by this exemption,
+  which is exactly what the `x-` prefix is for.
+
+**This check only applies to YAML gossfiles.** JSON gossfiles have the same
+gap -- an unknown JSON top-level key is dropped the same way -- and it is not
+yet covered.
+
+**A `--vars` file is never checked against this.** A vars file is arbitrary
+user-supplied data with no fixed vocabulary, so every key in it is expected
+to be "unknown" to syver and none of them warn.
+
+See [`examples/unknown-top-level-key.yaml`](https://github.com/krameff/syver/blob/main/examples/unknown-top-level-key.yaml)
+for a runnable spec that shows both sides of this: a genuine typo that
+warns, and a legitimate anchor-carrying block next to it that does not.
+
 ## Available tests
 
 * [addr](#addr)
@@ -189,6 +253,15 @@ the hash for backwards compatibility
     On timeout the command is killed along with any child processes it started
     (on Linux and macOS; see [platform support](platforms.md) for Windows).
 
+    One exception, and it is deliberate rather than an oversight: a process that
+    detaches itself into a new session -- `setsid`, `nohup`, most daemons -- has
+    left the group syver signals, so it survives the timeout and is reparented to
+    init. Syver has no portable way to find it again. Under `serve` each such
+    timeout leaves one process behind for as long as it chooses to run, so a spec
+    that repeatedly times out a daemonising command will accumulate them. If a
+    check needs to start a daemon, have it start the daemon and exit, rather than
+    relying on the timeout to clean up.
+
 !!! note "timeout values"
 
     `timeout` is in milliseconds and defaults to `10000` when omitted or set to
@@ -199,6 +272,17 @@ the hash for backwards compatibility
     A command whose child processes outlive it can take up to twice the timeout
     to return, because syver waits that long for their output streams to close
     before reading the result. Commands that exit normally return immediately.
+
+    `timeout` applies only to `command`. The checks syver runs on your behalf for
+    other resource types -- `systemctl`, `service`, `rpm`, `dpkg-query`, `apk`,
+    `pacman`, `getent` -- carry their own fixed bound of 30 seconds, which is not
+    configurable, because how long they take is a property of the host's tooling
+    rather than of your spec. On top of that syver allows a few more seconds to
+    collect whatever output is still arriving, so one of these takes at most about
+    35 seconds to give up on a host whose package or service manager has stopped
+    answering. Checks run in parallel, so several stuck ones mostly overlap rather
+    than queue -- though if more are stuck at once than syver runs in parallel,
+    the ones still waiting for a slot do add to the total.
 
 ### dns
 

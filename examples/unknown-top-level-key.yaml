@@ -1,0 +1,27 @@
+# Demonstrates the unknown-top-level-key warning -- see
+# docs/gossfile.md#unknown-top-level-keys. Run it with:
+#
+#   syver -g examples/unknown-top-level-key.yaml validate
+#
+# You should see a [WARN] line naming "totally-made-up-key" and the line
+# it's on. Everything else still validates normally: the warning does not
+# fail the run, and Count/Failed are unaffected by it.
+
+# A shared block, reused below via a YAML anchor (&common, then <<: *common).
+# This is also an unrecognised top-level key as far as syver's own
+# vocabulary goes, but it does NOT warn -- syver can tell it exists only to
+# be merged in elsewhere, and treats that as a deliberate pattern rather
+# than a mistake.
+common-checks: &common
+  exit-status: 0
+
+# This one really is a mistake: no such top-level key exists, and there's
+# nothing here to mark it as deliberate (no anchor, no x- prefix). It warns.
+totally-made-up-key:
+  whatever: true
+
+command:
+  echo one:
+    <<: *common
+  echo two:
+    <<: *common

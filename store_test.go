@@ -324,7 +324,7 @@ func Test_syverfileAlias_FoldsIntoSyverfiles(t *testing.T) {
 	t.Cleanup(func() { outStoreFormat = UNSET })
 
 	data := []byte("syverfile:\n  extra:\n    file: extra.yaml\n")
-	cfg, err := ReadJSONData(data, false)
+	cfg, err := ReadJSONData(data, false, "")
 	assert.NoError(t, err)
 
 	require := assert.New(t)
@@ -345,7 +345,7 @@ func Test_syverfileAlias_CollisionLogsWarnAndGossfileWins(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(os.Stderr) })
 
 	data := []byte("gossfile:\n  dup:\n    file: from-gossfile.yaml\nsyverfile:\n  dup:\n    file: from-syverfile.yaml\n")
-	cfg, err := ReadJSONData(data, false)
+	cfg, err := ReadJSONData(data, false, "")
 	assert.NoError(t, err)
 
 	assert.Equal(t, "from-gossfile.yaml", cfg.Syverfiles["dup"].File, "gossfile: value should win on collision")
@@ -361,7 +361,7 @@ func Test_syverfileAlias_NeverWrittenBack(t *testing.T) {
 	t.Cleanup(func() { outStoreFormat = UNSET })
 
 	data := []byte("syverfile:\n  extra:\n    file: extra.yaml\n")
-	cfg, err := ReadJSONData(data, false)
+	cfg, err := ReadJSONData(data, false, "")
 	assert.NoError(t, err)
 
 	out, err := marshal(cfg)
@@ -383,8 +383,8 @@ func Test_MalformedYAML_SameErrorPathRegardlessOfFilenameSource(t *testing.T) {
 
 	malformed := []byte("addr:\n  foo\n  bar: [\n")
 
-	_, err1 := ReadJSONData(malformed, false)
-	_, err2 := ReadJSONData(malformed, false)
+	_, err1 := ReadJSONData(malformed, false, "")
+	_, err2 := ReadJSONData(malformed, false, "")
 
 	assert.Error(t, err1)
 	assert.Error(t, err2)
@@ -403,8 +403,8 @@ func Test_syverfileAlias_WrongTypeSurfacesSameErrorClassAsGossfile(t *testing.T)
 	badGossfile := []byte("gossfile: \"not-a-map\"\n")
 	badSyverfile := []byte("syverfile: \"not-a-map\"\n")
 
-	_, gossErr := ReadJSONData(badGossfile, false)
-	_, syverErr := ReadJSONData(badSyverfile, false)
+	_, gossErr := ReadJSONData(badGossfile, false, "")
+	_, syverErr := ReadJSONData(badSyverfile, false, "")
 
 	require := assert.New(t)
 	require.Error(gossErr, "malformed gossfile: entry should fail to decode")
