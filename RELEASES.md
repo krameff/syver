@@ -30,12 +30,75 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ## Contents
 
+* [v0.9.2 - Timeout reporting, unknown key warnings and release plumbing](#v092---timeout-reporting-unknown-key-warnings-and-release-plumbing)
 * [v0.9.1 - Correctness fixes and CI gating](#v091---correctness-fixes-and-ci-gating)
 * [v0.9.0 - Correctness and shutdown fixes](#v090---correctness-and-shutdown-fixes)
 * [v0.8.0 - Registry-driven dispatch](#v080---registry-driven-dispatch)
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.9.2 - Timeout reporting, unknown key warnings and release plumbing
+
+| Field | Value |
+| --- | --- |
+| Released | **Not yet released.** Assembled 2026-08-29, held for the CI reset |
+| Tag | `v0.9.2`, not yet cut |
+| Commit | `042f542` on `devel`. The release commit will be the merge to `main` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel` |
+| Scope | 26 commits (18 excluding merges), 39 files, +1588 / -153 |
+| Changelog | [0.9.2](CHANGELOG.md#092-based-on-krameffgoss-v060---timeout-reporting-unknown-key-warnings-and-release-plumbing) |
+
+Six branches, in merge order: `fix/drop-legacy-artifacts`,
+`feat/command-output-ownership`, `fix/ci-concurrency`,
+`fix/add-swallows-timeout`, `fix/windows-powershell-timeouts`,
+`feat/toplevel-key-guard`.
+
+The headline is the top-level key guard. A gossfile key that syver did not
+recognise, whether a typo or a key from a newer version, was previously dropped
+without a word: the run then reported a clean pass having checked less than the
+file asked for. For a tool whose product is compliance evidence, silent
+under-testing is the worst possible failure mode, and it is now a warning naming
+the file, the line and a likely correction. It does not fail the run.
+
+The rest is timeout honesty. Three paths that previously reported a definite
+answer when they had learned nothing now report the failure instead: `serve` no
+longer hangs forever on a check that starts a background process, `syver add` no
+longer records a package as missing when the package manager stopped responding,
+and it no longer drops file owner and group when the directory service did.
+
+### Release plumbing, in more detail than the changelog carries
+
+Releases no longer build the duplicate `goss-` named binaries. Nothing consumed
+them: the first release from this repository was already renamed, so no
+pre-rename download URL ever pointed here. The wrapper scripts `dgoss`, `dcgoss`
+and `kgoss` are a separate thing and deliberately keep their names.
+
+A scratch tag such as `vtest` can no longer trigger a signed release. The tag
+filter was `v[0-9]*`, which matched more than intended.
+
+Concurrency groups were added to seven workflows, so pushing again to a branch
+cancels the run still in flight rather than leaving both to finish.
+
+**Breaking:** none for the CLI or for any gossfile. One library-only change: the
+exported `ReadJSONData` now takes a `path string` naming the spec the data came
+from, used solely to say which file a warning refers to. Callers with no path
+pass `""`. This was accepted in a patch release deliberately, since a v0.x Go
+module carries no compatibility guarantee and there were two non-test call sites.
+
+**Gate at release:** 509 tests / 7 packages `-race` clean (up from 480 at
+v0.9.1); 205/205 goldens byte-identical, the 205th being the guard's own
+`examples/unknown-top-level-key.yaml`; `make check` clean with govulncheck and
+Trivy both reporting nothing; Docker suite green on all six distros with the
+per-distro counts 106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
+
+**Not run at assembly time:** Windows integration, macOS integration, CodeQL.
+Note this release contains `fix/windows-powershell-timeouts`, whose whole
+purpose is to stop the Windows suite failing on slow runners, so that leg in
+particular must be green before this is tagged.
 
 ---
 
