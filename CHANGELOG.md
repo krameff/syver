@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.9.3 based on krameff/goss v0.6.0 - go get -u bumps
+
+- Updated and requires
+  - dns
+  - cli
+  - gomega
+
 ## 0.9.2 based on krameff/goss v0.6.0 - timeout reporting, unknown key warnings and release plumbing
 
 - fix/drop-legacy-artifacts branch
