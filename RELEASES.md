@@ -30,6 +30,7 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ## Contents
 
+* [v0.9.3 - Dependency maintenance](#v093---dependency-maintenance)
 * [v0.9.2 - Timeout reporting, unknown key warnings and release plumbing](#v092---timeout-reporting-unknown-key-warnings-and-release-plumbing)
 * [v0.9.1 - Correctness fixes and CI gating](#v091---correctness-fixes-and-ci-gating)
 * [v0.9.0 - Correctness and shutdown fixes](#v090---correctness-and-shutdown-fixes)
@@ -40,13 +41,62 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ---
 
+## v0.9.3 - Dependency maintenance
+
+| Field | Value |
+| --- | --- |
+| Released | **Not yet released.** Prepared 2026-08-29, held for the CI reset |
+| Tag | `v0.9.3`, not yet cut |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. Prepared on `deps/update-2026-08-29` and merged in |
+| Scope | 2 commits, 3 files |
+| Changelog | [0.9.3](CHANGELOG.md#093-based-on-krameffgoss-v060---dependency-maintenance) |
+
+A dependency refresh and nothing else. Fifteen modules moved; four of them are
+direct dependencies and the rest are indirect. No source file changed.
+
+One of the fifteen is worth calling out because it shrinks the dependency
+surface rather than just advancing a number. `stretchr/testify` was the last
+thing in the graph requiring `gopkg.in/yaml.v3`, the unmaintained package syver
+moved off in 0.9.1. Its latest release depends on `go.yaml.in/yaml/v3` instead,
+the same maintained fork syver already uses, so the duplicate YAML v3 is gone
+from the build. The 0.9.1 fork swap could not achieve this on its own, and it
+was recorded at the time as something that would need a separate fix; it turned
+out to arrive for free.
+
+It is a release of its own rather than part of 0.9.2 for a reason worth
+recording. A dependency sweep is the change most likely to break on a platform
+the local gate cannot reach, and the Windows integration, macOS integration and
+CodeQL legs were unavailable when this was prepared. Folding it into 0.9.2 would
+have shipped the riskiest surface unvalidated inside a release whose purpose was
+to prove the release plumbing works.
+
+Two of the moves are worth naming because they touch what users see rather than
+what builds: the command line framework, which owns flag parsing and help text,
+and the assertion library behind every matcher message. Neither changed any
+observable output, which the golden files confirm.
+
+**Breaking:** none. No behaviour changed for any gossfile.
+
+**Gate at release:** 509 tests / 7 packages `-race` clean; 205/205 goldens
+byte-identical; `make check` clean with govulncheck and Trivy both reporting
+nothing; Docker suite green on all six distros with the per-distro counts
+106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
+
+**Not run at preparation time:** Windows integration, macOS integration, CodeQL.
+These must be green before this is tagged. That is the entire reason it was held
+back rather than merged.
+
+---
+
 ## v0.9.2 - Timeout reporting, unknown key warnings and release plumbing
 
 | Field | Value |
 | --- | --- |
 | Released | 2026-08-29 |
 | Tag | `v0.9.2` |
-| Commit | pending |
+| Commit | `759d36d` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel` |
 | Scope | 26 commits (18 excluding merges), 39 files, +1588 / -153 |

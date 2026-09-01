@@ -656,7 +656,7 @@ Validates the state of a local port.
 !!! note
     Syver might consider your port to be listening on `tcp6` rather than `tcp`,
     try running `syver add port ..` to see how syver detects it.
-    ([explanation](https://github.com/krameff/syver/issues/149))
+    ([explanation](https://github.com/goss-org/goss/issues/149))
 
 ```yaml
 port:
@@ -1095,7 +1095,7 @@ matching:
 
 Discovery tests run lightweight checks and expose the results as template variables for
 conditional test suites. This supports portable gossfiles across heterogeneous estates
-(see [krameff/syver#784](https://github.com/krameff/syver/issues/784)).
+(see [goss-org/goss#784](https://github.com/goss-org/goss/issues/784)).
 
 Define discovery tests under the top-level `discovery` key. Each test requires a `register`
 attribute naming the variable written to output:
@@ -1249,7 +1249,7 @@ See [`integration-tests/syver/examples/discovery/goss-with-deps.yml`](https://gi
 ## Test dependencies
 
 Tests may declare prerequisites with `depends-on`. Dependent tests are skipped (not failed) when a
-prerequisite fails (see [krameff/syver#1043](https://github.com/krameff/syver/issues/1043)).
+prerequisite fails (see [goss-org/goss#1043](https://github.com/goss-org/goss/issues/1043)).
 
 ```yaml
 file:

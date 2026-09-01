@@ -34,7 +34,7 @@ timeout more often than the other platforms.
 
 The macOS and Windows support is community driven;
 there is no commitment to adding features / fixing bugs for those platforms.
-[See thread](https://github.com/krameff/syver/pull/585#discussion_r429968540).
+[See thread](https://github.com/goss-org/goss/pull/585#discussion_r429968540).
 
 This matrix attempts to track parity across platforms.
 

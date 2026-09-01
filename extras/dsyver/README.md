@@ -20,11 +20,11 @@ container images
 
 ### Linux
 
-Follow the goss [installation instructions](https://github.com/krameff/syver#installation)
+Follow the syver [installation instructions](https://github.com/krameff/syver#installation)
 
 ### Mac OSX
 
-Since goss runs on the target container, dgoss can be used on a Mac OSX system by doing the following:
+Since syver runs on the target container, dgoss can be used on a Mac OSX system by doing the following:
 
 ```shell
 # Install dgoss
@@ -56,8 +56,8 @@ dgoss run ...
 Run is used to validate a container.
 It expects a `./goss.yaml` file to exist in the directory it was invoked from.
 
-If the file `./goss_wait.yaml` exists in the current directory, goss regularly
-checks whether the conditions in the file are met. Only then does goss start the
+If the file `./goss_wait.yaml` exists in the current directory, syver regularly
+checks whether the conditions in the file are met. Only then does syver start the
 actual check with the file `./goss.yaml`. This is used, for example, to wait
 until a certain port is open before executing the tests.
 
@@ -82,9 +82,9 @@ for the dgoss command, for example:
 
 ### Edit
 
-Edit will launch a container, install goss, and drop the user into an interactive shell.
+Edit will launch a container, install syver, and drop the user into an interactive shell.
 Once the user quits the interactive shell, any `goss.yaml` or `goss_wait.yaml` are copied out into the current directory.
-This allows the user to leverage the `goss add|autoadd` commands to write tests as they would on a regular machine.
+This allows the user to leverage the `syver add|autoadd` commands to write tests as they would on a regular machine.
 
 **Example:**
 
@@ -107,7 +107,7 @@ Enables debug output of `dgoss`.
 
 When running in debug mode, the tmp dir with the container output will not be cleaned up.
 
-Note: Debug output of `dgoss` is from `dgoss` shell script and not debug output of `goss`
+Note: Debug output of `dgoss` is from `dgoss` shell script and not debug output of `syver`
 (`dgoss run -e GOSS_LOGLEVEL=DEBUG jenkins:alpine`).
 
 **Default:** empty
@@ -129,11 +129,11 @@ and skips the probe.
 
 #### GOSS_OPTS
 
-Options to use for the goss test run. (Default: `--color --format documentation`)
+Options to use for the syver test run. (Default: `--color --format documentation`)
 
 #### GOSS_WAIT_OPTS
 
-Options to use for the goss wait run, when `./goss_wait.yaml` exists. (Default: `-r 30s -s 1s > /dev/null`)
+Options to use for the syver wait run, when `./goss_wait.yaml` exists. (Default: `-r 30s -s 1s > /dev/null`)
 
 #### GOSS_SLEEP
 
@@ -145,11 +145,11 @@ Location of the goss yaml files. (Default: `.`)
 
 #### GOSS_ADDITIONAL_COPY_PATH
 
-Colon-seperated list of additional directories to copy to container.
+Colon-separated list of additional directories to copy to container.
 
 By default dgoss copies `goss.yaml` from the current working directory and
 nothing else. You may need other files like scripts and configurations copied
-as well. Specify `GOSS_ADDITIONAL_COPY_PATH` similar to `$PATH` as colon seperated
+as well. Specify `GOSS_ADDITIONAL_COPY_PATH` similar to `$PATH` as colon separated
 list of directories for each additional directory you'd like to recursively copy.
 These will be copied as directories next to `goss.yaml` in the temporary
 directory `DGOSS_TEMP_DIR`. (Default: `''`)
@@ -157,9 +157,9 @@ directory `DGOSS_TEMP_DIR`. (Default: `''`)
 #### GOSS_VARS
 
 The name of the variables file relative to `GOSS_FILES_PATH` to copy into the
-container and use for valiation (i.e. `dgoss run`) and copy out of the
+container and use for validation (i.e. `dgoss run`) and copy out of the
 container when writing tests (i.e. `dgoss edit`). If set, the
-`--vars` flag is passed to `goss validate` commands inside the container.
+`--vars` flag is passed to `syver validate` commands inside the container.
 If unset (or empty), the `--vars` flag is omitted, which is the normal behavior.
 (Default: `''`).
 
