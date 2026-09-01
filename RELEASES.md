@@ -30,6 +30,7 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ## Contents
 
+* [v0.9.4 - Housekeeping](#v094---housekeeping)
 * [v0.9.3 - Dependency maintenance](#v093---dependency-maintenance)
 * [v0.9.2 - Timeout reporting, unknown key warnings and release plumbing](#v092---timeout-reporting-unknown-key-warnings-and-release-plumbing)
 * [v0.9.1 - Correctness fixes and CI gating](#v091---correctness-fixes-and-ci-gating)
@@ -41,20 +42,80 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ---
 
+## v0.9.4 - Housekeeping
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-01 |
+| Tag | `v0.9.4` |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. Three branches: `fix/gofmt-and-modtidy`, `fix/docker-image-branch-triggers`, `fix/release-gate-lint` |
+| Scope | 8 commits (5 excluding merges), 6 files, +165 / -46 |
+| Changelog | [0.9.4](CHANGELOG.md#094-based-on-krameffgoss-v060---housekeeping) |
+
+Nothing here changes what syver does. It exists because cutting 0.9.3 exposed
+two gaps that had been open since 0.9.2, and both are cheaper to close than to
+keep working around.
+
+The first is a formatting defect that reached two releases. A doc comment in
+`toplevel_guard.go` was not gofmt clean, and `go.mod` recorded `go 1.26` rather
+than `go 1.26.0`, which made `go fmt` abort on module resolution before it
+formatted anything. So `make fmt` failed for a reason that had nothing to do
+with formatting and reported nothing useful about it, while `make lint` failed
+for the real one. Neither was visible at the time: the violation landed on
+2026-08-26, inside the window when the Actions allowance was exhausted, and
+`make check` does not run lint.
+
+The second is why that could happen at all. `golangci.yaml` triggers on branch
+pushes, which per GitHub's documentation do not fire for tag pushes, and
+`release.yaml`'s gate ran the unit tests and the security scan but no lint. A
+tag could therefore be cut on a lint-red tree, and twice was. That gate now
+installs golangci-lint and runs `make lint` before the tests, so the release
+path checks the commit it is about to sign rather than assuming a branch run
+covered it.
+
+The container image workflow also stopped building on `devel`. It published a
+`:devel` tag that no documentation mentioned and nothing consumed, at the cost
+of a full two-architecture image build on every commit to that branch,
+documentation-only ones included. Release images are unaffected: `:latest` and
+the versioned tags are produced by goreleaser on the tag push and never came
+from that workflow.
+
+**Breaking:** none for gossfiles or the CLI. The only user-visible change is the
+withdrawal of the undocumented `ghcr.io/<owner>/syver:devel` image.
+
+**Gate at release:** `make lint` clean at 0 issues, and in the release gate for
+the first time; `make vet`, `make fmt` and `go mod tidy -diff` all clean; 509
+tests / 7 packages `-race` clean; 205/205 goldens byte-identical; `make check`
+clean with govulncheck and Trivy both reporting nothing.
+
+**Not run:** the Docker suite on `go_builder`, plus Windows integration, macOS
+integration and CodeQL. The Go delta is one comment and one `go.mod` directive,
+so the distro suite has nothing new to exercise. The three CI legs should run on
+the push to `main` this time, since the lint failure that skipped them for 0.9.3
+is what this release fixes; correct this entry if any of them fails.
+
+---
+
 ## v0.9.3 - Dependency maintenance
 
 | Field | Value |
 | --- | --- |
-| Released | **Not yet released.** Prepared 2026-08-29, held for the CI reset |
-| Tag | `v0.9.3`, not yet cut |
-| Commit | pending |
+| Released | 2026-09-01 |
+| Tag | `v0.9.3` |
+| Commit | `3cb48e1` |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`. Prepared on `deps/update-2026-08-29` and merged in |
-| Scope | 2 commits, 3 files |
+| Integration branch | `devel`. Assembled from `deps/update-2026-08-29` and dependabot PRs #25 and #28, with documentation commits made directly on `devel` |
+| Scope | 13 commits (9 excluding merges), 13 files, +135 / -75 |
 | Changelog | [0.9.3](CHANGELOG.md#093-based-on-krameffgoss-v060---dependency-maintenance) |
 
-A dependency refresh and nothing else. Fifteen modules moved; four of them are
-direct dependencies and the rest are indirect. No source file changed.
+A dependency refresh and documentation. Fifteen modules moved; four of them are
+direct dependencies and the rest are indirect. One Go file appears in the diff,
+`template.go`, and it changed by a single comment: an upstream pull request link
+repointed from `krameff/syver` to `goss-org/goss`. No executable line changed
+anywhere in the release. (The changelog entry says "No source file changed",
+which is right in substance and imprecise in wording.)
 
 One of the fifteen is worth calling out because it shrinks the dependency
 surface rather than just advancing a number. `stretchr/testify` was the last
@@ -84,9 +145,29 @@ byte-identical; `make check` clean with govulncheck and Trivy both reporting
 nothing; Docker suite green on all six distros with the per-distro counts
 106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
 
+That gate did not include lint, and it should have.
+
 **Not run at preparation time:** Windows integration, macOS integration, CodeQL.
-These must be green before this is tagged. That is the entire reason it was held
-back rather than merged.
+Those were the reason this was held back rather than folded into 0.9.2.
+
+**What happened at tag time is not what was planned.** The tag was cut on
+2026-09-01, the day the Actions allowance reset. The push to `main` did trigger
+`golangci.yaml`, since the delta carries `go.mod`, `go.sum`, `template.go` and
+three workflow files and so escapes that workflow's `paths-ignore`. But its
+`lint` job fails at this commit: `toplevel_guard.go` is not gofmt clean and
+`.golangci.yaml` enables the gofmt formatter. `coverage` declares `needs:
+[lint]`, and all four integration groups declare `needs: [coverage]`, so the
+Windows and macOS legs were skipped rather than run. Reproduce the trigger with
+`git show v0.9.3:toplevel_guard.go > /tmp/t.go && gofmt -l /tmp/t.go`. CodeQL is
+a separate workflow with no such dependency and was unaffected.
+
+That paragraph is read off the workflow graph at this commit, not off an
+observed run. Check it against the Actions tab and correct it here if those jobs
+did report. The release itself stands either way: the defect is a comment's
+formatting, `release.yaml`'s gate at the time ran tests and the security scan
+but no lint, and the artifacts were built from a tree whose unit tests and
+goldens are green. 0.9.4 carries the formatting fix and adds `make lint` to the
+release gate, so a tag can no longer be cut on a lint-red tree.
 
 ---
 
