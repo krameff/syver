@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.10.0 based on krameff/goss v0.6.0 - gossfile templating moved from sprig to sprout
+
+- feat/sprig-sprout-change branch
+  - the template function vocabulary available inside `{{ }}` blocks in a
+    gossfile changed. `github.com/Masterminds/sprig/v3` has gone quiet since
+    its last release; `github.com/go-sprout/sprout` is the maintained
+    community successor, and its `sprigin` package is a near drop-in
+    replacement
+  - no function is lost. Sprig had 211 functions, sprout has 293; the extra
+    82 are new names (`toYAML`, `base64Encode`, `pathBase`, `uuidv7`, hash
+    functions, case-conversion helpers) rather than replacements
+  - five functions render differently than before, all because sprout fixed
+    a sprig bug rather than introduced one: `snakecase`, `camelcase` and
+    `kebabcase` no longer produce doubled separators on multi-space input,
+    and `plural`/`reverse` return a value instead of erroring on inputs they
+    previously couldn't handle. A gossfile that leaned on the old buggy
+    output will render differently now. See
+    `go-sprout/sprout`'s `SPRIG_TO_SPROUT_CHANGES_NOTES.md` for the full list
+    if a gossfile uses less common functions
+  - sprout prints a deprecation warning at render time for some function
+    names, which sprig never did. It applies to 55 of the 95 names sprout
+    marks as deprecated, mostly the `must*` and `regex*` families and the
+    older hash spellings such as `sha256sum`. The remaining 40 are silent,
+    and those include the case-conversion aliases `upper`, `toupper`,
+    `uppercase` and their lower equivalents. A gossfile using a warned name
+    still works; the warning tells you the name has a newer spelling
+  - `toUpper` and `toLower` never warn, whichever library is underneath.
+    They are the names sprout recommends, and syver defines its own versions
+    that take priority over sprout's, so a gossfile using them is unaffected
+  - worth knowing if you read Sprout's own documentation: three function
+    names there are not the ones syver uses. `toUpper`, `toLower` and
+    `regexMatch` are syver's own and take priority. The behaviour is
+    unchanged from previous releases, but it differs from what Sprout
+    documents. `toUpper` and `toLower` accept a string and nothing else, so
+    `{{ toUpper 42 }}` stops the run with an error naming the line, where
+    Sprout's own versions accept any value and render nothing for one they
+    cannot convert. A check that renders nothing would otherwise pass having
+    asserted nothing, so the stricter form is deliberate
+  - `toupper`, `tolower`, `uppercase` and `lowercase` now work where they
+    previously failed to parse. Sprig had no such functions, so a gossfile
+    using one would have failed to render; under sprout they resolve. This
+    is additive and changes nothing for an existing gossfile
+  - `docs/gossfile.md`'s `get` examples were updated to the pipe form
+    (`{{ $dict | get "key" }}` instead of `{{ get $dict "key" }}`), because
+    unlike `upper`, `get` does warn on the old argument order under sprout.
+    Both forms still work; only the dict-first one now prints a warning
+  - a long-stale `docs/goss.yaml` example that sprig genuinely could not
+    parse (a stray space inside `{{ }}`, not a sprig limitation as its TODO
+    comment claimed) is restored and renders correctly
+  - `github.com/Masterminds/goutils`, `github.com/huandu/xstrings` and
+    `github.com/shopspring/decimal` drop out of the dependency tree along
+    with sprig; `github.com/go-sprout/sprout` is the only addition.
+    `golang.org/x/crypto` and its `.trivyignore.yaml` openpgp suppression
+    both stay, since sprout needs the same bcrypt template functions sprig
+    did
+
 ## 0.9.4 based on krameff/goss v0.6.0 - housekeeping
 
 - fix/docker-image-branch-triggers branch

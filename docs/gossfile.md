@@ -1281,7 +1281,22 @@ Available variables:
 Available functions:
 
 * [built-in text/template functions](https://golang.org/pkg/text/template/#hdr-Functions)
-* [Sprig functions](https://masterminds.github.io/sprig/)
+* [Sprout functions](https://docs.atom.codes/sprout)
+
+!!! note "Templates can generate secrets and certificates"
+    The template function library includes cryptographic helpers, and they have
+    always been available rather than being new: `bcrypt`, `htpasswd`,
+    `derivePassword`, `genPrivateKey`, `genCA`, `genCAWithKey`,
+    `genSelfSignedCert`, `genSelfSignedCertWithKey`, `genSignedCert`,
+    `genSignedCertWithKey`, `buildCustomCert`, `encryptAES` and `decryptAES`.
+
+    They return values into the rendered gossfile and write nothing to disk. If
+    you are reviewing a gossfile someone else wrote, this is worth knowing: a
+    template can mint a certificate or encrypt a string before any check runs.
+    Note that a gossfile can already run arbitrary commands through the
+    `command:` resource, so these functions do not widen what an author can do,
+    they are simply easy to miss.
+
 * Custom functions:
 
     `mkSlice "ARG1" "ARG2"`
@@ -1310,18 +1325,18 @@ Available functions:
         {{ $regexDBrc := "\\'mysql:\\/\\/(?P<login>[a-z0-9]+):(?P<password>[a-z0-9]+)@localhost\\/(?P<database>roundcube_[a-z0-9]+)\\';"}}
 
         {{ $rcConf := readFile /home/user/roundcube/config.inc.php | findStringSubmatch $regexDBrc }}
-        {{ $UserDBrc := get $rcConf "login" }}
-        {{ $PassDBrc  := get $rcConf "password" }}
-        {{ $DBrc := get $rcConf "database" }}
+        {{ $UserDBrc := $rcConf | get "login" }}
+        {{ $PassDBrc  := $rcConf | get "password" }}
+        {{ $DBrc := $rcConf | get "database" }}
 
     If not exists named parenthesized subexps, returns stringfied array string:
 
         {{ $regexDBrc := "\\'mysql:\\/\\/([a-z0-9]+):([a-z0-9]+)@localhost\\/(roundcube_[a-z0-9]+)\\';"}}
 
         {{ $rcConf := readFile /home/user/roundcube/config.inc.php | findStringSubmatch $regexDBrc }}
-        {{ $UserDBrc := get $rcConf "1" }}
-        {{ $PassDBrc  := get $rcConf "2" }}
-        {{ $DBrc := get $rcConf "3" }}
+        {{ $UserDBrc := $rcConf | get "1" }}
+        {{ $PassDBrc  := $rcConf | get "2" }}
+        {{ $DBrc := $rcConf | get "3" }}
 
     NOTE: stringfied string array begins with "1" ("0" is all the string matched)
 
@@ -1332,8 +1347,15 @@ Available functions:
 
 !!! note
 
-    Some of Sprig functions have the same name as the older Custom Goss functions.
-    The Sprig functions are overwritten by the custom functions for backwards compatibility.
+    Three of the custom functions share a name with a Sprout function, and the
+    custom one takes priority: `toUpper`, `toLower` and `regexMatch`.
+
+    For `toUpper` and `toLower` this is not merely cosmetic. Sprout's versions
+    accept any type and return nothing when given a non-string, so
+    `{{ toUpper 42 }}` would render as an empty value. The custom versions take
+    a string and nothing else, so the same expression fails the run with a
+    template error naming the line. A check that silently renders nothing is
+    worse than one that stops, so the stricter behaviour is deliberate.
 
 ### Examples
 
@@ -1359,7 +1381,7 @@ file:
 {{end}}
 ```
 
-Using `upper` function from Sprig.
+Using `upper` function from Sprout.
 
 ```yaml+jinja
 matching:

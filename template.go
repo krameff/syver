@@ -9,7 +9,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/Masterminds/sprig/v3"
+	"github.com/go-sprout/sprout/sprigin"
 )
 
 // TemplateFilter is the type of the Goss Template Filter which include custom variables and functions.
@@ -38,7 +38,18 @@ func newTemplateFilter(varsFiles []string, varsInline string, discovered map[str
 	}
 
 	f := func(data []byte) ([]byte, error) {
-		t := template.New("test").Funcs(sprig.TxtFuncMap()).Funcs(funcMap)
+		// funcMap is applied SECOND on purpose, and the order is load-bearing.
+		// Three names collide with sprout: regexMatch, toUpper and toLower.
+		// The last two collide only because of sprout -- sprig had no toUpper
+		// or toLower at all, so before that swap nothing competed with ours.
+		//
+		// It is not a cosmetic win. sprout's toUpper is
+		// func(...any) (any, error) and yields nothing for a non-string, so
+		// `{{ toUpper 42 }}` would render an empty value and the check would
+		// pass having asserted nothing. Ours is func(string) string, so the
+		// same expression fails the run and names the line. Reversing these
+		// two calls turns a loud failure into a silent one.
+		t := template.New("test").Funcs(sprigin.TxtFuncMap()).Funcs(funcMap)
 
 		tmpl, err := t.Parse(string(data))
 		if err != nil {
@@ -90,7 +101,7 @@ func regexMatch(re, s string) (bool, error) {
 	return compiled.MatchString(s), nil
 }
 
-// return named parenthesized subexpresions, if received, or stringfied (Sprig "get" need strings) keys like array
+// return named parenthesized subexpresions, if received, or stringfied (Sprout "get" needs strings) keys like array
 func findStringSubmatch(pattern, input string) map[string]interface{} {
 	re := regexp.MustCompile(pattern)
 	els := re.FindStringSubmatch(input)
