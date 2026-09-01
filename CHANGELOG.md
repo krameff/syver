@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.9.4 based on krameff/goss v0.6.0 - housekeeping
+
+- fix/docker-image-branch-triggers branch
+  - the `:devel` container image is no longer published. It was never documented
+    and nothing referenced it, while building it cost a full two-architecture
+    image build and push on every commit to `devel`, documentation-only ones
+    included. If you found and pinned `ghcr.io/<owner>/syver:devel`, move to
+    `:latest` for releases or `:main` for the current release branch. The stale
+    `:devel` tag will be removed from the registry rather than left to resolve
+    silently to old code
+  - the `:main` image is no longer rebuilt for documentation-only changes, so it
+    now stays at the last commit that actually changed code
+  - the release images are unaffected. `:latest` and the versioned tags are built
+    by goreleaser on the tag push and never came from this workflow
+
+- fix/gofmt-and-modtidy branch
+  - no functional change: a doc comment was not gofmt clean, and `go.mod` now
+    records `go 1.26.0` rather than `go 1.26`. Together these restore `make fmt`
+    and `make lint`, both of which had been failing since 0.9.2
+
+- fix/release-gate-lint branch
+  - the gate that runs before a release is built now lints as well as testing.
+    Nothing previously linted a tagged commit: the lint workflow only runs on
+    branch pushes, which is how the formatting problem above reached two
+    releases unnoticed. This changes nothing about syver itself, but a release
+    from here on has been linted rather than assumed clean
+
 ## 0.9.3 based on krameff/goss v0.6.0 - dependency maintenance
 
 - deps/update-2026-08-29 branch

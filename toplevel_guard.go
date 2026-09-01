@@ -76,19 +76,22 @@ func legalTopLevelKeys() map[string]bool {
 // real unmarshal.
 //
 // Three kinds of key are exempt, per D2:
+//
 //   - a key already in legalTopLevelKeys()
+//
 //   - a key beginning "x-" (the docker-compose-style extension convention)
-//   - a key whose immediate value node itself carries an anchor -- the
-//     mechanism that makes a shared-block-via-YAML-anchor pattern like
 //
-//       common-checks: &common
-//         exit-status: 0
+//   - a key whose immediate value node itself carries an anchor. Detected
+//     structurally via yaml.v3's Node.Anchor, not by name -- see the trap
+//     section of PLAN_toplevel_key_guard.md for why a naming heuristic would
+//     be wrong here. Deliberately NOT a recursive subtree search -- see
+//     valueHasAnchor's doc comment for why that distinction matters.
 //
-//     work today. Detected structurally via yaml.v3's Node.Anchor, not by
-//     name -- see the trap section of PLAN_toplevel_key_guard.md for why a
-//     naming heuristic would be wrong here. Deliberately NOT a recursive
-//     subtree search -- see valueHasAnchor's doc comment for why that
-//     distinction matters.
+// That third exemption is the mechanism that keeps a shared-block-via-YAML-anchor
+// pattern working today:
+//
+//	common-checks: &common
+//	  exit-status: 0
 //
 // A malformed document, or one whose top level is not a mapping, produces no
 // warnings -- the real decode in ReadJSONData surfaces that failure on its
