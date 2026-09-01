@@ -168,6 +168,43 @@ func TestFuncMapDefinesToUpperAndToLower(t *testing.T) {
 	)
 }
 
+// TestFuncMapOrderingIsLoadBearing pins the ONE property template.go:41-51
+// claims and that nothing else here actually protects: that the real pipeline
+// applies syver's funcMap AFTER sprigin.TxtFuncMap(), so ours wins.
+//
+// TestFuncMapWinsOnCollision above cannot cover this. It rebuilds the two-call
+// chain inside the test with its own marker map, so it passes no matter what
+// order template.go uses -- verified by swapping the two .Funcs() calls in
+// template.go and running the whole package: everything still passed. That is
+// the gap this test closes.
+//
+// The distinguishing input is a NON-STRING argument, because for a string the
+// two implementations agree byte for byte and any assertion is vacuous.
+// Measured against sprout v1.1.1:
+//
+//	sprout-then-ours (correct):  {{ toUpper 42 }} -> exec error "expected string; found 42"
+//	ours-then-sprout (reversed): {{ toUpper 42 }} -> renders "<no value>", no error
+//
+// So the reversed order turns a check that loudly refuses to run into one that
+// silently asserts nothing, which for a compliance tool is the worse of the two
+// by a wide margin. Asserting the ERROR is what pins the ordering; asserting
+// the uppercased output never could.
+//
+// Revert-proved: with the .Funcs() calls in template.go swapped, this test
+// fails on the require.Error; restored, it passes.
+func TestFuncMapOrderingIsLoadBearing(t *testing.T) {
+	filter, err := NewTemplateFilter(nil, "", nil)
+	require.NoError(t, err)
+
+	_, err = filter([]byte(`{{ toUpper 42 }}`))
+	require.Error(t, err, "toUpper on a non-string must fail the run, not render empty")
+	assert.Contains(t, err.Error(), "expected string",
+		"the error must name the type problem, so a gossfile author can see why")
+
+	// The string case still works, so the override is not merely breaking things.
+	assert.Equal(t, "HI", render(t, "", `{{ toUpper "hi" }}`))
+}
+
 // --- missingkey behaviour: NewTemplateFilter (error) vs NewPeekTemplateFilter (zero) ---
 
 func TestNewTemplateFilter_MissingKeyErrors(t *testing.T) {

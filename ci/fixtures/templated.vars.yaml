@@ -1,0 +1,12 @@
+# Vars for testdata/templated.goss.yaml, supplied by ci/golden-baseline.sh.
+#
+# "setting" deliberately contains a DOUBLE space. That is the exact input where
+# sprig and sprout disagree: sprig produced "max__connections" / "Max Connections"
+# / "max--connections", sprout produces "max_connections" / "MaxConnections" /
+# "max-connections". A single space would render identically under both and the
+# golden would prove nothing.
+service: NginX
+owner: root
+banner: "ready!"
+setting: "max  connections"
+running: true

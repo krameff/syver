@@ -1,0 +1,33 @@
+# A templated gossfile that actually RENDERS, used by ci/golden-baseline.sh with
+# ci/fixtures/templated.vars.yaml supplied via --vars. It lives outside testdata/
+# because the generic render loop harvests every yaml under testdata, and a vars
+# file is not a spec: rendered as one it emits four unknown-top-level-key warnings
+# and an unmarshal error, which is noise rather than a regression guard.
+#
+# Why it exists: every other templated spec in the tree needs vars or env the
+# golden harness does not supply, so each one dies at variable lookup and its
+# golden records an error string instead of rendered output. That string is
+# identical either side of a template-engine change, which is how a green
+# 205/205 came to prove nothing at all about the sprig -> sprout swap.
+#
+# The expressions here are chosen to be the ones that migration actually moved:
+# the deprecated "upper" alias, "toUpper"/"toLower" which collide with syver's
+# own funcMap, "repeat" as used by the shipped fixtures, and the three case
+# converters whose double-separator handling sprout corrects.
+#
+# It is rendered, never validated, so the paths need not exist on any host.
+file:
+  /etc/{{ .Vars.service | toLower }}.conf:
+    exists: true
+    owner: "{{ .Vars.owner }}"
+    contains:
+      - "{{ .Vars.banner | upper }}"
+      - "{{ .Vars.banner | upper | repeat 2 }}"
+      - "{{ .Vars.setting | snakecase }}"
+      - "{{ .Vars.setting | camelcase }}"
+      - "{{ .Vars.setting | kebabcase }}"
+      - "{{ .Vars.service | toUpper }}"
+service:
+  {{ .Vars.service | toLower }}:
+    enabled: true
+    running: {{ .Vars.running }}
