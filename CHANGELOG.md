@@ -20,6 +20,13 @@
     records `go 1.26.0` rather than `go 1.26`. Together these restore `make fmt`
     and `make lint`, both of which had been failing since 0.9.2
 
+- fix/release-gate-lint branch
+  - the gate that runs before a release is built now lints as well as testing.
+    Nothing previously linted a tagged commit: the lint workflow only runs on
+    branch pushes, which is how the formatting problem above reached two
+    releases unnoticed. This changes nothing about syver itself, but a release
+    from here on has been linted rather than assumed clean
+
 ## 0.9.3 based on krameff/goss v0.6.0 - dependency maintenance
 
 - deps/update-2026-08-29 branch
