@@ -1,10 +1,28 @@
 name: Docker image for Syver
 
+# Branch images ONLY. The release images (:vX.Y.Z and :latest) do not come from
+# here at all -- they are built by goreleaser's dockers_v2 block on the tag push,
+# see .goreleaser.yaml. This workflow exists solely to publish the moving :main
+# tag, so "point it at tags instead" would duplicate that build, not move it.
+#
+# devel was dropped 2026-09-01. It published a :devel tag that
+# docs/container_image.md never mentions and nothing in the tree consumes, and it
+# paid for a full goreleaser build plus a linux/amd64,linux/arm64 buildx push --
+# the arm64 half under QEMU emulation -- on EVERY push to devel, docs-only ones
+# included, which were the majority of them. Delete the stale :devel tag from
+# GHCR: an abandoned moving tag keeps resolving, silently, to whatever code it
+# last saw.
+#
+# paths-ignore is the same argument applied to main. A docs typo must not
+# republish :main; leaving the image at the last code commit is correct
+# behaviour, not a gap.
 on:
   push:
     branches:
       - main
-      - devel
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
   workflow_dispatch:
 
 env:
@@ -49,7 +67,7 @@ jobs:
         uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4.2.0
+        uses: docker/setup-buildx-action@v4.3.0
 
       - name: Login to GHCR
         uses: docker/login-action@v4.6.0
@@ -98,18 +116,6 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: ${{ env.PLATFORMS }}
 
-      - name: Build devel goss image
-        if: github.ref_name == 'devel'
-        uses: docker/build-push-action@v7.3.0
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/syver:devel
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: ${{ env.PLATFORMS }}
-
       - name: Run Trivy vulnerability scanner (main)
         if: github.ref_name == 'main'
         uses: aquasecurity/trivy-action@v0.36.0
@@ -118,22 +124,8 @@ jobs:
           format: sarif
           output: trivy-main-results.sarif
 
-      - name: Run Trivy vulnerability scanner (devel)
-        if: github.ref_name == 'devel'
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          image-ref: ghcr.io/${{ github.repository_owner }}/syver:devel
-          format: sarif
-          output: trivy-devel-results.sarif
-
       - name: Upload Trivy scan results (main) to GitHub Security tab
         if: github.ref_name == 'main'
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-main-results.sarif
-
-      - name: Upload Trivy scan results (devel) to GitHub Security tab
-        if: github.ref_name == 'devel'
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: trivy-devel-results.sarif

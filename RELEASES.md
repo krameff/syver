@@ -28,8 +28,18 @@ consequence is for anyone who fetched v0.9.1 during that window: they hold the
 old lightweight tag, and `git fetch --tags --force` is needed to pick up the
 signed one, because git will not overwrite an existing tag ref on its own.
 
+**CodeQL is unavailable on this repository, not outstanding.** Code scanning
+needs GitHub Advanced Security on a private repo, and without it
+`github/codeql-action` cannot upload results whatever the analysis finds. It
+fails as `Resource not accessible by integration` naming an Actions endpoint,
+which reads exactly like a missing token scope and is not one. The workflow is
+kept so it resumes if Advanced Security is ever enabled. Trivy and govulncheck
+run regardless and do gate. Entries below therefore do not list CodeQL per
+release.
+
 ## Contents
 
+* [v0.9.4 - Housekeeping](#v094---housekeeping)
 * [v0.9.3 - Dependency maintenance](#v093---dependency-maintenance)
 * [v0.9.2 - Timeout reporting, unknown key warnings and release plumbing](#v092---timeout-reporting-unknown-key-warnings-and-release-plumbing)
 * [v0.9.1 - Correctness fixes and CI gating](#v091---correctness-fixes-and-ci-gating)
@@ -41,20 +51,66 @@ signed one, because git will not overwrite an existing tag ref on its own.
 
 ---
 
+## v0.9.4 - Housekeeping
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-01 |
+| Tag | `v0.9.4` |
+| Commit | `0927187` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. Three branches: `fix/gofmt-and-modtidy`, `fix/docker-image-branch-triggers`, `fix/release-gate-lint` |
+| Scope | 8 commits (5 excluding merges), 6 files, +165 / -46 |
+| Changelog | [0.9.4](CHANGELOG.md#094-based-on-krameffgoss-v060---housekeeping) |
+
+Nothing here changes what syver does.
+
+The release gate now lints. `release.yaml` installs golangci-lint and runs
+`make lint` before the unit tests, so the commit a tag points at is checked
+rather than assumed: `golangci.yaml` triggers on branch pushes, which per
+GitHub's documentation do not fire for tag pushes, and `make check` does not
+include lint either. A doc comment in `toplevel_guard.go` and the `go` directive
+in `go.mod` were tidied in the same release, which is what made `make lint` and
+`make fmt` clean again.
+
+The container image workflow also stopped building on `devel`. It published a
+`:devel` tag that no documentation mentioned and nothing consumed, at the cost
+of a full two-architecture image build on every commit to that branch,
+documentation-only ones included. Release images are unaffected: `:latest` and
+the versioned tags are produced by goreleaser on the tag push and never came
+from that workflow.
+
+**Breaking:** none for gossfiles or the CLI. The only user-visible change is the
+withdrawal of the undocumented `ghcr.io/<owner>/syver:devel` image.
+
+**Gate at release:** `make lint` clean at 0 issues, and in the release gate for
+the first time; `make vet`, `make fmt` and `go mod tidy -diff` all clean; 509
+tests / 7 packages `-race` clean; 205/205 goldens byte-identical; `make check`
+clean with govulncheck and Trivy both reporting nothing.
+
+**Not run:** the six-distro Docker suite on `go_builder`. The Go delta is one
+comment and one `go.mod` directive, so it has nothing new to exercise.
+
+---
+
 ## v0.9.3 - Dependency maintenance
 
 | Field | Value |
 | --- | --- |
-| Released | **Not yet released.** Prepared 2026-08-29, held for the CI reset |
-| Tag | `v0.9.3`, not yet cut |
-| Commit | pending |
+| Released | 2026-09-01 |
+| Tag | `v0.9.3` |
+| Commit | `3cb48e1` |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`. Prepared on `deps/update-2026-08-29` and merged in |
-| Scope | 2 commits, 3 files |
+| Integration branch | `devel`. Assembled from `deps/update-2026-08-29` and dependabot PRs #25 and #28, with documentation commits made directly on `devel` |
+| Scope | 13 commits (9 excluding merges), 13 files, +135 / -75 |
 | Changelog | [0.9.3](CHANGELOG.md#093-based-on-krameffgoss-v060---dependency-maintenance) |
 
-A dependency refresh and nothing else. Fifteen modules moved; four of them are
-direct dependencies and the rest are indirect. No source file changed.
+A dependency refresh and documentation. Fifteen modules moved; four of them are
+direct dependencies and the rest are indirect. One Go file appears in the diff,
+`template.go`, and it changed by a single comment: an upstream pull request link
+repointed from `krameff/syver` to `goss-org/goss`. No executable line changed
+anywhere in the release. (The changelog entry says "No source file changed",
+which is right in substance and imprecise in wording.)
 
 One of the fifteen is worth calling out because it shrinks the dependency
 surface rather than just advancing a number. `stretchr/testify` was the last
@@ -83,10 +139,6 @@ observable output, which the golden files confirm.
 byte-identical; `make check` clean with govulncheck and Trivy both reporting
 nothing; Docker suite green on all six distros with the per-distro counts
 106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
-
-**Not run at preparation time:** Windows integration, macOS integration, CodeQL.
-These must be green before this is tagged. That is the entire reason it was held
-back rather than merged.
 
 ---
 
@@ -150,12 +202,6 @@ exhausted when this was tagged on 2026-08-29, so the release workflow could not
 run at tag time and was started manually once they reset on 2026-09-01. The tag
 and the commit it points at never moved. Anyone comparing timestamps will see a
 gap between the tag date and the asset dates, and that is why.
-
-For the same reason, three legs of the gate had not run when the tag was cut:
-Windows integration, macOS integration and CodeQL. Note this release contains
-`fix/windows-powershell-timeouts`, whose whole purpose is to stop the Windows
-suite failing on slow runners, so that leg in particular is the one to confirm
-green on the deferred run.
 
 ---
 
