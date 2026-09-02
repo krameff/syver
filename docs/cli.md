@@ -321,6 +321,24 @@ The `application/vnd.goss-{output format}` media type can be used in the `Accept
 to determine the response's content-type.
 You can also `Accept: application/json` to get back `application/json`.
 
+!!! warning "`serve` is unauthenticated, and the response describes your host"
+
+    There is no authentication, authorisation or TLS on this endpoint. Anyone
+    who can reach it gets your full compliance posture: every resource the spec
+    names, and whether each one passed.
+
+    Failing checks also carry the underlying error text, which can be
+    host-specific. A registry key that exists but cannot be read reports the
+    access-denied error rather than simply "absent"; a user or group lookup that
+    could not complete reports why. That distinction is deliberate and is what
+    stops a check that never ran being reported as a check that passed, but it
+    does mean the response says slightly more than pass or fail.
+
+    Treat the endpoint, not the error text, as the thing to control. Bind it to
+    an interface you trust, put it behind whatever fronts your other internal
+    endpoints, and do not point `serve` at a spec naming paths you would not
+    show to anyone who can reach the port.
+
 ### `validate`
 
 !!! abstract "Validate the system"

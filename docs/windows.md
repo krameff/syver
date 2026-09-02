@@ -97,6 +97,16 @@ The `user:` and `group:` fixtures each assert that a deliberately absent account
 reports `exists: false` without erroring. Those two cases exist because that
 exact behaviour regressed once.
 
+## If you run `syver serve` on Windows
+
+The `registry:` and `user:`/`group:` improvements above mean a failing check now
+reports *why* it failed, not just that it did. On an unreachable-domain-controller
+or access-denied case that error text reaches the HTTP response, and
+[`serve`](cli.md#serve) is unauthenticated. That is the correct trade: a check
+that could not run must not be reported as one that passed. But it is worth
+knowing before pointing `serve` at a spec that names sensitive registry paths on
+a host whose port is broadly reachable.
+
 ## Behaviour changes in this release
 
 Windows specs that passed before may now fail. That is the point: they were not
