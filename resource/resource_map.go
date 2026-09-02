@@ -76,8 +76,7 @@ func (r ResourceMap[T, ST, PT]) AppendSysResourceIfExists(sr string, sys *system
 	// partial results elsewhere, so the likely-correct shape is "keep
 	// going, surface a warning" -- but that needs a warning channel this
 	// generic path does not have today, and deciding it needs its own
-	// review, not a byproduct of this sweep. Deferred to FEAT-011; see
-	// .claude/architecture/windows-unsupported-errors.md.
+	// review, not a byproduct of this sweep, so it is left as-is.
 	exists := false
 	if er, ok := any(sysRes).(system.Resource); ok {
 		exists, _ = er.Exists()

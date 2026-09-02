@@ -19,8 +19,7 @@ import "errors"
 //
 // Making this reachable means reordering getMount, which is cross-platform
 // code shared by every OS -- not "obviously safe" to restructure inside
-// this spec's Windows-focused, Linux-verified scope. Deferred to FEAT-011;
-// see .claude/architecture/windows-unsupported-errors.md.
+// this spec's Windows-focused, Linux-verified scope, so it is left as-is.
 var errNotImplemented = errors.New("not implemented")
 
 func getUsage(mountpoint string) (int, error) {

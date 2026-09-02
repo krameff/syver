@@ -4,8 +4,7 @@
 # misleading-but-loud ErrMountpointNotFound) was deliberately deferred to
 # FEAT-011: reaching errNotImplemented needs reordering getMount, which is
 # cross-platform code shared by every OS and not "obviously safe" to
-# restructure within this spec's scope. See system/mount_windows.go and
-# .claude/architecture/windows-unsupported-errors.md.
+# restructure within this spec's scope. See system/mount_windows.go.
 mount:
   'c:':
     exists: true

@@ -38,6 +38,12 @@ there is no commitment to adding features / fixing bugs for those platforms.
 
 This matrix attempts to track parity across platforms.
 
+!!! tip "Windows users start here"
+
+    This page is the status grid. [Windows](windows.md) explains *why* each
+    Windows cell is what it is, which of them can never change, and what the
+    Windows test suite actually covers.
+
 ## Legend
 
 | Symbol                  | Meaning                                |
