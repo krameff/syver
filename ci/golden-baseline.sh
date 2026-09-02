@@ -147,6 +147,29 @@ done < <(find ./testdata ./integration-tests ./examples ./docs \
            \( -name '*.yaml' -o -name '*.yml' \) 2>/dev/null \
          | grep -viE 'compose|expected|generated|\.pages' | sort)
 
+# ---- render WITH --vars: the only case that exercises the template engine ----
+# The loop above renders every harvested spec with NO vars and NO env. Every
+# templated spec in the tree needs one or the other, so all of them die at
+# variable lookup ("<.Env.OS>: map has no entry for key \"OS\"") and their
+# goldens record that error string rather than any rendered output. The string
+# is identical either side of a template-engine change, so those goldens are
+# blind to the whole template layer.
+#
+# Measured 2026-09-01 during the sprig -> sprout migration: 8 templated
+# fixtures, 8 zero-byte .out.failed files, and a green 205/205 that proved
+# nothing whatever about the swap. This case renders one spec WITH its vars so
+# the golden holds real output, and a change in the engine shows up as a diff.
+#
+# ci/fixtures/templated.vars.yaml uses a double-space value on purpose: it is the
+# input where sprig and sprout disagree. Do not "tidy" it to a single space.
+mkdir -p "$OUT/render-vars"
+if ! "$BIN" -g testdata/templated.goss.yaml --vars ci/fixtures/templated.vars.yaml render \
+       > "$OUT/render-vars/templated.out" 2> "$OUT/render-vars/templated.err"; then
+  mv "$OUT/render-vars/templated.out" "$OUT/render-vars/templated.out.failed"
+else
+  rm -f "$OUT/render-vars/templated.err"
+fi
+
 # ---- add / autoadd: the marshal path -----------------------------------------
 mkdir -p "$OUT/add" "$OUT/work"
 _add() {
@@ -189,7 +212,13 @@ find "$OUT/validate" "$OUT/render" "$OUT/add" -type f -print0 | xargs -0 sed -i 
   -e 's#[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}#<TS>#g'
 
 # ---- manifest ----------------------------------------------------------------
-( cd "$OUT" && find validate render add -type f | sort | xargs sha256sum > MANIFEST.sha256 )
+# render-vars is in this list deliberately. It was added 2026-09-01 and omitting
+# it would have made the whole point of that case moot: the file is written on
+# every run, but a golden outside the manifest is never compared to anything, so
+# it would have sat there looking like coverage while proving nothing. If you add
+# another output directory, add it here in the same commit or it is decoration.
+# `work/` is deliberately absent -- it is the scratch tree `add` writes into.
+( cd "$OUT" && find validate render add render-vars -type f | sort | xargs sha256sum > MANIFEST.sha256 )
 count=$(wc -l < "$OUT/MANIFEST.sha256")
 
 if [ "$MODE" = capture ]; then

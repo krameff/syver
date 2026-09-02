@@ -129,12 +129,10 @@ matching:
             foo: bar
         - have-key: baz
 
-# TODO: sprig syntax fails to accept upper block below
-# https://github.com/krameff/syver/blob/main/docs/gossfile.md#command
-#  sping_basic:
-#    content: { { "hello!" | upper | repeat 5 }}
-#                 matches:
-#                 match-regexp: "HELLO!HELLO!HELLO!HELLO!HELLO!"
+  sping_basic:
+    content: {{ "hello!" | upper | repeat 5 }}
+    matches:
+      match-regexp: "HELLO!HELLO!HELLO!HELLO!HELLO!"
 
 mount:
   /home:

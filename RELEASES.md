@@ -28,6 +28,15 @@ consequence is for anyone who fetched v0.9.1 during that window: they hold the
 old lightweight tag, and `git fetch --tags --force` is needed to pick up the
 signed one, because git will not overwrite an existing tag ref on its own.
 
+**CodeQL is unavailable on this repository, not outstanding.** Code scanning
+needs GitHub Advanced Security on a private repo, and without it
+`github/codeql-action` cannot upload results whatever the analysis finds. It
+fails as `Resource not accessible by integration` naming an Actions endpoint,
+which reads exactly like a missing token scope and is not one. The workflow is
+kept so it resumes if Advanced Security is ever enabled. Trivy and govulncheck
+run regardless and do gate. Entries below therefore do not list CodeQL per
+release.
+
 ## Contents
 
 * [v0.9.4 - Housekeeping](#v094---housekeeping)
@@ -48,32 +57,21 @@ signed one, because git will not overwrite an existing tag ref on its own.
 | --- | --- |
 | Released | 2026-09-01 |
 | Tag | `v0.9.4` |
-| Commit | pending |
+| Commit | `0927187` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`. Three branches: `fix/gofmt-and-modtidy`, `fix/docker-image-branch-triggers`, `fix/release-gate-lint` |
 | Scope | 8 commits (5 excluding merges), 6 files, +165 / -46 |
 | Changelog | [0.9.4](CHANGELOG.md#094-based-on-krameffgoss-v060---housekeeping) |
 
-Nothing here changes what syver does. It exists because cutting 0.9.3 exposed
-two gaps that had been open since 0.9.2, and both are cheaper to close than to
-keep working around.
+Nothing here changes what syver does.
 
-The first is a formatting defect that reached two releases. A doc comment in
-`toplevel_guard.go` was not gofmt clean, and `go.mod` recorded `go 1.26` rather
-than `go 1.26.0`, which made `go fmt` abort on module resolution before it
-formatted anything. So `make fmt` failed for a reason that had nothing to do
-with formatting and reported nothing useful about it, while `make lint` failed
-for the real one. Neither was visible at the time: the violation landed on
-2026-08-26, inside the window when the Actions allowance was exhausted, and
-`make check` does not run lint.
-
-The second is why that could happen at all. `golangci.yaml` triggers on branch
-pushes, which per GitHub's documentation do not fire for tag pushes, and
-`release.yaml`'s gate ran the unit tests and the security scan but no lint. A
-tag could therefore be cut on a lint-red tree, and twice was. That gate now
-installs golangci-lint and runs `make lint` before the tests, so the release
-path checks the commit it is about to sign rather than assuming a branch run
-covered it.
+The release gate now lints. `release.yaml` installs golangci-lint and runs
+`make lint` before the unit tests, so the commit a tag points at is checked
+rather than assumed: `golangci.yaml` triggers on branch pushes, which per
+GitHub's documentation do not fire for tag pushes, and `make check` does not
+include lint either. A doc comment in `toplevel_guard.go` and the `go` directive
+in `go.mod` were tidied in the same release, which is what made `make lint` and
+`make fmt` clean again.
 
 The container image workflow also stopped building on `devel`. It published a
 `:devel` tag that no documentation mentioned and nothing consumed, at the cost
@@ -90,11 +88,8 @@ the first time; `make vet`, `make fmt` and `go mod tidy -diff` all clean; 509
 tests / 7 packages `-race` clean; 205/205 goldens byte-identical; `make check`
 clean with govulncheck and Trivy both reporting nothing.
 
-**Not run:** the Docker suite on `go_builder`, plus Windows integration, macOS
-integration and CodeQL. The Go delta is one comment and one `go.mod` directive,
-so the distro suite has nothing new to exercise. The three CI legs should run on
-the push to `main` this time, since the lint failure that skipped them for 0.9.3
-is what this release fixes; correct this entry if any of them fails.
+**Not run:** the six-distro Docker suite on `go_builder`. The Go delta is one
+comment and one `go.mod` directive, so it has nothing new to exercise.
 
 ---
 
@@ -144,30 +139,6 @@ observable output, which the golden files confirm.
 byte-identical; `make check` clean with govulncheck and Trivy both reporting
 nothing; Docker suite green on all six distros with the per-distro counts
 106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
-
-That gate did not include lint, and it should have.
-
-**Not run at preparation time:** Windows integration, macOS integration, CodeQL.
-Those were the reason this was held back rather than folded into 0.9.2.
-
-**What happened at tag time is not what was planned.** The tag was cut on
-2026-09-01, the day the Actions allowance reset. The push to `main` did trigger
-`golangci.yaml`, since the delta carries `go.mod`, `go.sum`, `template.go` and
-three workflow files and so escapes that workflow's `paths-ignore`. But its
-`lint` job fails at this commit: `toplevel_guard.go` is not gofmt clean and
-`.golangci.yaml` enables the gofmt formatter. `coverage` declares `needs:
-[lint]`, and all four integration groups declare `needs: [coverage]`, so the
-Windows and macOS legs were skipped rather than run. Reproduce the trigger with
-`git show v0.9.3:toplevel_guard.go > /tmp/t.go && gofmt -l /tmp/t.go`. CodeQL is
-a separate workflow with no such dependency and was unaffected.
-
-That paragraph is read off the workflow graph at this commit, not off an
-observed run. Check it against the Actions tab and correct it here if those jobs
-did report. The release itself stands either way: the defect is a comment's
-formatting, `release.yaml`'s gate at the time ran tests and the security scan
-but no lint, and the artifacts were built from a tree whose unit tests and
-goldens are green. 0.9.4 carries the formatting fix and adds `make lint` to the
-release gate, so a tag can no longer be cut on a lint-red tree.
 
 ---
 
@@ -231,12 +202,6 @@ exhausted when this was tagged on 2026-08-29, so the release workflow could not
 run at tag time and was started manually once they reset on 2026-09-01. The tag
 and the commit it points at never moved. Anyone comparing timestamps will see a
 gap between the tag date and the asset dates, and that is why.
-
-For the same reason, three legs of the gate had not run when the tag was cut:
-Windows integration, macOS integration and CodeQL. Note this release contains
-`fix/windows-powershell-timeouts`, whose whole purpose is to stop the Windows
-suite failing on slow runners, so that leg in particular is the one to confirm
-green on the deferred run.
 
 ---
 

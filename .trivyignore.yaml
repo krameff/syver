@@ -25,9 +25,12 @@ vulnerabilities:
       there will not be one. Deliberately no expired_at: see the note above.
 
       Reachability: x/crypto arrives transitively via
-      github.com/Masterminds/sprig/v3 (template.go:12,41 -- sprig.TxtFuncMap()
+      github.com/go-sprout/sprout (template.go:12,41 -- sprigin.TxtFuncMap()
       backs gossfile templating), which needs x/crypto/bcrypt, not openpgp. The
-      openpgp subpackage is not in the build graph.
+      openpgp subpackage is not in the build graph. Sprout replaced sprig as
+      the templating library in 0.10.0 (FEAT-009); the dependency and this
+      suppression both survive that swap because sprout needs x/crypto for
+      the same bcrypt template functions sprig did.
 
       That reachability claim is not asserted once and left to rot: govulncheck
       runs on every `make check` and every CI build, reports reachable call
