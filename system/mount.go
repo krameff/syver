@@ -12,7 +12,14 @@ import (
 	"github.com/samber/lo"
 )
 
-var errMountpointNotFound = errors.New("mountpoint not found")
+// ErrMountpointNotFound is returned by getMount (and therefore by Exists)
+// when the platform lookup ran and genuinely found no such mountpoint --
+// the common, everyday case for a path that simply isn't a separate mount.
+// Exported (was errMountpointNotFound) so resource/mount.go's `add` path
+// can distinguish this expected outcome from a genuine lookup failure
+// (e.g. a timeout) rather than propagating both identically as a hard
+// error. See FEAT-010 SW-10 / Trap 1's reasoning, applied here.
+var ErrMountpointNotFound = errors.New("mountpoint not found")
 
 type Mount interface {
 	MountPoint() string
@@ -134,7 +141,7 @@ func getMount(mountpoint string, timeout int) (*mountinfo.Info, error) {
 			return
 		}
 		if len(entries) == 0 {
-			e1 <- errMountpointNotFound
+			e1 <- ErrMountpointNotFound
 			return
 		}
 		c1 <- entries[0]

@@ -97,7 +97,15 @@ func (u *User) Validate(ctx context.Context, sys *system.System) []TestResult {
 
 func NewUser(sysUser system.User, config util.Config) (*User, error) {
 	username := sysUser.Username()
-	exists, _ := sysUser.Exists()
+	// Propagate rather than discard -- see resource/registry.go's NewRegistry
+	// for the shared rationale (BUG-004 / FEAT-010 SW-10). After FEAT-010
+	// Task 5, system.DefUser.Exists only returns a non-nil error when the
+	// lookup genuinely could not run (e.g. an unreachable domain controller);
+	// a genuinely absent user still yields (false, nil), unchanged.
+	exists, err := sysUser.Exists()
+	if err != nil {
+		return nil, err
+	}
 	u := &User{
 		id:     username,
 		Exists: exists,

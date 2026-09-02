@@ -1,5 +1,18 @@
 ---
-# Not applicable on Windows
+# FEAT-010 Task 5 (SW-5) fixed `kernel-param:` on Windows so `exists` now
+# returns ErrKernelParamUnsupported instead of silently answering false --
+# but there remains no Windows /proc/sys equivalent for `value` to read, so
+# every assertion still errors unconditionally. That is genuinely
+# `not_applicable` (docs/platforms.md keeps the n_a symbol; see FEAT-010
+# Task 6), not merely broken -- there is no honest positive test to write.
+#
+# This file keeps its `.na-goss.yaml` name (not `.goss.yaml`) so
+# integration-tests/run-validate-tests.sh's `find ... -name "*.goss.yaml"`
+# glob does not pick it up at all. That is deliberate and unrelated to the
+# `set -o errexit`/ERR-trap concern documented in package.goss.yaml in this
+# same directory (kernel-param genuinely has nothing to assert on Windows;
+# package's fixture WOULD have something to assert, but doing so would
+# always fail).
 kernel-param:
   notapplicable.on-windows:
     value: foobar

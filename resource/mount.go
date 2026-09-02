@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -107,7 +108,22 @@ func (m *Mount) Validate(ctx context.Context, sys *system.System) []TestResult {
 
 func NewMount(sysMount system.Mount, config util.Config) (*Mount, error) {
 	mountPoint := sysMount.MountPoint()
-	exists, _ := sysMount.Exists()
+	// Propagate rather than discard -- see resource/registry.go's NewRegistry
+	// for the shared rationale (BUG-004 / FEAT-010 SW-10). Unlike the other
+	// sites in this sweep, system.DefMount.Exists already propagated its
+	// setup() error before FEAT-010 -- this call site was the one silently
+	// throwing that real error away, e.g. `getMount operation timed out`.
+	//
+	// system.ErrMountpointNotFound is deliberately excluded from that
+	// propagation: it is Exists' "ran and found nothing" outcome (the
+	// everyday case of `syver add mount /some/ordinary/path` where the path
+	// simply is not a separate mount), not a lookup failure -- the Trap 1
+	// distinction applied to mount instead of user/group/interface.
+	// Propagating it too would turn the common case into a hard failure.
+	exists, err := sysMount.Exists()
+	if err != nil && !errors.Is(err, system.ErrMountpointNotFound) {
+		return nil, err
+	}
 	m := &Mount{
 		id:      mountPoint,
 		Exists:  exists,

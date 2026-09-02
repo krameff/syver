@@ -1,16 +1,25 @@
 ---
+# FEAT-010 Task 1 (SW-1) fixed `package:` on Windows so it now errors with
+# ErrNullPackage instead of silently answering "not installed" for every
+# package. But NO assertion against `package:` can pass validate on
+# Windows any more -- there is no Windows package-manager backend at all
+# (see FEAT-011 for the planned Uninstall-hive registry backend), so
+# `installed`/`versions` fail unconditionally regardless of what is
+# asserted or against what package name.
+#
+# That correctly-error-always behaviour cannot be expressed as a negative
+# test within this file alone: integration-tests/run-validate-tests.sh runs
+# under `set -o errexit` with an ERR trap (ci/lib/setup.sh), so a fixture
+# whose `syver validate` exits non-zero aborts the whole script -- every
+# other Windows fixture in the same run would go unexercised, not just this
+# one. Un-skipping this file needs a harness change (e.g. an
+# expected-to-fail convention, matching how ci/discovery-e2e.sh and
+# ci/depends-on-e2e.sh already assert an intentional `Failed: N`) that is
+# outside this spec's file map (only the fixtures themselves, not the
+# runner scripts). Left `skip: true`, deliberately, pending that decision.
 package:
   golang:
-    # required attributes
     installed: true
-    # optional attributes
     versions:
     - 1.14.1
-
-    # needs implementation
-    # needs discussion + design
-    # support question for:
-    # * chocolatey https://chocolatey.org
-    # * scoop https://scoop.sh/
-    # * winget-cli https://github.com/microsoft/winget-cli
     skip: true

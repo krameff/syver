@@ -83,7 +83,16 @@ func (r *Registry) Validate(ctx context.Context, sys *system.System) []TestResul
 
 func NewRegistry(sysRegistry system.Registry, config util.Config) (*Registry, error) {
 	key := sysRegistry.Key()
-	exists, _ := sysRegistry.Exists()
+	// Propagate rather than discard, matching resource/package.go's
+	// NewPackage (BUG-004): swallowing this meant `syver add registry` wrote
+	// `exists: false` into the gossfile -- an assertion the user never made,
+	// on a host syver had learned nothing about (e.g. ACCESS_DENIED after
+	// FEAT-010 Task 3, or ErrRegistryUnsupported on non-Windows). See
+	// FEAT-010 SW-10.
+	exists, err := sysRegistry.Exists()
+	if err != nil {
+		return nil, err
+	}
 	if !exists {
 		return &Registry{
 			id:     key,

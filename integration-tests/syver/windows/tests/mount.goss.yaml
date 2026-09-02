@@ -1,4 +1,11 @@
 ---
+# NOT touched by FEAT-010. SW-7 (mount_windows.go's honest errNotImplemented
+# is unreachable -- system/mount.go's getMount fails first with the
+# misleading-but-loud ErrMountpointNotFound) was deliberately deferred to
+# FEAT-011: reaching errNotImplemented needs reordering getMount, which is
+# cross-platform code shared by every OS and not "obviously safe" to
+# restructure within this spec's scope. See system/mount_windows.go and
+# .claude/architecture/windows-unsupported-errors.md.
 mount:
   'c:':
     exists: true

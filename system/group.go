@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"os/user"
 	"strconv"
 
@@ -26,12 +27,27 @@ func (u *DefGroup) Groupname() string {
 	return u.groupname
 }
 
+// Exists distinguishes "user.LookupGroup ran and genuinely found no such
+// group" (groupLookupFoundNothing -- false, nil, unchanged) from every other
+// failure (false, err), for the same reason as DefUser.Exists. See FEAT-010
+// SW-9 / Trap 1.
 func (u *DefGroup) Exists() (bool, error) {
 	_, err := user.LookupGroup(u.groupname)
-	if err != nil {
+	if err == nil {
+		return true, nil
+	}
+	if groupLookupFoundNothing(err) {
 		return false, nil
 	}
-	return true, nil
+	return false, err
+}
+
+// groupLookupFoundNothing is userLookupFoundNothing's counterpart for
+// user.UnknownGroupError. Kept as a pure function for the same testability
+// reason.
+func groupLookupFoundNothing(err error) bool {
+	var unknown user.UnknownGroupError
+	return errors.As(err, &unknown)
 }
 
 func (u *DefGroup) GID() (int, error) {

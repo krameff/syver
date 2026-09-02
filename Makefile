@@ -47,6 +47,19 @@ vet:
 	$(info INFO: Starting build $@)
 	go vet $(pkgs)
 
+# vet-cross catches build-tag-gated signature drift that host-only `vet`
+# cannot see -- e.g. system/file_windows.go, system/registry_windows.go,
+# system/service_windows.go. windows/amd64 is the only Windows target syver
+# actually ships (.goreleaser.yaml ignores windows/386, windows/arm,
+# windows/arm64 and windows/s390x), so one Windows GOARCH is the right
+# coverage, not four. Both GOOS values already vet clean at zero cost --
+# this is regression insurance, not new work. See FEAT-010 Task 8.
+.PHONY: vet-cross
+vet-cross:
+	$(info INFO: Starting build $@)
+	GOOS=windows GOARCH=amd64 go vet $(pkgs)
+	GOOS=darwin GOARCH=amd64 go vet $(pkgs)
+
 fmt:
 	$(info INFO: Starting build $@)
 	./ci/go-fmt.sh
@@ -183,7 +196,7 @@ test-security:
 	./ci/security-scan.sh
 
 .PHONY: check
-check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security
+check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security vet-cross
 	$(info INFO: Starting $@)
 
 # Fast checks to run before every commit: formatting, vet, unit tests.

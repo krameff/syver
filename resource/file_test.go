@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/krameff/syver/system"
 	"github.com/krameff/syver/util"
 	"gotest.tools/v3/assert"
 )
@@ -85,4 +86,39 @@ func TestNewFileDoesNotSilentlyDropOwnershipOnTimeout(t *testing.T) {
 		assert.Equal(t, f.Owner, matcher("svc-app"))
 		assert.Equal(t, f.Group, matcher("svc-grp"))
 	})
+
+	// FEAT-010 Task 2 / D-4: system.ErrFileOwnershipUnsupported (what
+	// system/file_windows.go's Owner/Group now return, replacing the old
+	// fabricated "-1") must NOT match lookupDidNotRun. If it did, `syver add
+	// file` on Windows would abort instead of merely omitting the key -- a
+	// second, unannounced behaviour change the spec explicitly forbids.
+	//
+	// This is deliberately runnable on Linux: lookupDidNotRun lives in the
+	// untagged resource/file.go, and system.ErrFileOwnershipUnsupported lives
+	// in the untagged system/file.go, so neither side of the comparison
+	// requires GOOS=windows to exercise.
+	t.Run("ErrFileOwnershipUnsupported is NOT fatal: key omitted, add does not abort", func(t *testing.T) {
+		f, err := NewFile(&fakeSysFile{ownerErr: system.ErrFileOwnershipUnsupported}, util.Config{})
+		assert.NilError(t, err)
+		assert.Assert(t, f.Owner == nil, "owner should be omitted on Windows, got %v", f.Owner)
+		assert.Equal(t, f.Group, matcher("svc-grp"))
+	})
+
+	t.Run("ErrFileOwnershipUnsupported on group is also not fatal", func(t *testing.T) {
+		f, err := NewFile(&fakeSysFile{groupErr: system.ErrFileOwnershipUnsupported}, util.Config{})
+		assert.NilError(t, err)
+		assert.Assert(t, f.Group == nil, "group should be omitted on Windows, got %v", f.Group)
+		assert.Equal(t, f.Owner, matcher("svc-app"))
+	})
+}
+
+// TestLookupDidNotRunDoesNotMatchErrFileOwnershipUnsupported is the direct,
+// narrower assertion behind the two subtests above -- it isolates exactly
+// the claim D-4 depends on, independent of NewFile's surrounding logic.
+func TestLookupDidNotRunDoesNotMatchErrFileOwnershipUnsupported(t *testing.T) {
+	if lookupDidNotRun(system.ErrFileOwnershipUnsupported) {
+		t.Fatal("lookupDidNotRun must not match ErrFileOwnershipUnsupported: " +
+			"doing so turns `syver add file` on Windows into a hard failure " +
+			"instead of omitting mode/owner/group, per FEAT-010 D-4")
+	}
 }

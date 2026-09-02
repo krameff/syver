@@ -80,7 +80,15 @@ func (g *Group) Validate(ctx context.Context, sys *system.System) []TestResult {
 
 func NewGroup(sysGroup system.Group, config util.Config) (*Group, error) {
 	groupname := sysGroup.Groupname()
-	exists, _ := sysGroup.Exists()
+	// Propagate rather than discard -- see resource/registry.go's NewRegistry
+	// for the shared rationale (BUG-004 / FEAT-010 SW-10). After FEAT-010
+	// Task 5, system.DefGroup.Exists only returns a non-nil error when the
+	// lookup genuinely could not run (e.g. an unreachable domain controller);
+	// a genuinely absent group still yields (false, nil), unchanged.
+	exists, err := sysGroup.Exists()
+	if err != nil {
+		return nil, err
+	}
 	g := &Group{
 		id:     groupname,
 		Exists: exists,
