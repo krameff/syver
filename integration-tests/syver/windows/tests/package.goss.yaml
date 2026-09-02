@@ -1,25 +1,29 @@
 ---
-# FEAT-010 Task 1 (SW-1) fixed `package:` on Windows so it now errors with
-# ErrNullPackage instead of silently answering "not installed" for every
-# package. But NO assertion against `package:` can pass validate on
-# Windows any more -- there is no Windows package-manager backend at all
-# (see FEAT-011 for the planned Uninstall-hive registry backend), so
-# `installed`/`versions` fail unconditionally regardless of what is
-# asserted or against what package name.
+# expect-exit: 1
 #
-# That correctly-error-always behaviour cannot be expressed as a negative
-# test within this file alone: integration-tests/run-validate-tests.sh runs
-# under `set -o errexit` with an ERR trap (ci/lib/setup.sh), so a fixture
-# whose `syver validate` exits non-zero aborts the whole script -- every
-# other Windows fixture in the same run would go unexercised, not just this
-# one. Un-skipping this file needs a harness change (e.g. an
-# expected-to-fail convention, matching how ci/discovery-e2e.sh and
-# ci/depends-on-e2e.sh already assert an intentional `Failed: N`) that is
-# outside this spec's file map (only the fixtures themselves, not the
-# runner scripts). Left `skip: true`, deliberately, pending that decision.
+# THIS FIXTURE IS EXPECTED TO FAIL, and that is the assertion.
+#
+# FEAT-010 Task 1 (SW-1) fixed `package:` on Windows: it now errors with
+# ErrNullPackage instead of silently answering "not installed" for every
+# package name. There is no Windows package-manager backend at all (see
+# FEAT-011 for the planned Uninstall-hive registry backend), so every
+# assertion errors unconditionally, whatever is asserted and against
+# whatever package.
+#
+# `installed: false` is chosen deliberately rather than `installed: true`.
+# Before FEAT-010 this exact assertion PASSED on Windows, having checked
+# nothing whatsoever -- Windows fell through to the RPM backend, `rpm` is
+# always missing, and a missing package manager was read as "not installed".
+# It is the single clearest example of the silent-pass class this release
+# exists to remove, so it is the right thing to pin. If this fixture ever
+# exits 0 again, that defect is back.
+#
+# This file was `skip: true` until 2026-09-02, not because there was nothing
+# to test but because the harness could not host a fixture that fails:
+# run-validate-tests.sh ran under `errexit` with an ERR trap, so the first
+# non-zero validate aborted the whole script and every later fixture went
+# unexercised. That runner now reads the `# expect-exit:` directive above,
+# so a deliberately-failing fixture is expressible and no longer collateral.
 package:
   golang:
-    installed: true
-    versions:
-    - 1.14.1
-    skip: true
+    installed: false
