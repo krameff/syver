@@ -134,9 +134,24 @@ This matrix attempts to track parity across platforms.
 |                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | uid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | gid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | groups              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | groups              | {{ fully_supported }}   | {{ not_implemented }}  | {{ broken }}            |
 |                     | home                | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | shell               | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+
+**`user:` `groups:` on Windows is broken, for every user.** Reporting a user's
+groups calls Go's `user.LookupGroupId` once per SID in the account's token, and
+every Windows token carries a mandatory integrity label -- `Mandatory Label\High
+Mandatory Level`, which is `SID_NAME_USE` 10 (`SidTypeLabel`), not a group. Go
+rejects it with `lookupGroupId: should be group account type, not 10`, so the
+attribute fails for any user at all rather than for unusual ones. It fails
+loudly with that message rather than reporting an empty or wrong list, so it
+will not silently mislead you, but do not use `groups:` in a Windows spec.
+
+**`uid:` and `gid:` on Windows are not a missing feature.** Windows identifies
+accounts and groups by SID (`S-1-5-21-...`), and syver parses these attributes
+as integers. There is no integer to report, so no implementation could satisfy
+them. They are listed as not implemented because that is the closest available
+status, not because the work is pending.
 
 **`kernel-param:` on Windows.** There is no Windows equivalent -- no `/proc/sys`.
 `exists` and `value` both return an explicit `kernel-param is not supported on

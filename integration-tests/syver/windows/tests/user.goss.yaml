@@ -1,13 +1,40 @@
 ---
+# Windows user fixture. Rewritten 2026-09-02: this file previously asserted
+# uid: 65534, groups: [nfsnobody], home: /var/lib/nfs and shell: /sbin/nologin
+# against Administrator. Those are Linux values that were never edited after
+# the file was copied, so `skip: true` was hiding a fixture that described an
+# NFS account on a Linux box rather than a gap in syver.
+#
+# Only accounts present on ANY Windows are used. `vagrant` exists on the local
+# Server 2025 test VM but NOT on GitHub's windows-latest runner, so it is
+# deliberately not asserted here.
+#
+# DELIBERATELY NOT ASSERTED, and why:
+#   uid / gid  -- Windows identifies accounts by SID (S-1-5-21-...), and
+#                 system/user.go does strconv.Atoi on the value, which can
+#                 never succeed. This is a category mismatch, not a missing
+#                 feature: there is no integer uid to report.
+#   groups     -- BROKEN on Windows, and structurally so. Groups() calls
+#                 user.LookupGroupId for every SID in the token, and every
+#                 Windows token carries a mandatory integrity label
+#                 ("Mandatory Label\High Mandatory Level", SID_NAME_USE 10 =
+#                 SidTypeLabel). Go rejects it with "lookupGroupId: should be
+#                 group account type, not 10", so the attribute fails for
+#                 EVERY user, not just unusual ones. Measured on Server 2025,
+#                 2026-09-02. It fails loudly rather than silently, which is
+#                 FEAT-010-correct behaviour, but the attribute is unusable.
+#   home/shell -- no meaningful Windows equivalent.
+#
+# The absent-account cases are the point of this file. They are the
+# integration-level guard for the regression FEAT-010 shipped and the Windows
+# container run caught: os/user returns UnknownUserError on Unix, but Windows
+# returns raw ERROR_NONE_MAPPED, so a genuinely absent account was classified
+# as "the lookup could not run" and `exists: false` FAILED. If that regresses,
+# this fixture goes red.
 user:
   Administrator:
     exists: true
-    uid: 65534  # not applicable on Windows
-    gid: 65534  # not applicable on Windows
-    groups:
-    - nfsnobody
-    home: /var/lib/nfs
-    shell: /sbin/nologin
-
-    # needs implementation
-    skip: true
+  Guest:
+    exists: true
+  syver-no-such-user-ffffffff:
+    exists: false

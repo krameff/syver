@@ -1,6 +1,20 @@
 ---
+# Windows group fixture. Rewritten 2026-09-02: this file previously asserted
+# gid: 0 against a group called 'Local Users', which is neither a real Windows
+# group name nor a meaningful assertion, and was skipped rather than fixed.
+#
+# Only BUILTIN groups present on any Windows are used.
+#
+# DELIBERATELY NOT ASSERTED: gid. Windows groups are identified by SID, and
+# system/group.go does strconv.Atoi on the value, so it can never succeed.
+# There is no integer gid to report -- a category mismatch, not a gap.
+#
+# The absent-group case is the integration-level guard for the same
+# ERROR_NONE_MAPPED regression described in user.goss.yaml.
 group:
-  'Local Users':
+  Administrators:
     exists: true
-    gid: 0  # not applicable on Windows
-    skip: true  # TODO: implement on Windows
+  Guests:
+    exists: true
+  syver-no-such-group-ffffffff:
+    exists: false
