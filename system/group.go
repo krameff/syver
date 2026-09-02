@@ -47,7 +47,12 @@ func (u *DefGroup) Exists() (bool, error) {
 // reason.
 func groupLookupFoundNothing(err error) bool {
 	var unknown user.UnknownGroupError
-	return errors.As(err, &unknown)
+	if errors.As(err, &unknown) {
+		return true
+	}
+	// Windows does not wrap a non-resolving account name into
+	// user.UnknownGroupError -- see user_lookup_windows.go.
+	return lookupAbsenceIsPlatformSpecific(err)
 }
 
 func (u *DefGroup) GID() (int, error) {

@@ -56,7 +56,12 @@ func (u *DefUser) Exists() (bool, error) {
 // controller to provoke the "could not run" case from user.Lookup itself.
 func userLookupFoundNothing(err error) bool {
 	var unknown user.UnknownUserError
-	return errors.As(err, &unknown)
+	if errors.As(err, &unknown) {
+		return true
+	}
+	// Windows does not wrap a non-resolving account name into
+	// user.UnknownUserError -- see user_lookup_windows.go.
+	return lookupAbsenceIsPlatformSpecific(err)
 }
 
 func (u *DefUser) UID() (int, error) {
