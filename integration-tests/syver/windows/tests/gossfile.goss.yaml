@@ -12,7 +12,13 @@ gossfile:
   interface.goss.yaml: {}
   # kernel-param.na-goss.yaml: {}
   mount.goss.yaml: {}
-  package.goss.yaml: {}
+  # package.goss.yaml is deliberately NOT included, as of 2026-09-02.
+  # It declares `# expect-exit: 1` because `package:` errors unconditionally on
+  # Windows by design (FEAT-010 SW-1), and including a fixture that is meant to
+  # fail would make THIS aggregate fail too. Declaring `expect-exit: 1` here
+  # instead would be worse: this file would then pass only while something
+  # inside it fails, quietly masking a real regression in any of the others.
+  # package is exercised on its own, with its own expectation.
   port.goss.yaml: {}
   process.goss.yaml: {}
   service.goss.yaml: {}
