@@ -45,6 +45,9 @@
   - `uid` and `gid` are documented as unavailable on Windows rather than
     unimplemented. Windows identifies accounts by SID, and these attributes are
     integers, so there is no value to report
+  - `port:` is documented as not implemented on Windows rather than untested.
+    It was measured, and every assertion returns "not implemented yet", so the
+    matrix now says so instead of leaving a reader to find out
   - new [Windows page](https://github.com/krameff/syver/blob/main/docs/windows.md)
     covering what works, what does not and why, which limits are permanent, and
     what the Windows test suite actually exercises
