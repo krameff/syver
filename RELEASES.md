@@ -58,10 +58,10 @@ release.
 | --- | --- |
 | Released | 2026-09-04 |
 | Tag | `v0.10.0` |
-| Commit | pending |
+| Commit | `fc7201e` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`. One feature branch, `feat/sprig-sprout-change`, plus a dependency fix made during the release itself |
-| Scope | 10 commits (7 excluding merges), 12 files, +596 / -101 |
+| Scope | 11 commits (7 excluding merges), 12 files, +596 / -101 |
 | Changelog | [0.10.0](CHANGELOG.md#0100-based-on-krameffgoss-v060---gossfile-templating-moved-from-sprig-to-sprout) |
 
 The gossfile template engine moved from `Masterminds/sprig` to
