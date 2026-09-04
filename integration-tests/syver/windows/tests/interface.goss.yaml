@@ -1,21 +1,30 @@
 ---
-# FEAT-010 Task 5 (SW-8) fixed system.DefInterface.Exists so a syscall-level
-# lookup failure now propagates instead of being folded into "does not
-# exist" -- see interfaceLookupRanAndFoundNothing in system/interface.go.
-# NOT un-skipped by this spec: this fixture's own pre-existing uncertainty
-# (below) is unrelated to that fix and unresolved -- verifying the correct
-# friendly interface name for a given windows-latest runner needs a real
-# Windows host, which this build has none of. Un-skipping it now risks a
-# flaky assertion about interface naming, not a test of FEAT-010's change.
+# UN-SKIPPED 2026-09-04. This file previously asserted, on one skipped entry:
+#
+#   'Loopback Pseudo-Interface 1':
+#     exists: false          <- says it is NOT there
+#     addrs: ['127.0.0.1']   <- then asserts the addresses it does not have
+#     mtu: 1500
+#
+# which is self-contradictory: an interface that does not exist has no addrs
+# and no mtu. It was skipped rather than fixed, so the contradiction was never
+# noticed. Measured on Windows Server 2025: Go sees exactly two interfaces,
+# `Ethernet` and `Loopback Pseudo-Interface 1`.
+#
+# Only the loopback name is asserted. It is the one interface present on any
+# Windows host; `Ethernet` is an artefact of this particular VM and would not
+# exist on every runner.
+#
+# `addrs` and `mtu` are deliberately not asserted. Both are plain
+# net.Interface fields that work on Windows, but the loopback MTU is not a
+# stable number across Windows versions and pinning it buys nothing.
+#
+# The absent-interface case is the point of the second entry. FEAT-010 made
+# `interface:` distinguish "the lookup ran and found nothing" (still
+# `exists: false`, unchanged) from "the lookup could not run" (now an error).
+# If that regresses, this goes red.
 interface:
-  'Loopback Pseudo-Interface 1':
+  Loopback Pseudo-Interface 1:
+    exists: true
+  syver-no-such-nic-ffffffff:
     exists: false
-    addrs:
-      - '127.0.0.1'
-    mtu: 1500
-    skip: true
-
-# https://docs.microsoft.com/en-us/powershell/module/nettcpip/get-netipinterface?view=win10-ps
-# Get-NetIPInterface
-# https://docs.microsoft.com/en-us/powershell/module/netadapter/get-netadapter?view=win10-ps
-# Get-NetAdapter - and would then need to choose one with a name that will work in CI, and skip this test when running locally, etc

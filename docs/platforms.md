@@ -125,9 +125,9 @@ This matrix attempts to track parity across platforms.
 | **package**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | installed           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | versions            | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-| **port**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ no_data }}           |
-|                     | listening           | {{ fully_supported }}   | {{ not_implemented }}  | {{ no_data }}           |
-|                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ no_data }}           |
+| **port**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | listening           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ not_implemented }}   |
 | **process**         |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ broken }}            |

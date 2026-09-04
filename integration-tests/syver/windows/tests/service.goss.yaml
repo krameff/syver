@@ -1,6 +1,20 @@
+---
+# `EventLog` is running and automatic on any Windows. `NetTcpPortSharing`
+# ships disabled and stopped, so it is the negative case: it proves syver
+# reports a genuinely disabled service correctly, which is the assertion an
+# operator actually writes.
+#
+# THERE IS DELIBERATELY NO ABSENT-SERVICE CASE HERE, and its absence is not an
+# oversight. FEAT-010 made `service: <name>: {enabled: false}` ERROR for a
+# service that does not exist, instead of passing and looking like a disabled
+# service, which is how a typo in a service name used to go unnoticed. So no
+# passing fixture can be written for an absent name, by design. The unit tests
+# cover that path; see also package.goss.yaml, which is skipped for the
+# related reason that every assertion errors there.
 service:
-  # EventLog is a core service that stays running on GitHub Actions windows-latest;
-  # MSDTC is often Automatic but Stopped on CI hosts.
   EventLog:
     enabled: true
     running: true
+  NetTcpPortSharing:
+    enabled: false
+    running: false

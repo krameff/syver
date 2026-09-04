@@ -436,9 +436,9 @@ Service:
 Port:
 
 * Port state is read from `/proc/net/{tcp,udp,tcp6,udp6}` on Linux, where it is
-  fully supported. It is not implemented on macOS. On Windows it is untested
-  rather than known-broken, so treat it as unsupported until that changes --
-  see [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md),
+  fully supported. It is not implemented on macOS or Windows: measured on
+  Windows Server 2025, every assertion returns "not implemented yet". See
+  [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md),
   which is the authoritative per-resource matrix.
 * On Linux, if one of those files exists but contains a line syver can't parse
   (an unexpected IP/port/uid encoding, typically from a non-standard procfs,

@@ -1,9 +1,19 @@
 ---
+# SKIPPED, and now for a MEASURED reason rather than an assumed one.
+#
+# Measured 2026-09-04 on Windows Server 2025: `port:` errors with
+# "not implemented yet" on every assertion. It is not merely untested there.
+# docs/platforms.md said `no_data` (untried, no data) until that measurement;
+# it now says not_implemented, because we have data.
+#
+# There is nothing to un-skip until a Windows implementation exists. Unlike
+# `package:`, this one is not blocked by the harness: the runner can host a
+# failing fixture via `# expect-exit: 1` since 2026-09-02. It is skipped
+# because pinning an unconditional "not implemented yet" restates the
+# implementation rather than testing anything.
 port:
   tcp:135:
     listening: true
     ip:
     - 0.0.0.0
-
-    # needs implementation
     skip: true

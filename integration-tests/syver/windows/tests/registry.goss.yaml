@@ -18,3 +18,16 @@ registry:
   HKLM\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths::\\*\NETLOGON:
     exists: true
     skip: true  # only present on domain-joined machines with GPO applied
+
+  # SIDs, via the profile list. `user:` has no `sid` attribute and `uid`/`gid`
+  # can never work on Windows (they parse as integers, Windows uses SIDs), so
+  # the registry is how a spec asserts on a SID today.
+  #
+  # S-1-5-18 is LocalSystem, a well-known SID with the same value on every
+  # Windows host, so this is portable rather than specific to one machine.
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-18\ProfileImagePath:
+    exists: true
+    type: REG_EXPAND_SZ
+
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-99-no-such-sid\ProfileImagePath:
+    exists: false

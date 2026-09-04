@@ -13,26 +13,62 @@ command:
     exec: "echo hello world"
     stdout:
     - hello world
-    stderr: []
+    stderr:
+      have-len: 0
     timeout: 30000
   wrap a powershell - expect 0 on CI hosts without restrictanonymous:
     exec: powershell -noprofile -noninteractive -command (get-itemproperty -path 'HKLM:/SYSTEM/CurrentControlSet/Control/Lsa/').restrictanonymous
     exit-status: 0
     stdout:
     - "0"
-    stderr: []
+    stderr:
+      have-len: 0
     timeout: 30000
   wrap a powershell with quotes - expect 0 on CI hosts without restrictanonymous:
     exec: powershell -noprofile -noninteractive -command "(get-itemproperty -path 'HKLM:/SYSTEM/CurrentControlSet/Control/Lsa/').restrictanonymous"
     exit-status: 0
     stdout:
     - "0"
-    stderr: []
+    stderr:
+      have-len: 0
     timeout: 30000
   powershell with quotes:
     exec: powershell -noprofile -noninteractive /c "(echo '{"b":2, "a":1}' | ConvertFrom-json).a"
     exit-status: 0
     stdout:
     - "1"
-    stderr: []
+    stderr:
+      have-len: 0
+    timeout: 30000
+
+  # `stderr: have-len: 0` above, not `stderr: []`. An empty list asserts
+  # NOTHING and always passes, which syver itself warns about since 0.9.0
+  # ("command.stderr is an empty list, which asserts nothing and always
+  # passes"). All four entries carried the no-op form until 2026-09-04.
+  # have-len: 0 asserts what the empty list was meant to: no stderr output.
+
+  # SIDs. There is no `sid` attribute on `user:`, and `uid`/`gid` can never
+  # work on Windows because they parse as integers while Windows identifies
+  # accounts by SID. Asserting through `command:` is how a spec pins one
+  # today. See also registry.goss.yaml, which reaches SIDs without a shell.
+  #
+  # The machine part of an account SID differs on every host, so only the
+  # well-known RID is pinned: Administrator is always -500. The BUILTIN group
+  # SIDs have no machine part at all and are identical everywhere, so those
+  # are asserted exactly.
+  administrator SID has the well-known 500 RID:
+    exec: powershell -noprofile -noninteractive -command "(Get-LocalUser -Name Administrator).SID.Value"
+    exit-status: 0
+    stdout:
+      - "/^S-1-5-21-[0-9]+-[0-9]+-[0-9]+-500$/"
+    stderr:
+      have-len: 0
+    timeout: 30000
+  builtin administrators group has the fixed well-known SID:
+    exec: powershell -noprofile -noninteractive -command "(Get-LocalGroup -Name Administrators).SID.Value"
+    exit-status: 0
+    stdout:
+      - S-1-5-32-544
+    stderr:
+      have-len: 0
     timeout: 30000
