@@ -39,6 +39,7 @@ release.
 
 ## Contents
 
+* [v0.10.0 - Templating moved from sprig to sprout](#v0100---templating-moved-from-sprig-to-sprout)
 * [v0.9.4 - Housekeeping](#v094---housekeeping)
 * [v0.9.3 - Dependency maintenance](#v093---dependency-maintenance)
 * [v0.9.2 - Timeout reporting, unknown key warnings and release plumbing](#v092---timeout-reporting-unknown-key-warnings-and-release-plumbing)
@@ -48,6 +49,73 @@ release.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.10.0 - Templating moved from sprig to sprout
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-04 |
+| Tag | `v0.10.0` |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. One feature branch, `feat/sprig-sprout-change`, plus a dependency fix made during the release itself |
+| Scope | 10 commits (7 excluding merges), 12 files, +596 / -101 |
+| Changelog | [0.10.0](CHANGELOG.md#0100-based-on-krameffgoss-v060---gossfile-templating-moved-from-sprig-to-sprout) |
+
+The gossfile template engine moved from `Masterminds/sprig` to
+`go-sprout/sprout`. Sprig has gone quiet since its last release; sprout is the
+maintained community successor and its `sprigin` package is a near drop-in
+replacement. The changelog lists what renders differently and why.
+
+This is a MINOR rather than a patch because five functions genuinely render
+differently. In every case sprout is fixing a sprig bug rather than introducing
+one, but a gossfile that leaned on the old doubled-separator output from
+`snakecase`, `camelcase` or `kebabcase` will produce different text now.
+
+**The goldens do not gate this release, and it would be easy to think they do.**
+Every note written before it said a template-engine swap changes rendered output,
+so the golden corpus was the obvious gate. It is blind to the swap.
+`ci/golden-baseline.sh` renders every spec it harvests, and all eight templated
+fixtures in the tree needed vars or environment the harness never supplied, so
+each one died at variable lookup and its golden recorded an error string that is
+identical either side of the change. A byte-identical golden run was therefore
+real and proved nothing about the engine.
+
+What does gate it is `template_test.go`, which did not exist before this release
+and is the template layer's first direct Go coverage, together with a new
+`render-vars` case in the golden harness that renders one spec WITH its vars so
+the corpus stops being blind here permanently. Adding that case also exposed a
+second problem: the harness manifest listed only `validate`, `render` and `add`,
+so the new golden would have been written on every run and never compared. Both
+are fixed here.
+
+**Breaking:** none for the CLI or the gossfile format. The template function
+vocabulary changed as described above, which affects a gossfile only if it used
+one of the five corrected functions and depended on the old output.
+
+**Gate at release:** `make lint` clean; `make vet`, `make fmt` and
+`go mod tidy -diff` clean; unit tests clean under `-race` across 7 packages;
+`make check` clean with govulncheck and Trivy both reporting nothing; goldens
+byte-identical; six-distro Docker suite green with the per-distro counts
+106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
+
+**The first attempt at this tag failed, and was replaced rather than fixed
+forward.** The release workflow's gate rejected it at the security scan: Trivy
+reported CVE-2026-56855 and CVE-2026-78662 in `golang.org/x/crypto` v0.55.0,
+which reaches syver only as an indirect dependency of sprout's bcrypt functions.
+Neither is reachable from syver's own code, and govulncheck in the same run
+reported zero affected vulnerabilities, but a fix existed in v0.56.0 so the
+dependency was bumped rather than suppressed. Nothing was published from the
+first tag, since the `build` job never ran, and the repository is private, so the
+tag was deleted and re-cut rather than burning a version number on an empty
+release. This is the one case where re-cutting is preferable to the fix-forward
+rule stated at the top of this file: no artifact and no consumer existed.
+
+Worth recording for the next release: this passed locally and failed in CI
+because Trivy's vulnerability database cannot be pinned the way the scanner
+version can. A green local security scan has a shelf life measured in days.
 
 ---
 
