@@ -55,6 +55,10 @@
     `golang.org/x/crypto` and its `.trivyignore.yaml` openpgp suppression
     both stay, since sprout needs the same bcrypt template functions sprig
     did
+  - `golang.org/x/crypto` moved to v0.56.0. It arrives indirectly through
+    sprout's bcrypt functions, and the two advisories fixed in that version
+    are in its SSH code, which syver does not use. The bump keeps the
+    dependency scanners quiet rather than fixing anything reachable
 
 ## 0.9.4 based on krameff/goss v0.6.0 - housekeeping
 
