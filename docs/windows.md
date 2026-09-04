@@ -107,6 +107,18 @@ that could not run must not be reported as one that passed. But it is worth
 knowing before pointing `serve` at a spec that names sensitive registry paths on
 a host whose port is broadly reachable.
 
+### The suite reaches the public internet
+
+Two fixtures depend on an external service rather than on the host under test:
+`addr` opens a TCP connection to `google.com:443`, and `http` fetches
+`https://google.com`. They exercise real code paths, but a failure in either may
+mean the network was slow rather than that syver is wrong.
+
+If a Windows run fails on one of those and passes on an immediate re-run, that is
+what you are looking at. `addr`'s budget was raised from one second to five on
+2026-09-04 after exactly that happened. Treat a repeatable failure as real and a
+one-off as suspect, and check the rest of the run before assuming a regression.
+
 ## Behaviour changes in this release
 
 Windows specs that passed before may now fail. That is the point: they were not

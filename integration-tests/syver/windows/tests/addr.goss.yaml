@@ -1,9 +1,23 @@
 ---
+# The google.com timeout was raised 1000 -> 5000 on 2026-09-04. It depends on
+# the public internet, and one second is not a realistic budget from a NAT'd VM
+# or a cold CI runner. A Windows validate run failed on this once and passed on
+# an immediate re-run, which is what network flakiness looks like.
+#
+# This is the same argument the command: fixtures record for raising their own
+# budgets to 30000, with one difference worth stating: there the timeout is not
+# under test, and here it partly is. 5000 keeps the check meaningful (a genuinely
+# unreachable host still fails promptly) while not failing on ordinary latency.
+#
+# A flaky red is worse than no test: it trains people to re-run rather than look.
+# If this still flakes, point it at something local rather than raising it again.
 addr:
   tcp://google.com:443:
     reachable: true
-    timeout: 1000
+    timeout: 5000
 
+  # Left at 1000 deliberately. This one is loopback, has never flaked, and a
+  # longer budget here only delays a genuine failure.
   tcp://127.0.0.1:135:
     reachable: true
     timeout: 1000
