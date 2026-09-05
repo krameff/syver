@@ -64,7 +64,24 @@ The legacy `GOSS_*` names are still honoured, and an exported-but-empty
 `process:`, `service:`, `registry:`, and `exists` on `user:`, `group:` and
 `interface:`.
 
-`registry:` is Windows-only, and is the resource most worth using here. It
+`registry:` is Windows-only, and is the resource most worth using here.
+
+**Mind the trailing backslash.** The last path segment is read as a *value*
+name, so a key check needs a trailing `\`:
+
+```yaml
+registry:
+  HKLM\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths\:
+    exists: true          # the KEY exists
+
+  HKLM\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths:
+    exists: true          # a VALUE named HardenedPaths exists. Different check.
+```
+
+Omitting the backslash does not error, it quietly asks a different question and
+answers it correctly, so a key check written that way reports `false` against a
+key that plainly exists. See [gossfile](gossfile.md#registry) for the full path
+grammar, including `::` for value names that themselves contain a backslash. It
 distinguishes three outcomes rather than two: a key that is absent, a key that
 exists, and a key that exists but could not be read. That last case used to be
 reported as "does not exist", which is backwards for the hardening specs
