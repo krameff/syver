@@ -45,6 +45,16 @@
   - `uid` and `gid` are documented as unavailable on Windows rather than
     unimplemented. Windows identifies accounts by SID, and these attributes are
     integers, so there is no value to report
+  - a malformed `--vars-inline` value is now rejected while the flag is parsed,
+    and the error names the flag and quotes the value syver actually received.
+    It previously failed later, while loading vars, by which point a
+    shell-mangled command line has usually left a stray argument that gets read
+    as a subcommand, so the error pointed nowhere near the flag. This is not
+    Windows-only, but `cmd.exe` is where it bites: it does not treat `'` as a
+    quote character, so `--vars-inline '{inline: bar}'` is split and the flag
+    receives only `{inline:`. Seeing that fragment quoted back is what tells you
+    the shell split it. The `SYVER_VARS_INLINE` and `GOSS_VARS_INLINE`
+    environment variables are validated the same way and name the variable
   - `port:` is documented as not implemented on Windows rather than untested.
     It was measured, and every assertion returns "not implemented yet", so the
     matrix now says so instead of leaving a reader to find out
