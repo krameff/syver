@@ -17,6 +17,47 @@ syver --use-alpha=1 validate
 Without it the binary exits with an error pointing here. `GOSS_USE_ALPHA=1` is
 still honoured.
 
+## Quoting: `cmd.exe` and PowerShell do not agree
+
+**`cmd.exe` does not treat `'` as a quote character.** A single-quoted argument
+is not one argument there: it is split on whitespace, so a flag receives only
+the first fragment.
+
+```bat
+REM cmd.exe: WRONG. The flag receives only "{inline:"
+syver --use-alpha=1 --vars-inline '{inline: bar}' -g audit.yaml validate
+
+REM cmd.exe: RIGHT
+syver --use-alpha=1 --vars-inline "{inline: bar}" -g audit.yaml validate
+```
+
+PowerShell accepts either style. This applies to any flag whose value contains
+spaces, not just `--vars-inline`.
+
+You do not have to diagnose this from behaviour. syver rejects the value while
+parsing the flag and quotes what it actually received, so the split is visible
+in the message:
+
+```text
+Incorrect Usage: invalid value "{inline:" for flag -vars-inline: unable to
+determine format from content
+```
+
+If you asked for `{inline: bar}` and the error quotes `{inline:`, your shell
+split the command line.
+
+Every flag also has an environment variable, which sidesteps shell quoting
+entirely and is often easier in scripts. These are validated the same way, and
+the error names the variable rather than the flag:
+
+```powershell
+$env:SYVER_VARS_INLINE = '{"inline": "bar"}'
+syver --use-alpha=1 -g audit.yaml validate
+```
+
+The legacy `GOSS_*` names are still honoured, and an exported-but-empty
+`SYVER_*` will not shadow a real `GOSS_*` value.
+
 ## What works
 
 `file:` (existence, contents, size), `command:`, `http:`, `dns:`, `addr:`,

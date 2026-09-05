@@ -209,6 +209,10 @@ func newApp() *cli.Command {
 				Name:    "vars-inline",
 				Usage:   "json/yaml string containing variables for template (overwrites vars)",
 				Sources: nonEmptyEnvVars("SYVER_VARS_INLINE", "GOSS_VARS_INLINE"),
+				// Fail here rather than later while loading vars, so the error
+				// names this flag. See syver.ValidateVarsInline for why that
+				// matters when a shell has split the argument.
+				Validator: syver.ValidateVarsInline,
 			},
 			&cli.StringFlag{
 				Name:  "package",
