@@ -62,7 +62,7 @@ release.
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` |
-| Scope | 16 commits (12 excluding merges), 53 files, +2359 / -116 |
+| Scope | 20 commits (18 excluding merges), 59 files, +2658 / -123, measured at `e1f36d8` before the merge to `devel`. Re-measure against the tag |
 | Changelog | [0.11.0](CHANGELOG.md#0110-based-on-krameffgoss-v060---windows-stop-returning-confident-wrong-answers) |
 
 Windows checks that could not run were reporting success. Fourteen such sites
@@ -96,6 +96,21 @@ double-quoted strings, so a name containing a subexpression executed. It reached
 applied. This predates the release: two of the three call sites used the
 identical construction on `devel`. Names are now rendered as PowerShell
 single-quoted literals, which interpolate nothing.
+
+**Three dependencies moved in this release**, all verified on the platforms
+they touch rather than on Linux alone. `golang.org/x/crypto` to v0.56.0, which
+cleared the two advisories that failed v0.10.0's first release gate and which
+reach syver only through sprout's bcrypt functions. `github.com/shirou/gopsutil/v4`
+to v4.26.8 and `github.com/prometheus/common` to v0.71.0, taken here rather than
+deferred because gopsutil backs `process:` and `port:`, both of which this
+release changed and documented.
+
+That mattered for a reason a test run could not have caught. `docs/platforms.md`
+was changed to say `port:` is not implemented on Windows, on the strength of a
+measured "not implemented yet" from gopsutil. That is a claim about a
+dependency's behaviour, not syver's, so it is only true against a pinned
+version, and the `port:` fixture is skipped and asserts nothing. It was checked
+by hand against v4.26.8 rather than inferred from a green suite.
 
 **Breaking:** none for the gossfile format or the CLI. The behaviour changes are
 confined to Windows, and every one converts a silent pass into an explicit

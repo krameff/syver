@@ -55,6 +55,12 @@
     receives only `{inline:`. Seeing that fragment quoted back is what tells you
     the shell split it. The `SYVER_VARS_INLINE` and `GOSS_VARS_INLINE`
     environment variables are validated the same way and name the variable
+  - three dependencies moved: `golang.org/x/crypto` to v0.56.0,
+    `github.com/shirou/gopsutil/v4` to v4.26.8 and
+    `github.com/prometheus/common` to v0.71.0. Nothing changes for a gossfile.
+    The x/crypto advisories are in its SSH code, which syver does not use;
+    gopsutil backs `process:` and `port:`, so both were re-run on Windows and
+    Linux against the versions that ship
   - `port:` is documented as not implemented on Windows rather than untested.
     It was measured, and every assertion returns "not implemented yet", so the
     matrix now says so instead of leaving a reader to find out
