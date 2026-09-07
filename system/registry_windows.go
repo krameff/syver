@@ -5,6 +5,7 @@ package system
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -24,6 +25,18 @@ func NewDefRegistry(_ context.Context, key string, system *System, config util.C
 
 func (r *defRegistryWindows) Key() string { return r.key }
 
+// Exists distinguishes "the key/value genuinely does not exist"
+// (registry.ErrNotExist -> false, nil) from every other failure, most
+// importantly ERROR_ACCESS_DENIED (-> false, err). The two used to be folded
+// together into an unconditional (false, nil), which is the most misleading
+// answer this code could give: the keys a hardening spec targets are
+// precisely the locked-down ones under paths like
+// HKLM\SYSTEM\CurrentControlSet\Control\Lsa, and "could not read it" is not
+// "it is absent". See FEAT-010 SW-3.
+//
+// The classification itself lives in classifyRegistryError, a pure function,
+// so the not-found-vs-access-denied distinction is unit-testable without an
+// actual unreadable registry key -- see registry_windows_error_test.go.
 func (r *defRegistryWindows) Exists() (bool, error) {
 	parts, err := parseRegistryKey(r.key)
 	if err != nil {
@@ -35,9 +48,9 @@ func (r *defRegistryWindows) Exists() (bool, error) {
 		return false, err
 	}
 
-	k, err := registry.OpenKey(hive, parts.SubKey, registry.QUERY_VALUE)
-	if err != nil {
-		return false, nil
+	k, openErr := registry.OpenKey(hive, parts.SubKey, registry.QUERY_VALUE)
+	if exists, err := classifyRegistryError(openErr, "opening registry key"); !exists || err != nil {
+		return exists, err
 	}
 	defer k.Close()
 
@@ -45,11 +58,23 @@ func (r *defRegistryWindows) Exists() (bool, error) {
 		return true, nil
 	}
 
-	_, _, err = k.GetValue(parts.ValueName, nil)
-	if err != nil {
+	_, _, getErr := k.GetValue(parts.ValueName, nil)
+	return classifyRegistryError(getErr, "reading registry value")
+}
+
+// classifyRegistryError turns a raw OpenKey/GetValue error into the
+// three-way answer Exists needs: nil -> the key/value exists; a genuine
+// registry.ErrNotExist -> does not exist, and that is not an error;
+// anything else (ERROR_ACCESS_DENIED foremost among them) -> an error, never
+// silently folded into "does not exist".
+func classifyRegistryError(err error, wrapMsg string) (exists bool, resultErr error) {
+	if err == nil {
+		return true, nil
+	}
+	if errors.Is(err, registry.ErrNotExist) {
 		return false, nil
 	}
-	return true, nil
+	return false, fmt.Errorf("%s: %w", wrapMsg, err)
 }
 
 func (r *defRegistryWindows) Value() (string, error) {

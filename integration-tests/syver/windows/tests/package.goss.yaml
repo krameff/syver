@@ -1,16 +1,20 @@
 ---
+# SKIPPED, and the reason changed on 2026-09-02. It is no longer that the
+# harness cannot host a failing fixture -- run-validate-tests.sh now reads an
+# `# expect-exit: N` directive, so that constraint is gone.
+#
+# It is skipped because there is nothing worth asserting. Windows has no
+# package-manager backend at all: `package:` resolves to NullPackage and every
+# assertion errors with "could not detect Package type on this system", whatever
+# is asserted against whatever name. A fixture pinning that only restates a
+# one-line function that system_test.go already covers at the routing level.
+#
+# Un-skip this once `package:` gains a real Windows backend (the Uninstall
+# registry hive; see the FEAT-011 spec). At that point there is a genuine
+# positive test to write, which is worth far more than pinning an error.
 package:
   golang:
-    # required attributes
     installed: true
-    # optional attributes
     versions:
     - 1.14.1
-
-    # needs implementation
-    # needs discussion + design
-    # support question for:
-    # * chocolatey https://chocolatey.org
-    # * scoop https://scoop.sh/
-    # * winget-cli https://github.com/microsoft/winget-cli
     skip: true

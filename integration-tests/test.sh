@@ -8,7 +8,7 @@ set -x
 
 : "${DOCKER_BIN:=docker}"
 
-os="${1:?"Need OS as 1st arg. e.g. alpine arch rockylinux9 jammy bullseye"}"
+os="${1:?"Need OS as 1st arg. e.g. alpine arch rockylinux9 jammy"}"
 arch="${2:?"Need arch as 2nd arg. e.g. amd64 arm64"}"
 
 vars_inline="{inline: bar, overwrite: bar}"

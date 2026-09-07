@@ -87,19 +87,48 @@ func New(packageManager string) *System {
 
 // detectPackage adds the correct package creation function to a System struct
 func (sys *System) detectPackage(p string) {
+	sys.NewPackage = resolveNewPackage(p, DetectPackageManager, runtime.GOOS)
+}
+
+// resolveNewPackage decides which Package constructor detectPackage assigns.
+// The decision is split out as a pure function -- goos is a parameter rather
+// than a direct read of runtime.GOOS, and detect is a callback rather than a
+// direct call to DetectPackageManager -- so the Windows branch below is
+// table-testable from Linux (see system/system_test.go).
+//
+// explicit is the --package flag value; detect is consulted only when
+// explicit is not one of the four supported managers, matching the original
+// (pre-Windows-fix) behaviour exactly. That ordering also satisfies the
+// requirement that an explicit --package flag is never overridden by GOOS:
+// "--package rpm" resolves to NewRpmPackage before goos is even considered.
+func resolveNewPackage(explicit string, detect func() string, goos string) func(context.Context, string, *System, util2.Config) Package {
+	p := explicit
 	if p != "dpkg" && p != "apk" && p != "pacman" && p != "rpm" {
-		p = DetectPackageManager()
+		p = detect()
 	}
 	switch p {
 	case "dpkg":
-		sys.NewPackage = NewDebPackage
+		return NewDebPackage
 	case "apk":
-		sys.NewPackage = NewAlpinePackage
+		return NewAlpinePackage
 	case "pacman":
-		sys.NewPackage = NewPacmanPackage
-	default:
-		sys.NewPackage = NewRpmPackage
+		return NewPacmanPackage
+	case "rpm":
+		return NewRpmPackage
 	}
+	// p is empty: nothing was detected (and no supported value was passed
+	// explicitly either). On Windows there is no dpkg/apk/pacman/rpm to run
+	// against -- package_rpm.go's setup() comment explains why a missing
+	// package-manager binary silently means "not installed" on every other
+	// GOOS, and on Windows rpm is *always* missing, so falling through to it
+	// here would mean every `installed: false` assertion passes having
+	// checked nothing. Route to NullPackage instead, so the check errors
+	// with ErrNullPackage rather than silently answering false. On every
+	// other GOOS this preserves the pre-existing default of RpmPackage.
+	if goos == "windows" {
+		return NewNullPackage
+	}
+	return NewRpmPackage
 }
 
 // detectService adds the correct service creation function to a System struct

@@ -22,6 +22,26 @@ jobs:
       actions: read
 
     steps:
+      # WITHOUT THIS THE SCAN CANNOT RUN AT ALL, and it fails in a way that does
+      # not mention authentication first. `packages: read` grants the WORKFLOW
+      # permission to read packages; it does not log the Docker client in, and
+      # trivy pulls the image itself. On a private package the pull is refused
+      # and trivy reports four stacked errors -- "No such image" from the local
+      # daemon, containerd and podman socket failures -- with the real cause,
+      # `UNAUTHORIZED: authentication required`, last. Measured 2026-09-04: this
+      # job had never once succeeded.
+      #
+      # Keep this step even after the repository becomes public. Package
+      # visibility on GHCR is set separately from repository visibility, so a
+      # public repo does not imply a publicly pullable image, and an explicit
+      # login is correct either way.
+      - name: Login to GHCR
+        uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:

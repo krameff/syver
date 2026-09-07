@@ -12,3 +12,9 @@ file:
     contents:
       - "nothing to see here"
       - "/nothing.*here/"
+
+  # The absent-file case. `file:` is one of the few resources that works fully
+  # on Windows, so this is a plain regression guard rather than anything
+  # FEAT-010 changed.
+  C:\syver-no-such-file-ffffffff.txt:
+    exists: false

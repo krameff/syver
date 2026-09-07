@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"os/user"
 	"strconv"
 
@@ -30,12 +31,37 @@ func (u *DefUser) Username() string {
 	return u.username
 }
 
+// Exists distinguishes "user.Lookup ran and genuinely found no such user"
+// (userLookupFoundNothing -- false, nil, unchanged) from every other failure
+// (false, err). The distinction matters most on a domain-joined host with
+// an unreachable domain controller: previously EVERY error, including a
+// transport failure that learned nothing, was folded into "does not exist".
+// See FEAT-010 SW-9 / Trap 1.
 func (u *DefUser) Exists() (bool, error) {
 	_, err := user.Lookup(u.username)
-	if err != nil {
+	if err == nil {
+		return true, nil
+	}
+	if userLookupFoundNothing(err) {
 		return false, nil
 	}
-	return true, nil
+	return false, err
+}
+
+// userLookupFoundNothing reports whether err is user.UnknownUserError --
+// the one error os/user's own doc comment guarantees means "the user was
+// looked up and does not exist", as opposed to a lookup that could not
+// complete at all. Split out as a pure function so it is unit-testable
+// against a synthetic error, without needing an actual unreachable domain
+// controller to provoke the "could not run" case from user.Lookup itself.
+func userLookupFoundNothing(err error) bool {
+	var unknown user.UnknownUserError
+	if errors.As(err, &unknown) {
+		return true
+	}
+	// Windows does not wrap a non-resolving account name into
+	// user.UnknownUserError -- see user_lookup_windows.go.
+	return lookupAbsenceIsPlatformSpecific(err)
 }
 
 func (u *DefUser) UID() (int, error) {

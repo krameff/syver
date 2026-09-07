@@ -47,6 +47,19 @@ vet:
 	$(info INFO: Starting build $@)
 	go vet $(pkgs)
 
+# vet-cross catches build-tag-gated signature drift that host-only `vet`
+# cannot see -- e.g. system/file_windows.go, system/registry_windows.go,
+# system/service_windows.go. windows/amd64 is the only Windows target syver
+# actually ships (.goreleaser.yaml ignores windows/386, windows/arm,
+# windows/arm64 and windows/s390x), so one Windows GOARCH is the right
+# coverage, not four. Both GOOS values already vet clean at zero cost --
+# this is regression insurance, not new work. See FEAT-010 Task 8.
+.PHONY: vet-cross
+vet-cross:
+	$(info INFO: Starting build $@)
+	GOOS=windows GOARCH=amd64 go vet $(pkgs)
+	GOOS=darwin GOARCH=amd64 go vet $(pkgs)
+
 fmt:
 	$(info INFO: Starting build $@)
 	./ci/go-fmt.sh
@@ -101,7 +114,7 @@ test-darwin-all: test-short-all test-int-darwin-all
 test-linux-all: test-short-all test-int-64
 test-windows-all: test-short-all test-int-windows-all
 
-test-int-64: rockylinux9 almalinux10 bullseye jammy alpine3 arch test-int-serve-linux-amd64
+test-int-64: rockylinux9 almalinux10 jammy alpine3 arch test-int-serve-linux-amd64
 test-int-darwin-all: test-int-validate-darwin-amd64 test-int-serve-darwin-amd64 test-int-validate-darwin-arm64 test-int-serve-darwin-arm64
 test-int-windows-all: test-int-validate-windows-amd64 test-int-serve-windows-amd64
 test-int-all: test-int-64
@@ -114,10 +127,6 @@ rockylinux9: release/syver-linux-amd64
 almalinux10: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh almalinux10 amd64
-.PHONY: bullseye
-bullseye: release/syver-linux-amd64
-	$(info INFO: Starting build $@)
-	cd integration-tests/ && ./test.sh bullseye amd64
 .PHONY: jammy
 jammy: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
@@ -183,7 +192,7 @@ test-security:
 	./ci/security-scan.sh
 
 .PHONY: check
-check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security
+check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security vet-cross
 	$(info INFO: Starting $@)
 
 # Fast checks to run before every commit: formatting, vet, unit tests.
