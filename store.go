@@ -206,6 +206,23 @@ func varsFromFile(varsFile string) (map[string]any, error) {
 	return vars, nil
 }
 
+// ValidateVarsInline reports whether s is usable as the value of
+// --vars-inline, without keeping the parsed result.
+//
+// It exists so the CLI can reject a bad value AT FLAG-PARSE TIME rather than
+// several steps later while loading vars. The difference is not cosmetic. A
+// shell that mangles the argument -- cmd.exe does, because it does not treat
+// `'` as a quote character -- leaves syver holding a fragment plus a stray
+// argument, and the stray one is then read as a subcommand, so the user gets a
+// "No help topic" error naming that fragment, pointing nowhere near the flag.
+// Validating here
+// makes the message name --vars-inline and quote the value it actually
+// received, which is what tells someone their shell split the command line.
+func ValidateVarsInline(s string) error {
+	_, err := varsFromString(s)
+	return err
+}
+
 func varsFromString(varsString string) (map[string]any, error) {
 	vars := make(map[string]any)
 	if varsString == "" {

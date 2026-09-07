@@ -84,7 +84,15 @@ func (i *Interface) Validate(ctx context.Context, sys *system.System) []TestResu
 
 func NewInterface(sysInterface system.Interface, config util.Config) (*Interface, error) {
 	name := sysInterface.Name()
-	exists, _ := sysInterface.Exists()
+	// Propagate rather than discard -- see resource/registry.go's NewRegistry
+	// for the shared rationale (BUG-004 / FEAT-010 SW-10). After FEAT-010
+	// Task 5, system.DefInterface.Exists only returns a non-nil error when
+	// the platform syscall itself failed; a genuinely absent interface name
+	// still yields (false, nil), unchanged.
+	exists, err := sysInterface.Exists()
+	if err != nil {
+		return nil, err
+	}
 	i := &Interface{
 		id:     name,
 		Exists: exists,

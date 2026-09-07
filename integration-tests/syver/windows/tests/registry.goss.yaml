@@ -18,3 +18,38 @@ registry:
   HKLM\SOFTWARE\Policies\Microsoft\Windows\NetworkProvider\HardenedPaths::\\*\NETLOGON:
     exists: true
     skip: true  # only present on domain-joined machines with GPO applied
+
+  # SIDs, via the profile list. `user:` has no `sid` attribute and `uid`/`gid`
+  # can never work on Windows (they parse as integers, Windows uses SIDs), so
+  # the registry is how a spec asserts on a SID today.
+  #
+  # S-1-5-18 is LocalSystem, a well-known SID with the same value on every
+  # Windows host, so this is portable rather than specific to one machine.
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-18\ProfileImagePath:
+    exists: true
+    type: REG_EXPAND_SZ
+
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\S-1-5-99-no-such-sid\ProfileImagePath:
+    exists: false
+
+  # The key-vs-value distinction, pinned as a PAIR. The last path segment is
+  # read as a VALUE name, so a KEY check needs a trailing backslash. These two
+  # entries name the same thing and deliberately expect opposite answers,
+  # because they are different questions.
+  #
+  # `ProfileList` is a key with no value of that name under CurrentVersion, so
+  # without the backslash the honest answer is false. That is the trap: it does
+  # not error, it answers a question the author did not intend, and a spec
+  # asserting `exists: true` on a key that plainly exists reports a confident
+  # false. Reported from a Windows session on 2026-09-05 as "cannot assert a
+  # key that has no value name".
+  #
+  # If anyone ever makes the trailing backslash optional or auto-detected, the
+  # second entry flips to true and this fixture goes red. That is the point:
+  # guessing which the user meant would move the ambiguity down a level rather
+  # than remove it.
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList\:
+    exists: true
+
+  HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList:
+    exists: false

@@ -66,39 +66,80 @@ func (s *ServiceWindows) Service() string {
 	return s.service
 }
 
+// Exists asks PowerShell for a fixed, English literal ("True"/"False") that
+// syver itself chose, rather than string-matching Windows' own (localised)
+// "Cannot find any service with service name" error text in stderr. That
+// match only worked on an English host -- see FEAT-010 D-7, SW-14.
+// -ErrorAction SilentlyContinue turns the missing-service case into a $null
+// value with no error text produced at all, so boolean-coercing it via
+// `if (...)` is a structural check, not a text match, and works in every
+// locale identically.
 func (s *ServiceWindows) Exists() (bool, error) {
-	cmd, err := runHelperPowershell(s.ctx, "Get-Service", "-Name", s.service)
+	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf(
+		"if (Get-Service -Name %s -ErrorAction SilentlyContinue) { 'True' } else { 'False' }", psSingleQuote(s.service)))
 	if err != nil {
 		return false, err
 	}
-	if strings.Contains(cmd.Stderr.String(), "Cannot find any service with service name") {
+	exists, parseErr := parseServiceExistsProbe(cmd.Stdout.String(), cmd.Stderr.String())
+	if parseErr != nil {
+		return false, parseErr
+	}
+	if !exists {
 		return false, nil
 	}
 	return true, cmd.Err
 }
 
+// Enabled previously reported a missing service as false (not enabled),
+// identically to a service that genuinely exists but is set to Manual or
+// Disabled -- resource/service.go's Validate never calls Exists(), so
+// `service: TypoedName: {enabled: false}` passed. See FEAT-010 SW-4.
+//
+// The existence check here uses the same locale-independent structural
+// signal as Exists ('EXISTS|<value>' vs the literal 'ABSENT', both chosen by
+// syver, never rendered by Windows), combined into the same PowerShell
+// invocation that already fetches StartType so this costs no extra
+// subprocess. StartType itself is still matched via "Automatic": that
+// substring is the .NET enum member name of ServiceStartMode, which
+// PowerShell renders invariantly -- it is not localised message text. See
+// FEAT-010 D-7 for why that distinction (enum names vs. Windows' own error
+// prose) is the one that matters here.
 func (s *ServiceWindows) Enabled() (bool, error) {
-	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf("$(Get-Service -Name %q).StartType", s.service))
+	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf(
+		"$s = Get-Service -Name %s -ErrorAction SilentlyContinue; if ($s) { 'EXISTS|' + $s.StartType } else { 'ABSENT' }",
+		psSingleQuote(s.service)))
 	if err != nil {
 		return false, err
 	}
-	if strings.Contains(cmd.Stdout.String(), "Automatic") {
-		return true, cmd.Err
+	value, exists := parseServiceAttributeProbe(cmd.Stdout.String())
+	if !exists {
+		return false, ErrServiceNotFound
 	}
-	return false, cmd.Err
+	return strings.Contains(value, "Automatic"), cmd.Err
 }
 
+// Running is Enabled's counterpart for the Status property. See Enabled's
+// comment for the absence-detection mechanism and why "Running" is safe to
+// substring-match.
 func (s *ServiceWindows) Running() (bool, error) {
-	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf("$(Get-Service -Name %q).Status", s.service))
+	cmd, err := runHelperPowershell(s.ctx, fmt.Sprintf(
+		"$s = Get-Service -Name %s -ErrorAction SilentlyContinue; if ($s) { 'EXISTS|' + $s.Status } else { 'ABSENT' }",
+		psSingleQuote(s.service)))
 	if err != nil {
 		return false, err
 	}
-	if strings.Contains(cmd.Stdout.String(), "Running") {
-		return true, cmd.Err
+	value, exists := parseServiceAttributeProbe(cmd.Stdout.String())
+	if !exists {
+		return false, ErrServiceNotFound
 	}
-	return false, cmd.Err
+	return strings.Contains(value, "Running"), cmd.Err
 }
 
+// RunLevels has no Windows equivalent -- there is no SysV/systemd-style
+// runlevel concept here. Previously returned (nil, nil); a spec ported from
+// Linux that sets `runlevels:` now gets ErrServiceRunLevelsUnsupported
+// instead of a ContainElements failure against a nil slice that never
+// mentioned Windows. See FEAT-010 S-5.
 func (s *ServiceWindows) RunLevels() ([]string, error) {
-	return nil, nil
+	return nil, ErrServiceRunLevelsUnsupported
 }

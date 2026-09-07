@@ -1,5 +1,75 @@
 # Changelog
 
+## 0.11.0 based on krameff/goss v0.6.0 - Windows: stop returning confident wrong answers
+
+- feature/windows-truthfulness branch
+  - **Windows specs that passed before this release may now fail.** That is the
+    point of it: they were not being checked. Re-run your Windows specs after
+    upgrading, and read
+    [the Windows page](https://github.com/krameff/syver/blob/main/docs/windows.md)
+    for the full list and what to do instead
+  - `package: <name>: {installed: false}` used to pass for every package name on
+    Windows, having checked nothing at all. Windows has no package-manager
+    backend, so syver fell through to the RPM one, and a missing `rpm` was read
+    as "not installed". It now reports an error naming the problem. `syver add
+    package` fails the same way, because there is no honest "installed: unknown"
+    to write
+  - `registry: <key>: {exists: false}` used to report a key that exists but
+    cannot be read as absent, which is backwards for the hardening specs
+    registry checks are usually written for. Access denied and genuinely absent
+    are now told apart
+  - `service: <name>: {enabled: false}` / `{running: false}` used to pass for a
+    service that does not exist, so a typo in a service name looked like a
+    disabled service. It now errors. Detection no longer depends on
+    English-language Windows output, so it behaves the same in every locale
+  - `syver add service <name>` fails for a service that does not exist rather
+    than writing a plausible block for a name that was never there
+  - `syver add file <path>` omits `mode`, `owner` and `group` on Windows rather
+    than writing `"-1"` for each. It still exits 0
+  - `user:`, `group:` and `interface:` now tell "the lookup ran and found
+    nothing" apart from "the lookup could not run". A genuinely absent account
+    still reports `exists: false` exactly as before. A lookup that failed, such
+    as an unreachable domain controller on a domain-joined host, now errors
+    instead of being reported as absent
+  - **security:** a service name from a gossfile was interpolated into a
+    PowerShell command line using Go string quoting, which is not PowerShell
+    quoting. A name containing a PowerShell subexpression was executed rather
+    than treated as text. Anyone who could write or generate your gossfile could
+    run commands as syver on Windows. Names are now quoted so that nothing in
+    them is evaluated. This affects Windows only, and the defect predates this
+    release
+  - `user: <name>: {groups: ...}` does not work on Windows and is now documented
+    as broken rather than partially working. It fails for every user, because
+    every Windows access token carries an entry that is not a group. It fails
+    loudly rather than returning a wrong list
+  - `uid` and `gid` are documented as unavailable on Windows rather than
+    unimplemented. Windows identifies accounts by SID, and these attributes are
+    integers, so there is no value to report
+  - a malformed `--vars-inline` value is now rejected while the flag is parsed,
+    and the error names the flag and quotes the value syver actually received.
+    It previously failed later, while loading vars, by which point a
+    shell-mangled command line has usually left a stray argument that gets read
+    as a subcommand, so the error pointed nowhere near the flag. This is not
+    Windows-only, but `cmd.exe` is where it bites: it does not treat `'` as a
+    quote character, so `--vars-inline '{inline: bar}'` is split and the flag
+    receives only `{inline:`. Seeing that fragment quoted back is what tells you
+    the shell split it. The `SYVER_VARS_INLINE` and `GOSS_VARS_INLINE`
+    environment variables are validated the same way and name the variable
+  - three dependencies moved: `golang.org/x/crypto` to v0.56.0,
+    `github.com/shirou/gopsutil/v4` to v4.26.8 and
+    `github.com/prometheus/common` to v0.71.0. Nothing changes for a gossfile.
+    The x/crypto advisories are in its SSH code, which syver does not use;
+    gopsutil backs `process:` and `port:`, so both were re-run on Windows and
+    Linux against the versions that ship
+  - `port:` is documented as not implemented on Windows rather than untested.
+    It was measured, and every assertion returns "not implemented yet", so the
+    matrix now says so instead of leaving a reader to find out
+  - new [Windows page](https://github.com/krameff/syver/blob/main/docs/windows.md)
+    covering what works, what does not and why, which limits are permanent, and
+    what the Windows test suite actually exercises
+  - `syver serve` documentation now records that the endpoint is
+    unauthenticated and that a failing check carries the underlying error text
+
 ## 0.10.0 based on krameff/goss v0.6.0 - gossfile templating moved from sprig to sprout
 
 - feat/sprig-sprout-change branch

@@ -5,6 +5,7 @@ import (
 	"crypto/md5"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
@@ -16,6 +17,13 @@ import (
 
 	"github.com/krameff/syver/util"
 )
+
+// ErrFileOwnershipUnsupported is returned by Mode, Owner, Uid, Group and Gid
+// on Windows (system/file_windows.go) -- there is no POSIX mode/owner/group
+// concept to report there. Following the sentinel-error idiom already used by
+// registry (ErrRegistryUnsupported) and package (ErrNullPackage): a named,
+// comparable error rather than a fabricated zero value with a nil error.
+var ErrFileOwnershipUnsupported = errors.New("file mode/owner/group is not supported on this platform")
 
 type File interface {
 	Path() string

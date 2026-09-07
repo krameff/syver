@@ -38,6 +38,12 @@ there is no commitment to adding features / fixing bugs for those platforms.
 
 This matrix attempts to track parity across platforms.
 
+!!! tip "Windows users start here"
+
+    This page is the status grid. [Windows](windows.md) explains *why* each
+    Windows cell is what it is, which of them can never change, and what the
+    Windows test suite actually covers.
+
 ## Legend
 
 | Symbol                  | Meaning                                |
@@ -47,6 +53,7 @@ This matrix attempts to track parity across platforms.
 | {{ not_automated }}     | Works but without automated tests      |
 | {{ work_partially }}    | Works partially / partially tested     |
 | {{ not_implemented }}   | Not implemented / needs implementation |
+| {{ broken }}            | Currently broken                       |
 | {{ n_a }}               | Not applicable for this platform       |
 | {{ no_data }}           | Not yet tried, no data                 |
 
@@ -75,19 +82,19 @@ This matrix attempts to track parity across platforms.
 |                     | timeout             | {{ fully_supported }}   | {{ not_automated }}    | {{ work_partially }}    |
 | **file**            |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | exists              | {{ fully_supported }}   | {{ work_partially }}   | {{community_supported}} |
-|                     | mode                | {{ fully_supported }}   | {{ work_partially }}   | {{ n_a }}               |
+|                     | mode                | {{ fully_supported }}   | {{ work_partially }}   | {{ not_implemented }}   |
 |                     | size                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-|                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ n_a }}               |
-|                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ n_a }}               |
+|                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ not_implemented }}   |
+|                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ not_implemented }}   |
 |                     | filetype            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | contains            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | md5                 | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | sha256              | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | linked-to           | {{ fully_supported }}   | {{ no_data }}          | {{ no_data }}           |
 | **gossfile**        |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-| **group**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | gid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
+| **group**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | gid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 | **http**            |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | allow-insecure      | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
@@ -98,16 +105,16 @@ This matrix attempts to track parity across platforms.
 |                     | body                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | username            | {{ fully_supported }}   | {{ not_automated }}    | {{ work_partially }}    |
 |                     | password            | {{ fully_supported }}   | {{ not_automated }}    | {{ work_partially }}    |
-| **interface**       |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | addrs               | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | mtu                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+| **interface**       |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | addrs               | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | mtu                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 | **kernel-param**    |                     | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
 |                     | value               | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
-| **registry**        |                     | {{ n_a }}               | {{ n_a }}              | {{community_supported}} |
-|                     | exists              | {{ n_a }}               | {{ n_a }}              | {{community_supported}} |
-|                     | value               | {{ n_a }}               | {{ n_a }}              | {{community_supported}} |
-|                     | type                | {{ n_a }}               | {{ n_a }}              | {{community_supported}} |
+| **registry**        |                     | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
+|                     | exists              | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
+|                     | value               | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
+|                     | type                | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
 | **mount**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | opts                | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
@@ -120,19 +127,91 @@ This matrix attempts to track parity across platforms.
 |                     | versions            | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 | **port**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | listening           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ no_data }}           |
+|                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ not_implemented }}   |
 | **process**         |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-| **service**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-| **user**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | uid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
-|                     | gid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
-|                     | groups              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | home                | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ broken }}            |
+|                     | user                | {{ fully_supported }}   | {{ work_partially }}   | {{ no_data }}           |
+| **service**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | runlevels           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+| **user**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | uid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | gid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | groups              | {{ fully_supported }}   | {{ not_implemented }}  | {{ broken }}            |
+|                     | home                | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | shell               | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+
+**`user:` `groups:` on Windows is broken, for every user.** Reporting a user's
+groups calls Go's `user.LookupGroupId` once per SID in the account's token, and
+every Windows token carries a mandatory integrity label -- `Mandatory Label\High
+Mandatory Level`, which is `SID_NAME_USE` 10 (`SidTypeLabel`), not a group. Go
+rejects it with `lookupGroupId: should be group account type, not 10`, so the
+attribute fails for any user at all rather than for unusual ones. It fails
+loudly with that message rather than reporting an empty or wrong list, so it
+will not silently mislead you, but do not use `groups:` in a Windows spec.
+
+**`uid:` and `gid:` on Windows are not a missing feature.** Windows identifies
+accounts and groups by SID (`S-1-5-21-...`), and syver parses these attributes
+as integers. There is no integer to report, so no implementation could satisfy
+them. They are listed as not implemented because that is the closest available
+status, not because the work is pending.
+
+**`kernel-param:` on Windows.** There is no Windows equivalent -- no `/proc/sys`.
+`exists` and `value` both return an explicit `kernel-param is not supported on
+this platform` error rather than silently answering `false`. Use `registry:`
+instead: most tunables `kernel-param:` would address on Linux have a
+`HKLM\SYSTEM\CurrentControlSet\...` equivalent.
+
+**`process: status` on Windows is `{{ broken }}`, not merely unimplemented.**
+It silently returns an empty result -- gopsutil has no Windows implementation
+for this field, and syver's own aggregation currently swallows that
+per-process rather than surfacing it, so `status: []` passes even for a
+running process. Tracked for a real fix in the Windows depth roadmap; do not
+rely on this assertion on Windows in the meantime.
+
+On Windows, `process:` names must include the `.exe` suffix (e.g.
+`process: httpd.exe:`, not `process: httpd:`) -- Windows process names as
+reported by the OS always carry it, unlike Linux/macOS.
+
+### Windows: behaviour changed in this release
+
+The following used to silently pass, or silently write a placeholder value
+into a `syver add`-generated spec, on Windows. Each of these now returns an
+explicit error instead:
+
+* `package: <name>: {installed: false}` -- Windows has no supported
+  package-manager backend. `installed` and `versions` both fail with
+  `could not detect Package type on this system, please use --package flag
+  to explicitly set it`. `syver add package` **hard-fails** the same way
+  (this differs from `file`, below, which only omits keys -- there is no
+  honest "installed: unknown" to write for a package).
+* `syver add file <path>` -- `mode`, `owner` and `group` are simply
+  **omitted** from the generated spec rather than written as a fabricated
+  `"-1"`. `syver add` still exits 0.
+* `registry: <key>: {exists: false}` -- a key that exists but could not be
+  read (e.g. `ERROR_ACCESS_DENIED`) now errors, instead of being reported as
+  absent. A genuinely absent key still reports `exists: false` as before.
+* `service: <name>: {enabled: false}` / `{running: false}` -- a service that
+  does not exist now errors, instead of being reported as disabled/not
+  running. Detection does not depend on English-language Windows output.
+* `syver add service <name>` -- **hard-fails** for a service that does not
+  exist, rather than writing a plausible `enabled: false` block for a name
+  that was never there. This is the same shape as `package` above, and the
+  opposite of `file`, which only omits keys.
+* `user: <name>: {exists: false}`, `group:` and `interface:` -- these now
+  distinguish "the lookup ran and found nothing" from "the lookup could not
+  run". The first still reports `exists: false` exactly as before; the second
+  now errors instead of being reported as absent. On a domain-joined host an
+  unreachable domain controller is the case that changes: a spec asserting a
+  user is absent used to pass when the lookup had simply failed. This fix is
+  not Windows-specific -- the code is in untagged files and applies
+  everywhere -- but Windows is where the two cases come apart in practice.
+
+If you have existing Windows specs, re-run them after upgrading: a spec that
+passed before may now fail where it was never actually being checked.
 
 ## Commands support matrix
 

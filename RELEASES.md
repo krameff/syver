@@ -39,6 +39,7 @@ release.
 
 ## Contents
 
+* [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
 * [v0.10.0 - Templating moved from sprig to sprout](#v0100---templating-moved-from-sprig-to-sprout)
 * [v0.9.4 - Housekeeping](#v094---housekeeping)
 * [v0.9.3 - Dependency maintenance](#v093---dependency-maintenance)
@@ -49,6 +50,95 @@ release.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.11.0 - Windows: stop returning confident wrong answers
+
+| Field | Value |
+| --- | --- |
+| Released | **Not yet released.** Prepared 2026-09-04 |
+| Tag | `v0.11.0`, not yet cut |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` |
+| Scope | 20 commits (18 excluding merges), 59 files, +2658 / -123, measured at `e1f36d8` before the merge to `devel`. Re-measure against the tag |
+| Changelog | [0.11.0](CHANGELOG.md#0110-based-on-krameffgoss-v060---windows-stop-returning-confident-wrong-answers) |
+
+Windows checks that could not run were reporting success. Fourteen such sites
+were found, four of them serious. The root cause behind ten of the fourteen is
+that the codebase treated a zero value with no error as "absent", a convention
+that is invisible on Linux because "the tool is missing" and "the thing is
+absent" coincide there. On Windows they never coincide.
+
+This is a behaviour change, not a bugfix, which is why it is a MINOR. Windows
+specs that passed before may now fail. The changelog lists every flip.
+
+**This is the first release verified on Windows rather than inferred from
+cross-compilation**, and that distinction earned its keep immediately. The work
+arrived described as fully Linux-verified and passing every local gate. Running
+it against a Windows Server 2025 guest found two regressions it had already
+introduced, and one of them was the mirror image of the bug the release exists
+to fix: `userLookupFoundNothing` tested for `user.UnknownUserError`, which is
+the correct contract on Unix, while Windows returns raw `ERROR_NONE_MAPPED`
+instead. A genuinely absent account was therefore classified as a lookup that
+could not run, so `user: someone-absent: {exists: false}` FAILED. A false
+failure, from the release built to remove false passes, and invisible to any
+Linux gate because the Unix path is correct and its tests pass. The second was a
+test asserting a hardcoded count that this release makes platform-dependent; the
+code was right and the number was wrong.
+
+**A pre-existing security defect was fixed along the way.** A service name from a
+gossfile was interpolated into a PowerShell command line with `%q`, which is Go
+string escaping and not PowerShell escaping. PowerShell evaluates `$(...)` inside
+double-quoted strings, so a name containing a subexpression executed. It reached
+`CreateProcess` as raw command-line text, so Go's own argument escaping never
+applied. This predates the release: two of the three call sites used the
+identical construction on `devel`. Names are now rendered as PowerShell
+single-quoted literals, which interpolate nothing.
+
+**Three dependencies moved in this release**, all verified on the platforms
+they touch rather than on Linux alone. `golang.org/x/crypto` to v0.56.0, which
+cleared the two advisories that failed v0.10.0's first release gate and which
+reach syver only through sprout's bcrypt functions. `github.com/shirou/gopsutil/v4`
+to v4.26.8 and `github.com/prometheus/common` to v0.71.0, taken here rather than
+deferred because gopsutil backs `process:` and `port:`, both of which this
+release changed and documented.
+
+That mattered for a reason a test run could not have caught. `docs/platforms.md`
+was changed to say `port:` is not implemented on Windows, on the strength of a
+measured "not implemented yet" from gopsutil. That is a claim about a
+dependency's behaviour, not syver's, so it is only true against a pinned
+version, and the `port:` fixture is skipped and asserts nothing. It was checked
+by hand against v4.26.8 rather than inferred from a green suite.
+
+**Breaking:** none for the gossfile format or the CLI. The behaviour changes are
+confined to Windows, and every one converts a silent pass into an explicit
+error.
+
+**Gate at release:** `make lint` clean; `make vet`, `make fmt` and
+`go mod tidy -diff` clean; unit tests clean under `-race` across 7 packages;
+`make check` clean with govulncheck and Trivy both reporting nothing; goldens
+byte-identical; cross-compiles clean for linux, darwin and windows; six-distro
+Docker suite green with counts 106 arch / 127 alpine3 / 126 others unchanged and
+serve 8/8; and on Windows Server 2025, unit, validate and serve suites all
+green.
+
+**Windows test coverage went from 33 live fixture entries to 42 of 47.** Two of
+the previously skipped fixtures were not merely unexercised but wrong:
+`interface` asserted that an interface did not exist while also asserting that
+same interface's addresses and MTU, and the `user` and `group` fixtures were
+unedited Linux copies asserting an NFS account's uid, home and shell against
+`Administrator`. Skipping them is why nobody noticed. The validate harness also
+could not host a fixture that is meant to fail: it ran under `errexit` with an
+ERR trap, so the first failing fixture aborted the run and every later fixture
+silently never executed. Fixtures now declare an expected exit code.
+
+**Still not exercised, each for a stated reason:** `package` and `port` error
+unconditionally on Windows because no backend exists, `mount` reports a
+misleading-but-loud error whose fix needs cross-platform reordering, and
+`kernel-param` has no Windows equivalent at all. `docs/windows.md` records this
+rather than letting a green validate run imply coverage that is not there.
 
 ---
 

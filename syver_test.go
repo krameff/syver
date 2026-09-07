@@ -140,16 +140,31 @@ func TestSkipResourcesByType(t *testing.T) {
 	results, err := ValidateResults(t.Context(), cfg)
 	checkErr(t, err, "check failed")
 
-	skipped := 0
+	total, skipped := 0, 0
 	for rg := range results {
 		for _, r := range rg {
+			total++
 			if r.Skipped {
 				skipped++
 			}
 		}
 	}
 
-	if skipped != 5 {
-		t.Fatalf("Expected to skip 5 tests, skipped %d", skipped)
+	// Derived, not a constant. This asserted `skipped != 5` until 2026-09-02,
+	// which made it platform-dependent without saying so: FEAT-010 stops
+	// `syver add file` writing mode/owner/group on Windows (they were
+	// fabricated "-1" values), so the generated spec carries three fewer
+	// attributes there and the count dropped 5 -> 2. The test failed on
+	// Windows while passing on Linux, and the CODE was right -- the number
+	// was wrong. What this test actually cares about is that disabling a
+	// resource type skips every test generated for it, which is true on both
+	// platforms whatever `add` chose to write.
+	if total == 0 {
+		t.Fatal("no results at all: the fixture generated nothing, so an " +
+			"all-skipped assertion would pass vacuously")
+	}
+	if skipped != total {
+		t.Fatalf("disabling the file resource type must skip every generated "+
+			"test: %d of %d skipped", skipped, total)
 	}
 }
