@@ -11,6 +11,12 @@
 > and full credit goes to the original author for building such a solid foundation. This fork exists to enable newer
 > features and fixes to be developed and released. We are deeply grateful for the effort and care that went into the
 > original project and aim to continue it in the same spirit.
+>
+> **Syver has since diverged from upstream.** The work here is driven by client requirements rather than by tracking
+> `goss-org/goss`, so the two projects will continue to differ and Syver does not aim for release-for-release parity
+> with upstream. Compatibility with the *gossfile format* is a separate matter and is maintained deliberately: existing
+> gossfiles, environment variables and wrapper scripts keep working. See
+> [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md) for exactly what differs.
 
 [![Documentation](https://img.shields.io/badge/docs-docs-blue)](docs/index.md)
 

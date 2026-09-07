@@ -14,6 +14,35 @@ at 1.0, so that `v0.6.0` means the same lineage point in both projects.
 Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
+**Fix forward. A published version is not edited, it is superseded.** If a
+release is wrong, the fix is the next version, not a changed one: the tag stays
+where it is and `CHANGELOG.md` records what was wrong. This is the rule the
+entries below cite.
+
+It has one exemption, and it is narrower than it looks: **a tag may be deleted
+and re-cut only while nothing can have been consumed from it.** That means the
+release build did not publish an artifact and no one could have fetched the tag.
+The test is whether anything exists outside this repository that points at the
+old tag, not whether re-cutting would be tidier.
+
+Three releases have touched this rule, and only one of them sat squarely inside
+the exemption:
+
+* **v0.9.1** was re-cut at the same commit to replace a lightweight tag with a
+  signed one. The contents never changed, so the rule was not engaged.
+* **v0.10.0**'s first tag failed its own gate before the `build` job ran, so
+  nothing was published. That is the exemption working as written.
+* **v0.11.0**'s first tag was cut on the wrong commit and the release workflow
+  built it green, so an artifact did exist. The exemption did **not** cleanly
+  apply. It was re-cut anyway, as a deliberate call: the repository was private,
+  the window was under an hour, and the artifacts were a rebuild of v0.10.0
+  under a v0.11.0 name, which is worse to leave standing than to replace. Treat
+  that as a judgement made with the facts written down, not as precedent.
+
+Whenever a tag is replaced, anyone who fetched it in the meantime keeps the old
+one, because git will not overwrite an existing tag ref. They need
+`git fetch --tags --force`. Say so in the entry every time.
+
 "Released" is the date the tag object was created, which is not always the
 commit date. Every tag from v0.7.0 onward is annotated and GPG-signed with the
 same key. v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20. v0.6.0
@@ -57,12 +86,12 @@ release.
 
 | Field | Value |
 | --- | --- |
-| Released | **Not yet released.** Prepared 2026-09-04 |
-| Tag | `v0.11.0`, not yet cut |
-| Commit | pending |
+| Released | 2026-09-07 |
+| Tag | `v0.11.0`. Cut twice; see the note below the gate |
+| Commit | `5729f8a` |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` |
-| Scope | 24 commits (21 excluding merges), 67 files, +2689 / -503, measured at `30f2de0` against `v0.10.0` |
+| Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` (PR #34), plus three dependency commits and two CI fixes taken during the release |
+| Scope | 26 commits (22 excluding merges), 67 files, +2696 / -503, measured at `v0.11.0` against `v0.10.0` |
 | Changelog | [0.11.0](CHANGELOG.md#0110-based-on-krameffgoss-v060---windows-stop-returning-confident-wrong-answers) |
 
 Windows checks that could not run were reporting success. Fourteen such sites
@@ -116,7 +145,9 @@ by hand against v4.26.8 rather than inferred from a green suite.
 confined to Windows, and every one converts a silent pass into an explicit
 error.
 
-**Gate at release:** measured at `30f2de0`. Unit tests clean under `-race`
+**Gate at release:** measured at `30f2de0`, which is the tag's tree apart from
+this file: `git diff --stat 30f2de0 v0.11.0` reports `RELEASES.md` and nothing
+else. Unit tests clean under `-race`
 across 7 packages, 225 top-level tests and 634 counting subtests. `make check`
 clean, with govulncheck and Trivy both reporting nothing and cross-vet clean for
 windows/amd64 and darwin/amd64. Goldens 206 byte-identical. GitHub Actions run
@@ -130,6 +161,36 @@ The golden run reports its baseline as `f15754c`, one commit behind the tag, so
 bullseye fixtures, which is exactly the change the corpus cannot see: a deleted
 fixture leaves its golden in place and still matches. The count of 206 is
 correct and was confirmed by hand rather than by the gate.
+
+**The first v0.11.0 tag was cut on the wrong commit and was replaced.** It
+pointed at `fc7201e`, which is the `v0.10.0` commit: the `devel` to `main` merge
+had not been run, so the tag carried none of this release. `git diff v0.10.0
+v0.11.0` was empty and `docs/windows.md` was absent from the tree. It was signed
+and pushed, and the release workflow ran on it and reported success, so a
+v0.11.0 build existed whose artifacts were a rebuild of v0.10.0. The release
+object and its assets were deleted, the tag was deleted locally and on the
+remote, `devel` was merged to `main` through PR #35, and the tag was re-cut at
+the resulting merge commit `5729f8a` and verified against its own contents
+before being pushed.
+
+This is the second re-cut in the project's history and it is not the same case
+as v0.10.0's, where the build never ran and nothing was published. Here an
+artifact did exist, briefly, on a private repository. **Anyone who fetched
+during that window holds the old tag**, and git will not overwrite an existing
+tag ref, so `git fetch --tags --force` is needed to pick up the real one. That
+is the same remedy v0.9.1 needs, for a different reason.
+
+The check that catches this costs two seconds and is now the thing to run before
+pushing any release tag:
+
+```sh
+git diff --stat v<previous> v<new>     # must not be empty
+git cat-file -e v<new>:<a file the release adds>
+```
+
+Every gate figure above was measured and green, and every one of them was
+measured on `30f2de0`, which was not the tree that got tagged. A green result
+says nothing about provenance unless you check the provenance.
 
 **Windows test coverage went from 33 live fixture entries to 42 of 47.** Two of
 the previously skipped fixtures were not merely unexercised but wrong:
@@ -207,8 +268,8 @@ reported zero affected vulnerabilities, but a fix existed in v0.56.0 so the
 dependency was bumped rather than suppressed. Nothing was published from the
 first tag, since the `build` job never ran, and the repository is private, so the
 tag was deleted and re-cut rather than burning a version number on an empty
-release. This is the one case where re-cutting is preferable to the fix-forward
-rule stated at the top of this file: no artifact and no consumer existed.
+release. This is the case the exemption at the top of this file is written
+for: no artifact and no consumer existed.
 
 Worth recording for the next release: this passed locally and failed in CI
 because Trivy's vulnerability database cannot be pinned the way the scanner

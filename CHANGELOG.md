@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.11.1 based on krameff/goss v0.6.0 - documentation site corrections
+
+- docs and CI, committed directly to `devel`
+  - `docs/schema.yaml` sent you to another project's documentation. Its field
+    descriptions linked to `goss.rocks` in nine places, and that schema is what
+    README and `docs/gossfile.md` tell you to load into your editor from
+    `raw.githubusercontent.com`, so hovering a field opened upstream goss's site
+    rather than Syver's. They now point at Syver's own pages. The two
+    `#patterns` links have no Syver equivalent and go to
+    `gossfile.md#matchers`, which is where `docs/gossfile.md` itself sends a
+    reader looking for the same thing
+  - `docs/windows.md` was absent from the nav and unreachable from the published
+    site. It is the page 0.11.0's own notes tell you to read, so it was reachable
+    only by typing the URL
+  - every "Edit this page" link on the documentation site returned a 404.
+    `edit_uri` named a `master` branch that this repository has never had
+  - `docs/goss.yaml` linked twice to a README section whose heading the rename
+    had changed, so both links landed at the top of the page instead of at
+    "Manually editing Syver files"
+  - the documentation footer now carries Krameff Solutions Ltd's copyright
+    alongside the original author's. The footer's Medium icon, which pointed at
+    the upstream author's blog, has been removed; the post itself is still
+    linked from README where it is cited
+  - Dependabot targets `devel` explicitly. It had set no `target-branch`, so it
+    followed the repository default, and that default moved from `devel` to
+    `main`; dependency pull requests would have opened straight against the
+    release branch. Nothing about syver itself changes
+  - two step names in the container image workflow still said goss
+  - README and [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md)
+    now say plainly that Syver has diverged from upstream and does not track it.
+    Neither said so, and a reader could reasonably have assumed the fork stays in
+    step with `goss-org/goss`. The gossfile format is a separate promise and is
+    still held stable
+
 ## 0.11.0 based on krameff/goss v0.6.0 - Windows: stop returning confident wrong answers
 
 - feature/windows-truthfulness branch
