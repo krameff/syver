@@ -79,8 +79,28 @@ mkdir -p "$OUT"
 BIN="$OUT/syver-bin"
 
 cd "$REPO_ROOT"
-git rev-parse HEAD > "$OUT/HEAD.txt" 2>/dev/null || echo "unknown" > "$OUT/HEAD.txt"
 go build -o "$BIN" ./cmd/syver
+
+# Wipe the output trees before generating into them, and do it AFTER the build
+# so a compile failure cannot destroy a baseline it was never going to replace.
+#
+# This is not tidiness. The harness generates a golden per spec it harvests and
+# then lists what it finds on disk, so anything left over from a previous run is
+# indistinguishable from a golden produced by this one. DELETING A FIXTURE WAS
+# THEREFORE INVISIBLE TO THE GATE: the removed spec is no longer harvested, its
+# stale golden is still on disk, `find` lists it, the checksum still matches the
+# baseline, and verify reports PASS with the count unchanged. That happened on
+# 2026-09-07, when dropping the bullseye fixtures produced a clean pass and the
+# corrected count had to be worked out by hand.
+#
+# A gate that cannot see a deletion is worse than no gate, because it is
+# believed. Keep this list in step with the `find` in the manifest step below.
+for d in validate render add render-vars work; do
+  rm -rf "${OUT:?}/$d"
+done
+rm -f "$OUT/MANIFEST.sha256"
+
+git rev-parse HEAD > "$OUT/HEAD.txt" 2>/dev/null || echo "unknown" > "$OUT/HEAD.txt"
 
 # Normalise everything wall-clock. The json/structured formatters embed absolute
 # RFC3339 start-time/end-time and raw nanosecond durations, so stripping only the
@@ -228,8 +248,26 @@ if [ "$MODE" = capture ]; then
 fi
 
 # ---- verify ------------------------------------------------------------------
-echo "baseline HEAD: $(cat "$BASE/HEAD.txt")"
-echo "current  HEAD: $(cat "$OUT/HEAD.txt")"
+base_head="$(cat "$BASE/HEAD.txt")"
+this_head="$(cat "$OUT/HEAD.txt")"
+echo "baseline HEAD: $base_head"
+echo "current  HEAD: $this_head"
+
+# Say it, rather than printing two shas and leaving the reader to compare them.
+# The baseline lives OUTSIDE the repository, so it does not switch with the
+# branch: capture on one branch, check out another, and every golden that
+# differs between the two branches is reported as a failure. Nothing is wrong.
+# Diagnosed 2026-09-04 in a minute, but only because the cause happened to be
+# fresh; the failure output on its own points at the code, not at the baseline.
+if [ "$base_head" != "$this_head" ]; then
+  echo
+  echo "NOTE: the baseline was captured on a DIFFERENT commit to the one being" >&2
+  echo "      verified. If files differ below, check whether they differ between" >&2
+  echo "      those two commits before reading it as a regression. Do NOT" >&2
+  echo "      re-capture to make it pass: that adopts the other tree's output as" >&2
+  echo "      the baseline and destroys the comparison you wanted." >&2
+  echo
+fi
 if diff -u "$BASE/MANIFEST.sha256" "$OUT/MANIFEST.sha256" > "$OUT/manifest.diff"; then
   echo "PASS: all $count golden files byte-identical -- no observable change."
   exit 0
