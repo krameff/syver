@@ -57,12 +57,12 @@ release.
 
 | Field | Value |
 | --- | --- |
-| Released | **Not yet released.** Prepared 2026-09-04 |
-| Tag | `v0.11.0`, not yet cut |
-| Commit | pending |
+| Released | 2026-09-07 |
+| Tag | `v0.11.0`. Cut twice; see the note below the gate |
+| Commit | `5729f8a` |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` |
-| Scope | 24 commits (21 excluding merges), 67 files, +2689 / -503, measured at `30f2de0` against `v0.10.0` |
+| Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` (PR #34), plus three dependency commits and two CI fixes taken during the release |
+| Scope | 26 commits (22 excluding merges), 67 files, +2696 / -503, measured at `v0.11.0` against `v0.10.0` |
 | Changelog | [0.11.0](CHANGELOG.md#0110-based-on-krameffgoss-v060---windows-stop-returning-confident-wrong-answers) |
 
 Windows checks that could not run were reporting success. Fourteen such sites
@@ -116,7 +116,9 @@ by hand against v4.26.8 rather than inferred from a green suite.
 confined to Windows, and every one converts a silent pass into an explicit
 error.
 
-**Gate at release:** measured at `30f2de0`. Unit tests clean under `-race`
+**Gate at release:** measured at `30f2de0`, which is the tag's tree apart from
+this file: `git diff --stat 30f2de0 v0.11.0` reports `RELEASES.md` and nothing
+else. Unit tests clean under `-race`
 across 7 packages, 225 top-level tests and 634 counting subtests. `make check`
 clean, with govulncheck and Trivy both reporting nothing and cross-vet clean for
 windows/amd64 and darwin/amd64. Goldens 206 byte-identical. GitHub Actions run
@@ -130,6 +132,36 @@ The golden run reports its baseline as `f15754c`, one commit behind the tag, so
 bullseye fixtures, which is exactly the change the corpus cannot see: a deleted
 fixture leaves its golden in place and still matches. The count of 206 is
 correct and was confirmed by hand rather than by the gate.
+
+**The first v0.11.0 tag was cut on the wrong commit and was replaced.** It
+pointed at `fc7201e`, which is the `v0.10.0` commit: the `devel` to `main` merge
+had not been run, so the tag carried none of this release. `git diff v0.10.0
+v0.11.0` was empty and `docs/windows.md` was absent from the tree. It was signed
+and pushed, and the release workflow ran on it and reported success, so a
+v0.11.0 build existed whose artifacts were a rebuild of v0.10.0. The release
+object and its assets were deleted, the tag was deleted locally and on the
+remote, `devel` was merged to `main` through PR #35, and the tag was re-cut at
+the resulting merge commit `5729f8a` and verified against its own contents
+before being pushed.
+
+This is the second re-cut in the project's history and it is not the same case
+as v0.10.0's, where the build never ran and nothing was published. Here an
+artifact did exist, briefly, on a private repository. **Anyone who fetched
+during that window holds the old tag**, and git will not overwrite an existing
+tag ref, so `git fetch --tags --force` is needed to pick up the real one. That
+is the same remedy v0.9.1 needs, for a different reason.
+
+The check that catches this costs two seconds and is now the thing to run before
+pushing any release tag:
+
+```sh
+git diff --stat v<previous> v<new>     # must not be empty
+git cat-file -e v<new>:<a file the release adds>
+```
+
+Every gate figure above was measured and green, and every one of them was
+measured on `30f2de0`, which was not the tree that got tagged. A green result
+says nothing about provenance unless you check the provenance.
 
 **Windows test coverage went from 33 live fixture entries to 42 of 47.** Two of
 the previously skipped fixtures were not merely unexercised but wrong:
