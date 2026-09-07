@@ -81,14 +81,12 @@ markdown_extensions:
       check_paths: true
   - pymdownx.superfences
 
-copyright: Copyright &copy; 2015 - 2024 Ahmed Elsabbahy
+copyright: Copyright &copy; 2015 - 2024 Ahmed Elsabbahy &middot; Copyright &copy; 2026 Krameff Solutions Ltd
 
 extra:
   social:
     - icon: fontawesome/brands/github
       link: https://github.com/krameff/syver
-    - icon: fontawesome/brands/medium
-      link: https://medium.com/@aelsabbahy
 
 watch:
   - README.md

@@ -14,6 +14,35 @@ at 1.0, so that `v0.6.0` means the same lineage point in both projects.
 Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
+**Fix forward. A published version is not edited, it is superseded.** If a
+release is wrong, the fix is the next version, not a changed one: the tag stays
+where it is and `CHANGELOG.md` records what was wrong. This is the rule the
+entries below cite.
+
+It has one exemption, and it is narrower than it looks: **a tag may be deleted
+and re-cut only while nothing can have been consumed from it.** That means the
+release build did not publish an artifact and no one could have fetched the tag.
+The test is whether anything exists outside this repository that points at the
+old tag, not whether re-cutting would be tidier.
+
+Three releases have touched this rule, and only one of them sat squarely inside
+the exemption:
+
+* **v0.9.1** was re-cut at the same commit to replace a lightweight tag with a
+  signed one. The contents never changed, so the rule was not engaged.
+* **v0.10.0**'s first tag failed its own gate before the `build` job ran, so
+  nothing was published. That is the exemption working as written.
+* **v0.11.0**'s first tag was cut on the wrong commit and the release workflow
+  built it green, so an artifact did exist. The exemption did **not** cleanly
+  apply. It was re-cut anyway, as a deliberate call: the repository was private,
+  the window was under an hour, and the artifacts were a rebuild of v0.10.0
+  under a v0.11.0 name, which is worse to leave standing than to replace. Treat
+  that as a judgement made with the facts written down, not as precedent.
+
+Whenever a tag is replaced, anyone who fetched it in the meantime keeps the old
+one, because git will not overwrite an existing tag ref. They need
+`git fetch --tags --force`. Say so in the entry every time.
+
 "Released" is the date the tag object was created, which is not always the
 commit date. Every tag from v0.7.0 onward is annotated and GPG-signed with the
 same key. v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20. v0.6.0
@@ -239,8 +268,8 @@ reported zero affected vulnerabilities, but a fix existed in v0.56.0 so the
 dependency was bumped rather than suppressed. Nothing was published from the
 first tag, since the `build` job never ran, and the repository is private, so the
 tag was deleted and re-cut rather than burning a version number on an empty
-release. This is the one case where re-cutting is preferable to the fix-forward
-rule stated at the top of this file: no artifact and no consumer existed.
+release. This is the case the exemption at the top of this file is written
+for: no artifact and no consumer existed.
 
 Worth recording for the next release: this passed locally and failed in CI
 because Trivy's vulnerability database cannot be pinned the way the scanner
