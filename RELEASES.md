@@ -68,6 +68,7 @@ release.
 
 ## Contents
 
+* [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
 * [v0.10.0 - Templating moved from sprig to sprout](#v0100---templating-moved-from-sprig-to-sprout)
 * [v0.9.4 - Housekeeping](#v094---housekeeping)
@@ -79,6 +80,72 @@ release.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.11.1 - Documentation site corrections
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-07 |
+| Tag | `v0.11.1`. Cut twice; see the note below |
+| Commit | `f9f6b2c` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, merged through PR #36. No feature branch; the commits were made directly on `devel` |
+| Scope | 6 commits (5 excluding merges), 10 files, +134 / -24, measured at `v0.11.1` against `v0.11.0` |
+| Changelog | [0.11.1](CHANGELOG.md#0111-based-on-krameffgoss-v060---documentation-site-corrections) |
+
+Documentation and CI only. No Go source, no `go.mod` change, so the binaries are
+functionally identical to v0.11.0. It exists as its own version because the
+things it fixes are user-visible and were wrong on a repository about to be made
+public, not because anything in the program changed.
+
+The substantive one is `docs/schema.yaml`. That file is what README and
+`docs/gossfile.md` tell you to load into your editor from
+`raw.githubusercontent.com`, and its field descriptions linked to `goss.rocks` in
+nine places, so hovering a field opened upstream goss's documentation rather than
+Syver's. Two of those links had no Syver equivalent at all and now point at
+`gossfile.md#matchers`, which is where Syver's own prose sends a reader looking
+for the same thing.
+
+The rest: `docs/windows.md` was built but absent from the navigation, so the page
+0.11.0 tells you to read was reachable only by typing its URL; every "Edit this
+page" link returned a 404, because `edit_uri` named a `master` branch this
+repository has never had; and `docs/goss.yaml` linked twice to a README heading
+the rename had changed. The footer now carries Krameff Solutions Ltd's copyright
+alongside the original author's.
+
+One CI change with no user-facing effect: Dependabot now names `devel` as its
+target branch. It had none, so it followed the repository default, and that
+default moved to `main` when the repository was prepared for publication.
+Dependency pull requests would have opened directly against the release branch.
+
+**Breaking:** none. Nothing in the program changed.
+
+**Gate at release:** `Golang ci` green on `4f317d9`, the tagged tree's parent,
+across all twelve jobs including `windows-latest` and macOS; Validate YAML green;
+`mkdocs build --strict` clean; markdown lint clean; `yamllint` clean across the
+repository. The first `Golang ci` attempt on that commit failed while downloading
+Trivy in the `coverage` job, resolved the pinned version and exited during the
+fetch. Nothing in the range touches that workflow or the scanner, both are
+SHA-pinned, and a re-run with no change passed, so it is recorded as a transient
+installer fetch rather than a finding.
+
+**This tag was cut on the wrong commit and replaced, for the second release
+running.** It first pointed at `5729f8a`, the v0.11.0 commit, because the `devel`
+to `main` merge had not been run. `git diff v0.11.0 v0.11.1` was empty. It was
+signed, pushed, and the release workflow was already building it when this was
+noticed. The tag was deleted, `devel` was merged through PR #36, and the tag was
+re-cut at `f9f6b2c` and verified against its own contents before being pushed.
+As with v0.11.0, anyone who fetched during that window holds the old tag and
+needs `git fetch --tags --force`.
+
+**Twice is a pattern, and the response should not be a third reminder.** The
+two-second check written into this file after the first occurrence was not run
+before the second, which is the expected outcome for any control that depends on
+remembering. The fix is to make the release workflow refuse a tag whose tree is
+identical to the previous tag's. That would have blocked both incidents without
+anyone remembering anything.
 
 ---
 
