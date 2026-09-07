@@ -151,7 +151,7 @@ package:
     versions:
       - "2.1"
     skip: false
-# https://github.com/krameff/syver/blob/main/README.md#manually-editing-goss-files    
+# https://github.com/krameff/syver/blob/main/README.md#manually-editing-syver-files    
   kernel:
     installed: true
     versions:
@@ -213,4 +213,4 @@ user:
           - /var/empty/sshd
           - /var/run/sshd
 
-# https://github.com/krameff/syver/blob/main/README.md#manually-editing-goss-files
+# https://github.com/krameff/syver/blob/main/README.md#manually-editing-syver-files

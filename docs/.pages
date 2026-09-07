@@ -8,6 +8,7 @@ nav:
   - goss vs Syver: goss-vs-syver.md
   - migrations.md
   - platforms.md
+  - Windows: windows.md
   - containers
   - Contributing: contributing.md
   - Testing: testing.md

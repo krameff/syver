@@ -4,7 +4,7 @@ site_author: Syver team
 site_url: https://syver.readthedocs.io/
 repo_url: https://github.com/krameff/syver
 repo_name: krameff/syver
-edit_uri: edit/master/docs/
+edit_uri: edit/main/docs/
 
 
 theme:
