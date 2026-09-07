@@ -62,7 +62,7 @@ release.
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` |
-| Scope | 20 commits (18 excluding merges), 59 files, +2658 / -123, measured at `e1f36d8` before the merge to `devel`. Re-measure against the tag |
+| Scope | 24 commits (21 excluding merges), 67 files, +2689 / -503, measured at `30f2de0` against `v0.10.0` |
 | Changelog | [0.11.0](CHANGELOG.md#0110-based-on-krameffgoss-v060---windows-stop-returning-confident-wrong-answers) |
 
 Windows checks that could not run were reporting success. Fourteen such sites
@@ -116,13 +116,20 @@ by hand against v4.26.8 rather than inferred from a green suite.
 confined to Windows, and every one converts a silent pass into an explicit
 error.
 
-**Gate at release:** `make lint` clean; `make vet`, `make fmt` and
-`go mod tidy -diff` clean; unit tests clean under `-race` across 7 packages;
-`make check` clean with govulncheck and Trivy both reporting nothing; goldens
-byte-identical; cross-compiles clean for linux, darwin and windows; six-distro
-Docker suite green with counts 106 arch / 127 alpine3 / 126 others unchanged and
-serve 8/8; and on Windows Server 2025, unit, validate and serve suites all
-green.
+**Gate at release:** measured at `30f2de0`. Unit tests clean under `-race`
+across 7 packages, 225 top-level tests and 634 counting subtests. `make check`
+clean, with govulncheck and Trivy both reporting nothing and cross-vet clean for
+windows/amd64 and darwin/amd64. Goldens 206 byte-identical. GitHub Actions run
+`34112052013` green on all twelve jobs: lint, coverage, the five-distro Linux
+suite (rockylinux9, almalinux10, jammy, alpine3, arch), linux/arm64,
+linux/ppc64le, the serve suite, macOS and `windows-latest`. On Windows Server
+2025, unit, validate and serve suites all green.
+
+The golden run reports its baseline as `f15754c`, one commit behind the tag, so
+`1cb724f` is the one commit the corpus did not gate. That commit deletes the
+bullseye fixtures, which is exactly the change the corpus cannot see: a deleted
+fixture leaves its golden in place and still matches. The count of 206 is
+correct and was confirmed by hand rather than by the gate.
 
 **Windows test coverage went from 33 live fixture entries to 42 of 47.** Two of
 the previously skipped fixtures were not merely unexercised but wrong:
