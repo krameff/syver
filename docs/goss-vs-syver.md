@@ -6,6 +6,12 @@ format did not.** Existing gossfiles, env vars, wrapper scripts and CI pipelines
 working. The breaking changes are limited to things that referenced the product by
 name, and are listed first.
 
+Syver is not a tracking fork. Its changes are driven by client requirements rather
+than by following `goss-org/goss`, so the gap between the two grows over time and
+release-for-release parity with upstream is not a goal. What *is* deliberately held
+stable is the file format: the tables below exist so you can tell which of the two
+you are dealing with in any given case.
+
 For a step-by-step move from upstream goss, see [migrations](migrations.md). This page
 is the quick reference for what is and isn't different.
 
