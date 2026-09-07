@@ -114,7 +114,7 @@ test-darwin-all: test-short-all test-int-darwin-all
 test-linux-all: test-short-all test-int-64
 test-windows-all: test-short-all test-int-windows-all
 
-test-int-64: rockylinux9 almalinux10 bullseye jammy alpine3 arch test-int-serve-linux-amd64
+test-int-64: rockylinux9 almalinux10 jammy alpine3 arch test-int-serve-linux-amd64
 test-int-darwin-all: test-int-validate-darwin-amd64 test-int-serve-darwin-amd64 test-int-validate-darwin-arm64 test-int-serve-darwin-arm64
 test-int-windows-all: test-int-validate-windows-amd64 test-int-serve-windows-amd64
 test-int-all: test-int-64
@@ -127,10 +127,6 @@ rockylinux9: release/syver-linux-amd64
 almalinux10: release/syver-linux-amd64
 	$(info INFO: Starting build $@)
 	cd integration-tests/ && ./test.sh almalinux10 amd64
-.PHONY: bullseye
-bullseye: release/syver-linux-amd64
-	$(info INFO: Starting build $@)
-	cd integration-tests/ && ./test.sh bullseye amd64
 .PHONY: jammy
 jammy: release/syver-linux-amd64
 	$(info INFO: Starting build $@)

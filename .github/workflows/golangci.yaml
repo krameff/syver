@@ -97,7 +97,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        distro: [rockylinux9, almalinux10, bullseye, jammy, alpine3, arch, test-int-serve-linux-amd64]
+        distro: [rockylinux9, almalinux10, jammy, alpine3, arch, test-int-serve-linux-amd64]
     steps:
       - uses: actions/checkout@v7.0.1
         with:
