@@ -5,9 +5,14 @@
 # the file was copied, so `skip: true` was hiding a fixture that described an
 # NFS account on a Linux box rather than a gap in syver.
 #
-# Only accounts present on ANY Windows are used. `vagrant` exists on the local
-# Server 2025 test VM but NOT on GitHub's windows-latest runner, so it is
-# deliberately not asserted here.
+# ONLY ACCOUNTS VERIFIED ON BOTH HOSTS. That is not the same as "built-in", and
+# the difference cost a CI run: `Administrator` is a built-in account and is
+# present on Server 2025, but GitHub's windows-latest runner does not have it
+# (`Get-LocalUser : User Administrator was not found`). `vagrant` exists on the
+# local VM only. `Guest` is present on both and is what remains.
+#
+# The lesson generalises: verify a Windows fixture on windows-latest as well as
+# on the local guest before assuming an account is universal.
 #
 # DELIBERATELY NOT ASSERTED, and why:
 #   uid / gid  -- Windows identifies accounts by SID (S-1-5-21-...), and
@@ -32,8 +37,6 @@
 # as "the lookup could not run" and `exists: false` FAILED. If that regresses,
 # this fixture goes red.
 user:
-  Administrator:
-    exists: true
   Guest:
     exists: true
   syver-no-such-user-ffffffff:

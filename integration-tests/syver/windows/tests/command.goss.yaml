@@ -56,11 +56,11 @@ command:
   # well-known RID is pinned: Administrator is always -500. The BUILTIN group
   # SIDs have no machine part at all and are identical everywhere, so those
   # are asserted exactly.
-  administrator SID has the well-known 500 RID:
-    exec: powershell -noprofile -noninteractive -command "(Get-LocalUser -Name Administrator).SID.Value"
+  guest account SID has the well-known 501 RID:
+    exec: powershell -noprofile -noninteractive -command "(Get-LocalUser -Name Guest).SID.Value"
     exit-status: 0
     stdout:
-      - "/^S-1-5-21-[0-9]+-[0-9]+-[0-9]+-500$/"
+    - "/^S-1-5-21-[0-9]+-[0-9]+-[0-9]+-501$/"
     stderr:
       have-len: 0
     timeout: 30000
@@ -68,7 +68,7 @@ command:
     exec: powershell -noprofile -noninteractive -command "(Get-LocalGroup -Name Administrators).SID.Value"
     exit-status: 0
     stdout:
-      - S-1-5-32-544
+    - S-1-5-32-544
     stderr:
       have-len: 0
     timeout: 30000

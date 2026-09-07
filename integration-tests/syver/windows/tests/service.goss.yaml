@@ -1,8 +1,14 @@
 ---
-# `EventLog` is running and automatic on any Windows. `NetTcpPortSharing`
-# ships disabled and stopped, so it is the negative case: it proves syver
-# reports a genuinely disabled service correctly, which is the assertion an
-# operator actually writes.
+# `EventLog` is running and automatic on any Windows, and is verified on both
+# Server 2025 and windows-latest.
+#
+# THERE IS NO NEGATIVE CASE, and not for want of trying. `NetTcpPortSharing`
+# was used for one: it ships disabled and stopped on Server 2025, but it is
+# RUNNING on GitHub's windows-latest runner, so the assertion failed there.
+# Service state is a property of how a host was built, not of Windows, so no
+# specific service can be relied on to be stopped everywhere. Asserting a state
+# that happens to hold on one runner is a fixture that breaks when the fleet
+# changes.
 #
 # THERE IS DELIBERATELY NO ABSENT-SERVICE CASE HERE, and its absence is not an
 # oversight. FEAT-010 made `service: <name>: {enabled: false}` ERROR for a
@@ -15,6 +21,3 @@ service:
   EventLog:
     enabled: true
     running: true
-  NetTcpPortSharing:
-    enabled: false
-    running: false
