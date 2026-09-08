@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.11.3 based on krameff/goss v0.6.0 - container package description
+
+- container image
+  - the package page for the published image showed **no description**. The
+    image carried `org.opencontainers.image.description` as a label on each
+    per-architecture image, but a multi-architecture image is published behind
+    an index, the index carries no labels, and the index is what GitHub
+    Packages reads. The same values are now attached as OCI **annotations** as
+    well, on the index and on each manifest, for both the release images and
+    the moving branch image. Nothing about the images themselves changed, only
+    what a registry can read about them without pulling one
+
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
 - supply chain
