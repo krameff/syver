@@ -1,3 +1,7 @@
+# expect-count: 4
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
 # NOT touched by FEAT-010. SW-7 (mount_windows.go's honest errNotImplemented
 # is unreachable -- system/mount.go's getMount fails first with the

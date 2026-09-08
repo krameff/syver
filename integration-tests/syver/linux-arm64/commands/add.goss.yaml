@@ -1,3 +1,5 @@
+# expect-count: 2
+# expect-skipped: 2
 ---
 command:
   "add addr 127.0.0.1":

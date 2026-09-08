@@ -29,6 +29,20 @@
     pushed, and says what a clone that fetched one of them beforehand has to do:
     `git fetch --tags --force`, since git will not correct a stale tag on its own
 
+- tests
+  - the platform fixture harness asserted the **exit code and nothing else**,
+    so a suite that quietly got smaller still reported a clean pass. It could
+    not see an assertion that stopped existing, nor one that turned into a skip,
+    because a skipped assertion never fails and over a third of these fixtures
+    use `skip: true`. Fixtures now declare `# expect-count:` and
+    `# expect-skipped:` alongside the existing `# expect-exit:`, in the same
+    inline form, and every one of them has been seeded. `Failed` is deliberately
+    not pinned, since it depends on the host, which is what the exit code is for
+  - each platform run now ends with a line naming the platform, the fixture
+    count, the total assertions and the total skipped. The per-platform CI jobs
+    are named identically and all render as an identical green tick, while the
+    suites behind them differ by close to an order of magnitude
+
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
 - supply chain

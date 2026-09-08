@@ -143,6 +143,44 @@ Fixtures live under
 and are
 mounted at `/goss/examples/` inside the test container.
 
+## Non-amd64 and non-Linux platform fixtures
+
+Script: [`integration-tests/run-validate-tests.sh`](https://github.com/krameff/syver/blob/main/integration-tests/run-validate-tests.sh)
+
+Platforms with no test container of their own -- macOS, Windows, and Linux on
+arm64 and ppc64le -- run their fixtures directly against a release binary rather
+than through Docker. Each fixture under
+`integration-tests/syver/<platform>/` is validated in turn.
+
+A fixture declares what it expects with comment directives, read from the file
+itself so that whoever writes the fixture cannot forget to register the
+expectation somewhere else:
+
+| Directive | Meaning | Default |
+| --- | --- | --- |
+| `# expect-exit: N` | exit code the validate must return | `0` |
+| `# expect-count: N` | total assertions the fixture must produce | unchecked |
+| `# expect-skipped: N` | how many of those must be skipped | unchecked |
+
+The exit code alone answers one question -- did anything fail. It cannot see an
+assertion that stopped existing, and it cannot see one that turned into a skip,
+because a skipped assertion never fails. Over a third of these fixtures use
+`skip: true`, so a suite that quietly got smaller would still report a clean
+pass. `expect-count` and `expect-skipped` close that.
+
+`Failed` is deliberately not pinned: it depends on the host, which is what the
+exit code is for. `Count` is a property of the fixture and is pinned everywhere.
+`Skipped` is pinned on macOS and Linux but **not** on Windows, where the same
+fixtures skip a different number of assertions on a real Windows host than when
+driven from another platform; seed that value from a Windows run, never by
+inference from another one.
+
+Every run ends with a line naming the platform, the number of fixtures, the
+total assertions and the total skipped. Each platform job in CI is named
+identically and renders as an identical green tick while the suites behind them
+differ by close to an order of magnitude, and that line is what tells a reader
+which green they are looking at.
+
 ## Go unit and integration tests
 
 ### Package `github.com/krameff/syver` (root)
