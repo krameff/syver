@@ -170,10 +170,19 @@ pass. `expect-count` and `expect-skipped` close that.
 
 `Failed` is deliberately not pinned: it depends on the host, which is what the
 exit code is for. `Count` is a property of the fixture and is pinned everywhere.
-`Skipped` is pinned on macOS and Linux but **not** on Windows, where the same
-fixtures skip a different number of assertions on a real Windows host than when
-driven from another platform; seed that value from a Windows run, never by
+
+`Skipped` is pinned on macOS and Linux but **not** on Windows, and the reason is
+worth knowing because it is not obvious. Skips are not purely declarative: a
+resource whose existence check fails has its remaining attributes reported as
+*skipped* rather than failed, so one missing file turns five further assertions
+into skips. The Windows fixtures therefore skip 33 assertions when driven from a
+Linux host and 19 on a real Windows host, where the files and registry keys
+actually exist. Seed that value from a run on the platform itself, never by
 inference from another one.
+
+That cascade is also what makes `expect-skipped` worth pinning at all: a
+resource that quietly stops being present raises the skip count without failing
+anything, which is precisely the case the exit code cannot see.
 
 Every run ends with a line naming the platform, the number of fixtures, the
 total assertions and the total skipped. Each platform job in CI is named

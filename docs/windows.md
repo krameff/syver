@@ -128,28 +128,45 @@ unimplemented one. Loud, but it blames the wrong thing.
 
 ## What is actually tested
 
-Measured 2026-09-02 on Windows Server 2025 (go1.27.0, gcc 16.1.0 MinGW-Builds).
-Re-derive rather than trust these numbers, by counting `skip: true` entries under
-`integration-tests/syver/windows/tests/`.
+Re-derive rather than trust these numbers. Two commands give them, and neither
+needs a Windows host: count the entries carrying `skip: true` under
+`integration-tests/syver/windows/`, and read the `# expect-count:` directive at
+the top of each fixture, which records how many assertions that fixture produces.
+That directive is checked on every run, so it cannot drift from the fixture
+silently.
 
 A passing Windows run covers less than it looks like, and the honest position is
 that four fixtures assert nothing at all.
 
-| Fixture | Live entries | Notes |
-| --- | --- | --- |
-| `command` | 4 of 4 | |
-| `gossfile` | 13 of 13 | aggregate of the others |
-| `user` | 3 of 3 | includes an absent-account case |
-| `group` | 3 of 3 | includes an absent-account case |
-| `registry` | 3 of 4 | |
-| `addr` | 2 of 2 | |
-| `process` | 2 of 2 | |
-| `dns`, `file`, `http`, `service` | 1 of 1 each | |
-| `interface` | **0 of 1** | asserts nothing |
-| `mount` | **0 of 1** | asserts nothing |
-| `package` | **0 of 1** | asserts nothing |
-| `port` | **0 of 1** | asserts nothing |
-| `kernel-param` | **not run at all** | excluded by filename; nothing to assert |
+| Fixture | Live entries | Assertions | Notes |
+| --- | --- | --- | --- |
+| `gossfile` | 13 of 13 | 51 | aggregate of the others |
+| `command` | 6 of 6 | 18 | |
+| `registry` | 7 of 8 | 12 | |
+| `file` | 2 of 2 | 7 | includes an absent-file case |
+| `http` | 1 of 1 | 3 | |
+| `group` | 3 of 3 | 3 | includes an absent-account case |
+| `addr` | 2 of 2 | 2 | |
+| `dns` | 1 of 1 | 2 | |
+| `interface` | 2 of 2 | 2 | includes an absent-adapter case |
+| `process` | 2 of 2 | 2 | |
+| `service` | 1 of 1 | 2 | |
+| `user` | 2 of 2 | 2 | includes an absent-account case |
+| `add`, `help`, `validate` | 1 of 1 each | 2 each | CLI command fixtures |
+| `autoadd` | **0 of 1** | 2 | asserts nothing |
+| `mount` | **0 of 1** | 4 | asserts nothing |
+| `package` | **0 of 1** | 2 | asserts nothing |
+| `port` | **0 of 1** | 2 | asserts nothing |
+| `kernel-param` | **not run at all** | | excluded by filename; nothing to assert |
+
+**"Assertions" is not the same as "assertions that ran."** A resource whose
+existence check fails has its remaining attributes reported as *skipped* rather
+than failed, so one missing file turns five further assertions into skips. That
+cascade is why the same fixtures skip 33 assertions when driven from a Linux
+host and 19 on a real Windows Server host: on Windows the files and registry
+keys are actually there, so the dependent attributes run instead of cascading.
+It also means a resource quietly disappearing shows up as a rise in skips, not
+as a failure.
 
 The `user:` and `group:` fixtures each assert that a deliberately absent account
 reports `exists: false` without erroring. Those two cases exist because that

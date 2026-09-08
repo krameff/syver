@@ -42,6 +42,28 @@
     count, the total assertions and the total skipped. The per-platform CI jobs
     are named identically and all render as an identical green tick, while the
     suites behind them differ by close to an order of magnitude
+  - the Docker distro suite checked its expected assertion counts with a quiet
+    `grep -q`, so a mismatch aborted the run with no message: the operator saw a
+    non-zero exit and had to scroll back through the validate output to work out
+    which of the three numbers had moved. It now names both sides, and prints
+    the counts it matched on a pass. The pass condition itself is unchanged
+
+- docs
+  - the Windows coverage table in `docs/windows.md` had drifted from the
+    fixtures it describes. It said `interface` asserted nothing, when that
+    fixture has two live entries including an absent-adapter case, and it
+    omitted `autoadd`, which is the fixture that really asserts nothing. Four
+    other rows undercounted. Every row is now measured, an assertion column has
+    been added, and the re-derivation instructions point at the
+    `# expect-count:` directive each fixture now carries, which is checked on
+    every run and so cannot drift silently
+  - both `docs/windows.md` and `docs/testing.md` now explain the **skip
+    cascade**: a resource whose existence check fails has its remaining
+    attributes reported as skipped rather than failed, so one missing file turns
+    five further assertions into skips. That is why the same fixtures skip 33
+    assertions driven from Linux and 19 on a real Windows host, and it is why a
+    resource quietly disappearing shows up as a rise in skips rather than a
+    failure
 
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
