@@ -1,5 +1,38 @@
 # Changelog
 
+## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
+
+- supply chain
+  - every release now publishes a **software bill of materials**, one SPDX 2.3
+    document per binary, named to match the binary it describes
+    (`syver-linux-amd64.spdx.json` beside `syver-linux-amd64`). SPDX was chosen
+    over CycloneDX because it is the format most compliance consumers expect,
+    and the format is what downstream automation binds to
+  - the SBOMs are **GPG-signed with the same key as the checksum file**, so
+    everything in a release carries a signature from one key rather than
+    leaving you to guess which artifacts are authoritative. The published key
+    is unchanged and verification is documented as before
+
+- container image
+  - the published image now upgrades its Alpine packages at build time. The
+    base image is republished infrequently, so building alone shipped whatever
+    package set had been baked into it months earlier, and the container scan
+    was reporting OpenSSL advisories against the published image as a result.
+    Syver's own binary is statically linked with cgo disabled and calls none of
+    those libraries, so nothing syver does was exploitable through them, but
+    this image is documented as a base image and an unpatched package here is
+    inherited by every downstream `FROM`
+
+- docs
+  - `RELEASES.md` said Syver "continues goss's version numbering... so that
+    `v0.6.0` means the same lineage point in both projects". Read cold, that
+    implies upstream `goss-org/goss` released a v0.6.0. It did not; its versions
+    run to v0.4.x. This project released v0.5.0 and v0.6.0 itself, under the
+    name `krameff/goss`, before the rename. The lineage section now says so,
+    and says plainly that `krameff/goss` and Syver are one project under two
+    names rather than two projects. It also listed a `v0.4.0` tag that has
+    never existed in this lineage
+
 ## 0.11.1 based on krameff/goss v0.6.0 - documentation site corrections
 
 - docs and CI, committed directly to `devel`

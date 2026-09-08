@@ -2,7 +2,15 @@
 
 This page describes how to run the Syver test suite locally and how those checks map to CI.
 
-Last verified: 2026-08-16 — **317** Go test cases passing, discovery E2E passing, markdown lint clean.
+To see how many tests there are and whether they pass, run them:
+
+```bash
+go test -race ./...
+```
+
+This page deliberately does not print a passing count. One was published here
+and went stale within a release, which is worse than no number at all: a reader
+has no way to tell a figure that is merely old from one that is wrong.
 
 ## Quick start (local)
 
@@ -135,7 +143,7 @@ Fixtures live under
 and are
 mounted at `/goss/examples/` inside the test container.
 
-## Go unit and integration tests (317 cases)
+## Go unit and integration tests
 
 ### Package `github.com/krameff/syver` (root)
 

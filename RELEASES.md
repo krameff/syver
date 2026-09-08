@@ -8,66 +8,27 @@ says what changed for users; this file says what was released, when, and from
 where, so a version in the wild can always be traced back to a commit. Each
 entry links to its changelog section rather than repeating it.
 
-Newest first. Syver continues goss's version numbering rather than restarting
-at 1.0, so that `v0.6.0` means the same lineage point in both projects.
+Newest first. Version numbers are continuous across the rename: this project
+released as `krameff/goss` at v0.5.0 and v0.6.0, became Syver at v0.7.0, and
+carried on counting rather than restarting at 1.0. A version number therefore
+identifies one point in one history.
+
+**Do not read those numbers as upstream's.** `goss-org/goss` at the time hadn't released
+a v0.5.0 or v0.6.0 -- its versions run to v0.4.x. The v0.5.0 and v0.6.0 above
+are this project's own, cut after the fork.
 
 Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
-**Fix forward. A published version is not edited, it is superseded.** If a
-release is wrong, the fix is the next version, not a changed one: the tag stays
-where it is and `CHANGELOG.md` records what was wrong. This is the rule the
-entries below cite.
-
-It has one exemption, and it is narrower than it looks: **a tag may be deleted
-and re-cut only while nothing can have been consumed from it.** That means the
-release build did not publish an artifact and no one could have fetched the tag.
-The test is whether anything exists outside this repository that points at the
-old tag, not whether re-cutting would be tidier.
-
-Three releases have touched this rule, and only one of them sat squarely inside
-the exemption:
-
-* **v0.9.1** was re-cut at the same commit to replace a lightweight tag with a
-  signed one. The contents never changed, so the rule was not engaged.
-* **v0.10.0**'s first tag failed its own gate before the `build` job ran, so
-  nothing was published. That is the exemption working as written.
-* **v0.11.0**'s first tag was cut on the wrong commit and the release workflow
-  built it green, so an artifact did exist. The exemption did **not** cleanly
-  apply. It was re-cut anyway, as a deliberate call: the repository was private,
-  the window was under an hour, and the artifacts were a rebuild of v0.10.0
-  under a v0.11.0 name, which is worse to leave standing than to replace. Treat
-  that as a judgement made with the facts written down, not as precedent.
-
-Whenever a tag is replaced, anyone who fetched it in the meantime keeps the old
-one, because git will not overwrite an existing tag ref. They need
-`git fetch --tags --force`. Say so in the entry every time.
-
+Every tag from v0.7.0 onward is annotated and GPG-signed with the same key.
 "Released" is the date the tag object was created, which is not always the
-commit date. Every tag from v0.7.0 onward is annotated and GPG-signed with the
-same key. v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20. v0.6.0
-has no tag in this repository and uses the date its changelog entry records.
-
-v0.9.1 was tagged twice, and the second tag is the real one. It was first cut
-through the GitHub release UI, which creates a lightweight tag: no tag object,
-no signature. It was re-cut the same day as an annotated, signed tag pointing at
-the same commit, so that every release from v0.7.0 on carries a signature. The
-commit never moved and the release contents are unaffected. The only practical
-consequence is for anyone who fetched v0.9.1 during that window: they hold the
-old lightweight tag, and `git fetch --tags --force` is needed to pick up the
-signed one, because git will not overwrite an existing tag ref on its own.
-
-**CodeQL is unavailable on this repository, not outstanding.** Code scanning
-needs GitHub Advanced Security on a private repo, and without it
-`github/codeql-action` cannot upload results whatever the analysis finds. It
-fails as `Resource not accessible by integration` naming an Actions endpoint,
-which reads exactly like a missing token scope and is not one. The workflow is
-kept so it resumes if Advanced Security is ever enabled. Trivy and govulncheck
-run regardless and do gate. Entries below therefore do not list CodeQL per
-release.
+commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
+v0.6.0 has no tag in this repository and uses the date its changelog entry
+records.
 
 ## Contents
 
+* [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
 * [v0.10.0 - Templating moved from sprig to sprout](#v0100---templating-moved-from-sprig-to-sprout)
 * [v0.9.4 - Housekeeping](#v094---housekeeping)
@@ -79,6 +40,53 @@ release.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.11.1 - Documentation site corrections
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-07 |
+| Tag | `v0.11.1`. Cut twice; see the note below |
+| Commit | `f9f6b2c` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, merged through PR #36. No feature branch; the commits were made directly on `devel` |
+| Scope | 6 commits (5 excluding merges), 10 files, +134 / -24, measured at `v0.11.1` against `v0.11.0` |
+| Changelog | [0.11.1](CHANGELOG.md#0111-based-on-krameffgoss-v060---documentation-site-corrections) |
+
+Documentation and CI only. No Go source, no `go.mod` change, so the binaries are
+functionally identical to v0.11.0. It exists as its own version because the
+things it fixes are user-visible and were wrong on a repository about to be made
+public, not because anything in the program changed.
+
+The substantive one is `docs/schema.yaml`. That file is what README and
+`docs/gossfile.md` tell you to load into your editor from
+`raw.githubusercontent.com`, and its field descriptions linked to `goss.rocks` in
+nine places, so hovering a field opened upstream goss's documentation rather than
+Syver's. Two of those links had no Syver equivalent at all and now point at
+`gossfile.md#matchers`, which is where Syver's own prose sends a reader looking
+for the same thing.
+
+The rest: `docs/windows.md` was built but absent from the navigation, so the page
+0.11.0 tells you to read was reachable only by typing its URL; every "Edit this
+page" link returned a 404, because `edit_uri` named a `master` branch this
+repository has never had; and `docs/goss.yaml` linked twice to a README heading
+the rename had changed. The footer now carries Krameff Solutions Ltd's copyright
+alongside the original author's.
+
+One CI change with no user-facing effect: Dependabot now names `devel` as its
+target branch. It had none, so it followed the repository default, and that
+default moved to `main` when the repository was prepared for publication.
+Dependency pull requests would have opened directly against the release branch.
+
+**Breaking:** none. Nothing in the program changed.
+
+**Gate at release:** `Golang ci` green on `4f317d9`, the tagged tree's parent,
+across all twelve jobs including `windows-latest` and macOS; Validate YAML green;
+`mkdocs build --strict` clean; markdown lint clean; `yamllint` clean across the
+repository. One `Golang ci` attempt failed while downloading Trivy and passed on
+re-run with no change; a transient fetch, not a finding.
 
 ---
 
@@ -162,36 +170,6 @@ bullseye fixtures, which is exactly the change the corpus cannot see: a deleted
 fixture leaves its golden in place and still matches. The count of 206 is
 correct and was confirmed by hand rather than by the gate.
 
-**The first v0.11.0 tag was cut on the wrong commit and was replaced.** It
-pointed at `fc7201e`, which is the `v0.10.0` commit: the `devel` to `main` merge
-had not been run, so the tag carried none of this release. `git diff v0.10.0
-v0.11.0` was empty and `docs/windows.md` was absent from the tree. It was signed
-and pushed, and the release workflow ran on it and reported success, so a
-v0.11.0 build existed whose artifacts were a rebuild of v0.10.0. The release
-object and its assets were deleted, the tag was deleted locally and on the
-remote, `devel` was merged to `main` through PR #35, and the tag was re-cut at
-the resulting merge commit `5729f8a` and verified against its own contents
-before being pushed.
-
-This is the second re-cut in the project's history and it is not the same case
-as v0.10.0's, where the build never ran and nothing was published. Here an
-artifact did exist, briefly, on a private repository. **Anyone who fetched
-during that window holds the old tag**, and git will not overwrite an existing
-tag ref, so `git fetch --tags --force` is needed to pick up the real one. That
-is the same remedy v0.9.1 needs, for a different reason.
-
-The check that catches this costs two seconds and is now the thing to run before
-pushing any release tag:
-
-```sh
-git diff --stat v<previous> v<new>     # must not be empty
-git cat-file -e v<new>:<a file the release adds>
-```
-
-Every gate figure above was measured and green, and every one of them was
-measured on `30f2de0`, which was not the tree that got tagged. A green result
-says nothing about provenance unless you check the provenance.
-
 **Windows test coverage went from 33 live fixture entries to 42 of 47.** Two of
 the previously skipped fixtures were not merely unexercised but wrong:
 `interface` asserted that an interface did not exist while also asserting that
@@ -258,22 +236,6 @@ one of the five corrected functions and depended on the old output.
 `make check` clean with govulncheck and Trivy both reporting nothing; goldens
 byte-identical; six-distro Docker suite green with the per-distro counts
 106 arch / 127 alpine3 / 126 others unchanged, and serve 8/8.
-
-**The first attempt at this tag failed, and was replaced rather than fixed
-forward.** The release workflow's gate rejected it at the security scan: Trivy
-reported CVE-2026-56855 and CVE-2026-78662 in `golang.org/x/crypto` v0.55.0,
-which reaches syver only as an indirect dependency of sprout's bcrypt functions.
-Neither is reachable from syver's own code, and govulncheck in the same run
-reported zero affected vulnerabilities, but a fix existed in v0.56.0 so the
-dependency was bumped rather than suppressed. Nothing was published from the
-first tag, since the `build` job never ran, and the repository is private, so the
-tag was deleted and re-cut rather than burning a version number on an empty
-release. This is the case the exemption at the top of this file is written
-for: no artifact and no consumer existed.
-
-Worth recording for the next release: this passed locally and failed in CI
-because Trivy's vulnerability database cannot be pinned the way the scanner
-version can. A green local security scan has a shelf life measured in days.
 
 ---
 
@@ -610,14 +572,22 @@ Its changelog entries are retained below the Syver ones in
 ## Lineage
 
 ```text
-goss-org/goss
-  └── krameff/goss          fork; v0.4.0, v0.5.0, v0.6.0
-        └── krameff/syver   renamed continuation; v0.7.0 onward
+goss-org/goss            upstream, v0.4.x
+  └── this project       forked from v0.4.x, then:
+        v0.5.0, v0.6.0     released under the name krameff/goss
+        v0.7.0 onward      renamed to Syver, same history, same numbering
 ```
 
-Version numbering is continuous across the rename on purpose: Syver picks up at
-v0.7.0 rather than restarting, so a version number identifies a single point in
-one lineage. `krameff/goss` is frozen at v0.6.0, so the two never collide.
+**`krameff/goss` and Syver are one project under two names, not two projects.**
+The repository split is an artefact of the rename: `krameff/goss` is frozen at
+v0.6.0 and ships nothing further. Treat v0.5.0 and v0.6.0 as Syver's own early
+releases when reasoning about what has changed since the fork -- the whole of
+v0.5.0 onward is this project's divergence from upstream.
+
+Two version numbers to keep straight, because they collide in conversation and
+not in fact. `v0.6.0` here is this project's; upstream's newest is v0.4.10.
+There is no upstream v0.6.0 to compare against, so "five versions ahead" is not
+a meaningful statement about the two projects.
 
 Every release so far is cut from the v0.6.0 baseline; upstream `goss-org/goss`
 `devel` has never been merged, which is why `lint.go` and `lint/` are absent

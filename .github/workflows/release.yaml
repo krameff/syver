@@ -174,6 +174,22 @@ jobs:
             <<< "$PASSPHRASE"
           echo "Signing probe succeeded."
 
+      # goreleaser's `sboms:` block shells out to syft and does not ship it.
+      # This step sits BEFORE the release for the same reason the GPG probe
+      # above does: without it the release builds every binary, signs the
+      # checksums, and only then fails at the SBOM stage. Pinned to a release
+      # commit sha, matching how every other third-party action here is pinned,
+      # so an upstream change cannot turn a tag push red with no repository
+      # change -- the rule the Trivy installer comment in golangci.yaml states.
+      - name: Install syft (SBOM generator for goreleaser)
+        uses: anchore/sbom-action/download-syft@3ad7283483fc7af8ff2b4ea19663c2d5ca935e26  # v0.24.2
+
+      - name: Verify syft is on PATH before the release runs
+        run: |
+          set -euo pipefail
+          command -v syft
+          syft --version
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f06c13b6b1a9625abc9e6e439d9c05a8f2190e94  # v7
         with:

@@ -84,6 +84,41 @@ checksum:
   algorithm: sha256
   name_template: "{{ .ProjectName }}_{{ .Version }}_SHA256SUMS"
 
+# SPDX, one document per archive. Chosen over CycloneDX deliberately: it is
+# goreleaser's own default and the format federal consumers expect, and the
+# format is the part downstream automation binds to, so it is expensive to
+# change later.
+#
+# This shells out to `syft`, which is NOT part of goreleaser. The release
+# workflow installs it before this runs; without that step the release builds
+# and signs everything and then dies here, which is the worst place to fail.
+sboms:
+  - id: binaries
+    # `binary`, NOT `archive`. This project's `archives:` block uses
+    # `formats: [binary]`, so it publishes raw binaries and goreleaser never
+    # produces an archive artifact for the SBOM stage to match. Configured as
+    # `archive` first and proved wrong on go-builder: the run logged
+    # "no artifacts matching current filters" and emitted no document, while
+    # still reporting success.
+    artifacts: binary
+    # The document name MUST mirror the published binary name. `${artifact}`
+    # resolves to the built binary, which is `syver` for every target, so all
+    # eight documents were called `syver.spdx.json` and goreleaser reported
+    # "artifact already present in the list" -- they collide on upload and only
+    # one survives. Proved on go-builder. This template matches the
+    # `archives.name_template` above, so each SBOM sits beside the binary it
+    # describes.
+    documents:
+      - >-
+        {{ .ProjectName }}-
+        {{- .Os }}-
+        {{- .Arch }}
+        {{- if .Arm }}v{{ .Arm }}{{ end }}.spdx.json
+
+# Two signing passes over the same key, not one. `artifacts:` takes a single
+# value, so covering both the checksum file and the SBOMs needs two entries.
+# The SBOMs are signed on purpose: an unsigned SBOM sitting beside a signed
+# checksum leaves a consumer to guess which one is authoritative.
 signs:
   - id: gpg
     cmd: gpg
@@ -101,6 +136,24 @@ signs:
       - "--detach-sign"
       - "${artifact}"
     artifacts: checksum
+    stdin: "{{ .Env.GPG_PASSPHRASE }}"
+
+  - id: gpg-sbom
+    cmd: gpg
+    signature: "${artifact}.sig"
+    args:
+      - "--batch"
+      - "--pinentry-mode"
+      - "loopback"
+      - "--passphrase-fd"
+      - "0"
+      - "-u"
+      - "{{ .Env.GPG_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+    artifacts: sbom
     stdin: "{{ .Env.GPG_PASSPHRASE }}"
 
 release:
