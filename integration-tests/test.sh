@@ -78,10 +78,29 @@ echo "$out"
 #           an empty list means "nothing to assert" everywhere now, so it
 #           no longer contributes a vacuous passing test
 case $os in
-  arch)    egrep -q 'Count: 106, Failed: 0, Skipped: 3' <<<"$out" ;;
-  alpine3) egrep -q 'Count: 127, Failed: 0, Skipped: 5' <<<"$out" ;;
-  *)       egrep -q 'Count: 126, Failed: 0, Skipped: 5' <<<"$out" ;;
+  arch)    want='Count: 106, Failed: 0, Skipped: 3' ;;
+  alpine3) want='Count: 127, Failed: 0, Skipped: 5' ;;
+  *)       want='Count: 126, Failed: 0, Skipped: 5' ;;
 esac
+
+# Reported rather than asserted silently. This was `egrep -q`, which under
+# `set -e` aborts the run with no message at all: the operator saw a non-zero
+# exit, had to scroll back through the echoed validate output above, and work
+# out for themselves which of the three numbers moved. Printing both sides
+# turns "the distro suite failed" into "it produced one more skip than
+# expected", which is a different amount of work to act on.
+#
+# The PASS CONDITION is unchanged on purpose: still "does the expected line
+# appear anywhere in the output", not "is it the last line". Tightening it to
+# the final summary would be the better rule, but this suite needs real Docker
+# and cannot be run from the development sandbox, so the semantics stay put and
+# only the reporting improves. The `got` line is for the message alone.
+if ! grep -qF "$want" <<<"$out"; then
+  got=$(grep -oE 'Count: [0-9]+, Failed: [0-9]+, Skipped: [0-9]+' <<<"$out" | tail -1)
+  echo "ERROR: $os: expected '$want', got '${got:-<no summary line found>}'" >&2
+  exit 1
+fi
+echo "INFO: $os: $want"
 
 syver_bin="/goss/$os/syver-linux-$arch"
 syver_runner() {
