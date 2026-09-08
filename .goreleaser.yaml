@@ -69,6 +69,24 @@ dockers_v2:
       "org.opencontainers.image.title": "{{ .ProjectName }}"
       "org.opencontainers.image.url": "{{ .GitURL }}"
       "org.opencontainers.image.version": "{{ .Version }}"
+    # Annotations are NOT a duplicate of the labels above. Labels live in each
+    # per-architecture image config; GitHub Packages reads the multi-arch INDEX,
+    # which carries no labels at all, so a label-only image publishes with an
+    # empty description on its package page. Unscoped keys here default to
+    # `index:` on a multi-platform build, which is the level GHCR reads.
+    # Verify after a release rather than trusting this comment: the index
+    # annotations must be non-null in
+    #   curl -H "Accept: application/vnd.oci.image.index.v1+json" \
+    #        https://ghcr.io/v2/<owner>/syver/manifests/v<version>
+    annotations:
+      "org.opencontainers.image.created": "{{ .Date }}"
+      "org.opencontainers.image.description": "Quick and Easy server testing/validation"
+      "org.opencontainers.image.licenses": "Apache-2.0"
+      "org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "org.opencontainers.image.source": "{{ .GitURL }}"
+      "org.opencontainers.image.title": "{{ .ProjectName }}"
+      "org.opencontainers.image.url": "{{ .GitURL }}"
+      "org.opencontainers.image.version": "{{ .Version }}"
     platforms:
       - linux/amd64
       - linux/arm64

@@ -1,3 +1,5 @@
+# expect-count: 4
+# expect-skipped: 4
 ---
 mount:
   '/':

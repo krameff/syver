@@ -1,3 +1,5 @@
+# expect-count: 37
+# expect-skipped: 21
 ---
 # paths are relative to the goss file that includes the gossfile directive.
 gossfile:

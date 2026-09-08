@@ -1,3 +1,5 @@
+# expect-count: 3
+# expect-skipped: 0
 ---
 http:
   https://google.com:

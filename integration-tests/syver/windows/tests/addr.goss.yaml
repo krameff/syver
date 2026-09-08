@@ -1,3 +1,7 @@
+# expect-count: 2
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
 # The google.com timeout was raised 1000 -> 5000 on 2026-09-04. It depends on
 # the public internet, and one second is not a realistic budget from a NAT'd VM

@@ -82,6 +82,13 @@ jobs:
         with:
           images: |
             ghcr.io/${{ github.repository_owner }}/syver
+        env:
+          # The default is `manifest` alone, which annotates each per-arch image
+          # and leaves the multi-arch INDEX bare. GitHub Packages reads the
+          # index, so the default publishes a package page with no description.
+          # See the matching annotations block in .goreleaser.yaml, which covers
+          # the release images the same way.
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
 
       - name: Build syver binaries
         uses: goreleaser/goreleaser-action@v7
@@ -114,6 +121,7 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/syver:main
           labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
           platforms: ${{ env.PLATFORMS }}
 
       - name: Run Trivy vulnerability scanner (main)

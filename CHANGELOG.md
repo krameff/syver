@@ -1,5 +1,70 @@
 # Changelog
 
+## 0.11.3 based on krameff/goss v0.6.0 - container package description
+
+- container image
+  - the package page for the published image showed **no description**. The
+    image carried `org.opencontainers.image.description` as a label on each
+    per-architecture image, but a multi-architecture image is published behind
+    an index, the index carries no labels, and the index is what GitHub
+    Packages reads. The same values are now attached as OCI **annotations** as
+    well, on the index and on each manifest, for both the release images and
+    the moving branch image. Nothing about the images themselves changed, only
+    what a registry can read about them without pulling one
+
+- docs
+  - three documentation pages existed but were unreachable from the
+    documentation index: **goss vs Syver**, **Windows** and **Testing**. They
+    are now listed. Navigation on the published site was unaffected, since it is
+    generated from the directory rather than from that list, but anyone reading
+    the index as the table of contents was missing them
+  - the README now points at **<https://syver.readthedocs.io/>** for full
+    documentation rather than at the `docs/` directory, and says plainly that
+    the site is built from `main`, so it shows the latest release rather than
+    unreleased work
+  - `RELEASES.md` gained a **Re-cut tags** section. Two entries pointed at "the
+    note below" for the detail of why their tag was re-cut, and those notes had
+    been moved out of the file, so both references led nowhere. The section
+    names the four tags that were deleted and re-created after first being
+    pushed, and says what a clone that fetched one of them beforehand has to do:
+    `git fetch --tags --force`, since git will not correct a stale tag on its own
+
+- tests
+  - the platform fixture harness asserted the **exit code and nothing else**,
+    so a suite that quietly got smaller still reported a clean pass. It could
+    not see an assertion that stopped existing, nor one that turned into a skip,
+    because a skipped assertion never fails and over a third of these fixtures
+    use `skip: true`. Fixtures now declare `# expect-count:` and
+    `# expect-skipped:` alongside the existing `# expect-exit:`, in the same
+    inline form, and every one of them has been seeded. `Failed` is deliberately
+    not pinned, since it depends on the host, which is what the exit code is for
+  - each platform run now ends with a line naming the platform, the fixture
+    count, the total assertions and the total skipped. The per-platform CI jobs
+    are named identically and all render as an identical green tick, while the
+    suites behind them differ by close to an order of magnitude
+  - the Docker distro suite checked its expected assertion counts with a quiet
+    `grep -q`, so a mismatch aborted the run with no message: the operator saw a
+    non-zero exit and had to scroll back through the validate output to work out
+    which of the three numbers had moved. It now names both sides, and prints
+    the counts it matched on a pass. The pass condition itself is unchanged
+
+- docs
+  - the Windows coverage table in `docs/windows.md` had drifted from the
+    fixtures it describes. It said `interface` asserted nothing, when that
+    fixture has two live entries including an absent-adapter case, and it
+    omitted `autoadd`, which is the fixture that really asserts nothing. Four
+    other rows undercounted. Every row is now measured, an assertion column has
+    been added, and the re-derivation instructions point at the
+    `# expect-count:` directive each fixture now carries, which is checked on
+    every run and so cannot drift silently
+  - both `docs/windows.md` and `docs/testing.md` now explain the **skip
+    cascade**: a resource whose existence check fails has its remaining
+    attributes reported as skipped rather than failed, so one missing file turns
+    five further assertions into skips. That is why the same fixtures skip 33
+    assertions driven from Linux and 19 on a real Windows host, and it is why a
+    resource quietly disappearing shows up as a rise in skips rather than a
+    failure
+
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
 - supply chain

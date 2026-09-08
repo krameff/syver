@@ -26,8 +26,18 @@ commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
 v0.6.0 has no tag in this repository and uses the date its changelog entry
 records.
 
+## Re-cut tags
+
+Four tags were deleted and re-created after first being pushed: `v0.9.1`,
+`v0.10.0`, `v0.11.0` and `v0.11.1`.
+
+**If you fetched one of those tags before it was re-cut, your copy is stale and
+git will not correct it on its own.** Run `git fetch --tags --force`. Released
+artifacts and signatures always correspond to the tag as it now stands.
+
 ## Contents
 
+* [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
 * [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
 * [v0.10.0 - Templating moved from sprig to sprout](#v0100---templating-moved-from-sprig-to-sprout)
@@ -43,12 +53,65 @@ records.
 
 ---
 
+## v0.11.2 - Signed SBOMs and a patched base image
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-08 |
+| Tag | `v0.11.2` |
+| Commit | `e888146` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, merged through PR #37. No feature branch; the commits were made directly on `devel` |
+| Scope | 7 commits (6 excluding merges), 7 files, +237 / -109, measured at `v0.11.2` against `v0.11.1` |
+| Changelog | [0.11.2](CHANGELOG.md#0112-based-on-krameffgoss-v060---signed-sboms-and-a-patched-base-image) |
+
+Two supply-chain changes and no Go source change, so the binaries are
+functionally identical to v0.11.1.
+
+Every release now publishes a software bill of materials, one SPDX 2.3 document
+per binary named to match it, each signed with the same key as the checksum
+file. Signed releases were already a divergence from upstream, which publishes
+checksums and neither signatures nor SBOMs; this extends that into the half of
+the supply-chain story neither project told.
+
+The container image now upgrades its Alpine packages at build time. The base
+image is republished infrequently, so building alone shipped whatever package
+set had been baked into it months earlier, and a container scan was reporting
+OpenSSL advisories against the published image as a result. Pinning the base to
+its point release does not help: the minor tag and the point release resolve to
+the same digest. Syver's own binary is statically linked with cgo disabled and
+calls none of those libraries, so nothing syver does was exploitable through
+them, but the image is documented as a base image and an unpatched package in it
+is inherited by every downstream `FROM`.
+
+**Breaking:** none. Nothing in the program changed.
+
+**Gate at release:** every workflow green **on `e888146` itself**, the tagged
+commit, rather than on an ancestor: `Golang ci` across all twelve jobs including
+`windows-latest` and macOS, `Validate YAML`, `Documentation`, `CodeQL Advanced`
+and `Docker image for Syver`. `Build release artifacts` then ran on the tag and
+completed success. That the gate and the tag name the same commit is the point:
+the two preceding releases were tagged on trees their gates had never seen.
+
+**Verified after the fact, not inferred.** The SBOM path had never run before
+this release, and a failure at that stage would have come after the build and
+the signing. The release carries eight `.spdx.json` documents and eight matching
+`.sig` files alongside the signed checksum file. The published image
+`ghcr.io/krameff/syver:v0.11.2` was pulled and inspected: it carries the
+upgraded OpenSSL packages with nothing left upgradable, which also confirms the
+upgrade step ran through goreleaser's arm64 build under QEMU and not only in the
+workflow it was developed against. Open code-scanning alerts fell from
+twenty-one to one, the remainder being a Go advisory that has no published fix
+and that `govulncheck` reports as required but never called.
+
+---
+
 ## v0.11.1 - Documentation site corrections
 
 | Field | Value |
 | --- | --- |
 | Released | 2026-09-07 |
-| Tag | `v0.11.1`. Cut twice; see the note below |
+| Tag | `v0.11.1`. Cut twice; see [Re-cut tags](#re-cut-tags) |
 | Commit | `f9f6b2c` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`, merged through PR #36. No feature branch; the commits were made directly on `devel` |
@@ -95,7 +158,7 @@ re-run with no change; a transient fetch, not a finding.
 | Field | Value |
 | --- | --- |
 | Released | 2026-09-07 |
-| Tag | `v0.11.0`. Cut twice; see the note below the gate |
+| Tag | `v0.11.0`. Cut twice; see [Re-cut tags](#re-cut-tags) |
 | Commit | `5729f8a` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` (PR #34), plus three dependency commits and two CI fixes taken during the release |

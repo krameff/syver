@@ -18,7 +18,7 @@
 > gossfiles, environment variables and wrapper scripts keep working. See
 > [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md) for exactly what differs.
 
-[![Documentation](https://img.shields.io/badge/docs-docs-blue)](docs/index.md)
+[![Documentation](https://img.shields.io/badge/docs-syver.readthedocs.io-blue)](https://syver.readthedocs.io/)
 
 <!-- --8<-- [start:intro] -->
 
@@ -128,7 +128,9 @@ dist
 
 ## Full Documentation
 
-[Full documentation](docs/index.md)
+Published at **[syver.readthedocs.io](https://syver.readthedocs.io/)**, built
+from [`docs/`](docs/index.md) in this repository. The site is built from `main`,
+so it reflects the latest release rather than unreleased work on `devel`.
 
 ## Releases
 

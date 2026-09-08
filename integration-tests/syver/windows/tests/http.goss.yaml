@@ -1,3 +1,7 @@
+# expect-count: 3
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
 http:
   https://google.com:

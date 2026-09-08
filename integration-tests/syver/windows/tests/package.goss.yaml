@@ -1,3 +1,7 @@
+# expect-count: 2
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
 # SKIPPED, and the reason changed on 2026-09-02. It is no longer that the
 # harness cannot host a failing fixture -- run-validate-tests.sh now reads an

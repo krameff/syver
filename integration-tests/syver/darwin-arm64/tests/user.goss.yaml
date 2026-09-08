@@ -1,3 +1,5 @@
+# expect-count: 6
+# expect-skipped: 6
 ---
 user:
   runner:
