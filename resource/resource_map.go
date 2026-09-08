@@ -2,7 +2,9 @@ package resource
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"reflect"
 	"strings"
 
@@ -53,6 +55,25 @@ func (r ResourceMap[T, ST, PT]) AppendSysResource(sr string, sys *system.System,
 	return res, nil
 }
 
+// isExpectedAbsence reports whether an Exists() error means "the lookup ran and
+// found nothing" rather than "the lookup could not run".
+//
+// This is FEAT-010's Trap 1 distinction, applied where AppendSysResourceIfExists
+// needs it. Without it, warning on every Exists() error would fire on the most
+// ordinary outcome there is: `syver autoadd` walking a path that simply is not a
+// separate mount, or a service name that is not registered. Those are answers,
+// not failures, and resource/mount.go already excludes ErrMountpointNotFound for
+// exactly this reason.
+//
+// Anything NOT listed here is treated as a real failure and reported. That is the
+// safe default: a new sentinel that should be quiet produces one noisy warning,
+// whereas a new sentinel wrongly listed here would silently hide a broken lookup,
+// which is the defect this whole path exists to remove.
+func isExpectedAbsence(err error) bool {
+	return errors.Is(err, system.ErrMountpointNotFound) ||
+		errors.Is(err, system.ErrServiceNotFound)
+}
+
 // AppendSysResourceIfExists is AppendSysResource, but only stores the result
 // if the underlying system resource actually exists -- used by `syver
 // autoadd`. The bool return reports whether it existed (and was therefore
@@ -64,22 +85,35 @@ func (r ResourceMap[T, ST, PT]) AppendSysResourceIfExists(sr string, sys *system
 	if err != nil {
 		return nil, sysRes, false, err
 	}
-	// FEAT-010 SW-10 Trap 2 (deliberate, documented deferral -- not missed):
-	// this is the one Exists()-error-discard site left unfixed by the
+	// FEAT-010 SW-10 Trap 2, RESOLVED in FEAT-013 (FEAT-011 W2-8): skip the
+	// entry, and say so.
+	//
+	// This was the one Exists()-error-discard site left unfixed by the
 	// otherwise-identical sweep applied to resource/registry.go, group.go,
-	// interface.go, mount.go and user.go. Unlike those per-type sites, this
-	// generic fan-out backs `syver autoadd` for all seven auto-addable
-	// types on every platform -- propagating here would mean a single
-	// unreadable resource aborts the entire autoadd run instead of skipping
-	// just that one entry, which is a different (and probably worse)
-	// failure mode than the other five sites' fix. `add` already reports
-	// partial results elsewhere, so the likely-correct shape is "keep
-	// going, surface a warning" -- but that needs a warning channel this
-	// generic path does not have today, and deciding it needs its own
-	// review, not a byproduct of this sweep, so it is left as-is.
+	// interface.go, mount.go and user.go. Those five propagate. This one does
+	// not, and the difference is deliberate: this generic fan-out backs
+	// `syver autoadd` for all seven auto-addable types, so propagating would
+	// abort the whole run because one resource happened to be unreadable.
+	// Discovering nine resources and failing on the tenth is a worse outcome
+	// than discovering nine and reporting why the tenth was left out.
+	//
+	// The original deferral said the right shape was "keep going, surface a
+	// warning" but that no warning channel existed here. That is no longer
+	// true: `log.Printf("[WARN] ...")` is the established convention, used by
+	// store.go, syver_config.go and cmd/syver. So the entry is skipped AND the
+	// reason is reported, which is the part that was missing. An unreadable
+	// resource is now visible in the output rather than being indistinguishable
+	// from one that genuinely does not exist.
 	exists := false
 	if er, ok := any(sysRes).(system.Resource); ok {
-		exists, _ = er.Exists()
+		var err error
+		exists, err = er.Exists()
+		if err != nil {
+			exists = false
+			if !isExpectedAbsence(err) {
+				log.Printf("[WARN] autoadd: skipping %q: %v", sr, err)
+			}
+		}
 	}
 	if !exists {
 		return res, sysRes, false, nil
