@@ -12,6 +12,17 @@
     the moving branch image. Nothing about the images themselves changed, only
     what a registry can read about them without pulling one
 
+- docs
+  - three documentation pages existed but were unreachable from the
+    documentation index: **goss vs Syver**, **Windows** and **Testing**. They
+    are now listed. Navigation on the published site was unaffected, since it is
+    generated from the directory rather than from that list, but anyone reading
+    the index as the table of contents was missing them
+  - the README now points at **<https://syver.readthedocs.io/>** for full
+    documentation rather than at the `docs/` directory, and says plainly that
+    the site is built from `main`, so it shows the latest release rather than
+    unreleased work
+
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
 - supply chain
