@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs
+## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
 - supply chain
   - every release now publishes a **software bill of materials**, one SPDX 2.3
@@ -16,8 +16,8 @@
 - container image
   - the published image now upgrades its Alpine packages at build time. The
     base image is republished infrequently, so building alone shipped whatever
-    package set had been baked into it months earlier, and the weekly scan was
-    reporting OpenSSL advisories against the published image as a result.
+    package set had been baked into it months earlier, and the container scan
+    was reporting OpenSSL advisories against the published image as a result.
     Syver's own binary is statically linked with cgo disabled and calls none of
     those libraries, so nothing syver does was exploitable through them, but
     this image is documented as a base image and an unpatched package here is
