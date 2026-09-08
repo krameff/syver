@@ -13,6 +13,16 @@
     leaving you to guess which artifacts are authoritative. The published key
     is unchanged and verification is documented as before
 
+- container image
+  - the published image now upgrades its Alpine packages at build time. The
+    base image is republished infrequently, so building alone shipped whatever
+    package set had been baked into it months earlier, and the weekly scan was
+    reporting OpenSSL advisories against the published image as a result.
+    Syver's own binary is statically linked with cgo disabled and calls none of
+    those libraries, so nothing syver does was exploitable through them, but
+    this image is documented as a base image and an unpatched package here is
+    inherited by every downstream `FROM`
+
 - docs
   - `RELEASES.md` said Syver "continues goss's version numbering... so that
     `v0.6.0` means the same lineage point in both projects". Read cold, that
