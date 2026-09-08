@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/krameff/syver/util"
 )
@@ -170,25 +171,36 @@ func realPath(path string) (string, error) {
 	if !strings.HasPrefix(path, "~") {
 		return path, nil
 	}
-	pathS := strings.Split(path, "/")
-	f := pathS[0]
+	// Split off the leading `~` or `~user` segment at the first PATH
+	// SEPARATOR, not at the first "/". This used to Split and Join on "/"
+	// unconditionally, so on Windows `~\Documents\x` had no "/" to split on:
+	// the whole string became one segment, `user.Lookup` was handed
+	// `\Documents\x` as an account name, and expansion failed. See FEAT-013 /
+	// FEAT-011 W2-9 (SW-13).
+	//
+	// os.IsPathSeparator is the platform's own answer: "/" on Unix, "/" or
+	// "\" on Windows. On Unix that makes this identical to the old split, so
+	// Linux and macOS behaviour is unchanged.
+	idx := strings.IndexFunc(path, func(r rune) bool {
+		return r < utf8.RuneSelf && os.IsPathSeparator(byte(r))
+	})
+	head, rest := path, ""
+	if idx >= 0 {
+		head, rest = path[:idx], path[idx:]
+	}
 
 	var usr *user.User
 	var err error
-	if f == "~" {
+	if head == "~" {
 		usr, err = user.Current()
 	} else {
-		usr, err = user.Lookup(f[1:])
+		usr, err = user.Lookup(head[1:])
 	}
 	if err != nil {
 		return "", err
 	}
-	pathS[0] = usr.HomeDir
 
-	realPath := strings.Join(pathS, "/")
-	realPath, err = filepath.Abs(realPath)
-
-	return realPath, err
+	return filepath.Abs(filepath.Join(usr.HomeDir, rest))
 }
 
 func (f *DefFile) hash(hashFunc hashFuncType) (string, error) {
