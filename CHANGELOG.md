@@ -22,6 +22,12 @@
     documentation rather than at the `docs/` directory, and says plainly that
     the site is built from `main`, so it shows the latest release rather than
     unreleased work
+  - `RELEASES.md` gained a **Re-cut tags** section. Two entries pointed at "the
+    note below" for the detail of why their tag was re-cut, and those notes had
+    been moved out of the file, so both references led nowhere. The section
+    names the four tags that were deleted and re-created after first being
+    pushed, and says what a clone that fetched one of them beforehand has to do:
+    `git fetch --tags --force`, since git will not correct a stale tag on its own
 
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
