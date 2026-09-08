@@ -65,6 +65,36 @@
     resource quietly disappearing shows up as a rise in skips rather than a
     failure
 
+- windows
+  - a `mount:` check on Windows said the **mountpoint was not found**, blaming
+    the path the operator wrote for what is actually a missing implementation.
+    It now says it is not supported on this platform. The same misleading error
+    appeared on macOS, which is equally unimplemented, and is fixed there too.
+    Nothing changes on Linux, where `mount:` is fully supported: the fix is a
+    platform capability check placed before the shared lookup rather than a
+    reordering of it, so supported platforms take exactly the path they did
+  - `process: status` returned an **empty list and no error** on Windows, where
+    the underlying library cannot read process state at all. The check ran,
+    found the process, reported nothing about it and passed. It now errors when
+    every matching process fails to read, while still tolerating the single
+    process that exits between being listed and being read, which is the case
+    that skipping was there for. `process: user` had the same shape and gets the
+    same rule
+  - a gossfile include written as an absolute Windows path (`C:\...`) was
+    resolved relative to the including file instead, because the absoluteness
+    test was a literal check for a leading `/`. Paths beginning `/` still behave
+    exactly as before on every platform
+  - `~\Documents\x` did not expand on Windows. Home-directory expansion split
+    the path on `/` only, so the whole string was read as an account name
+
+- autoadd
+  - `syver autoadd` **silently skipped** any resource whose existence check
+    failed, making an unreadable resource indistinguishable from one that is
+    genuinely absent. It now reports the reason and carries on, rather than
+    either hiding it or aborting the whole run over one entry. Lookups that ran
+    and found nothing, such as a path that is not a mount or a service that is
+    not registered, stay quiet: those are answers, not failures
+
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 
 - supply chain
