@@ -20,7 +20,29 @@ are this project's own, cut after the fork.
 Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
-Every tag from v0.7.0 onward is annotated and GPG-signed with the same key.
+Every tag from v0.7.0 onward is annotated and GPG-signed.
+
+**Two different keys sign two different things, and confusing them makes a good
+signature look like a bad one.**
+
+| What | Signed by | Key |
+| --- | --- | --- |
+| Git tags | the maintainer's own key | `5154CE6E4F8712D87B9C870DCC071079D4E84F77` |
+| Release artifacts: `SHA256SUMS`, the SBOMs | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+
+So importing `krameff-syver-key.asc` and then running `git verify-tag` will
+report that it has no public key for the signature. That is expected, not a
+problem with the tag. Verify each with the key that signed it:
+
+```sh
+git verify-tag v0.11.2                     # maintainer key
+gpg --verify syver_0.11.2_SHA256SUMS.sig \
+             syver_0.11.2_SHA256SUMS       # project key
+```
+
+This line previously read "signed with the same key", which had no antecedent
+and invited exactly that mistake.
+
 "Released" is the date the tag object was created, which is not always the
 commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
 v0.6.0 has no tag in this repository and uses the date its changelog entry
