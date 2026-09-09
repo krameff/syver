@@ -135,6 +135,7 @@ func (conformanceRegistry) Key() string            { return "registry-fake" }
 func (conformanceRegistry) Exists() (bool, error)  { return true, nil }
 func (conformanceRegistry) Value() (string, error) { return "", nil }
 func (conformanceRegistry) Type() (string, error)  { return "", nil }
+func (conformanceRegistry) SetView(string) error   { return nil }
 
 type conformancePort struct{}
 

@@ -22,6 +22,7 @@ func (f sw10FakeRegistry) Key() string            { return "HKLM\\SW10\\Fake" }
 func (f sw10FakeRegistry) Exists() (bool, error)  { return false, f.existsErr }
 func (f sw10FakeRegistry) Value() (string, error) { return "", nil }
 func (f sw10FakeRegistry) Type() (string, error)  { return "", nil }
+func (f sw10FakeRegistry) SetView(string) error   { return nil }
 
 func TestNewRegistry_PropagatesExistsError(t *testing.T) {
 	_, err := NewRegistry(sw10FakeRegistry{existsErr: system.ErrRegistryUnsupported}, util.Config{})
