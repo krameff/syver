@@ -72,6 +72,16 @@
     assertions driven from Linux and 19 on a real Windows host, and it is why a
     resource quietly disappearing shows up as a rise in skips rather than a
     failure
+  - the command support matrix in `docs/platforms.md` understated macOS and
+    Windows. It marked `serve` on Windows as never tried, and `serve` and
+    `validate` on macOS as working but without automated tests. All three run on
+    every push and pass, as do `add` and `help` on both platforms. The cells are
+    now measured from CI job logs rather than estimated, and the page says which
+    log lines prove them, because the workflow derives its target from `go env`
+    and so tells you a lane is wired up rather than that it ran. `autoadd` and
+    `render` are unchanged: `autoadd`'s fixture is skipped on both platforms and
+    `render` has no fixture anywhere
+
 
 - windows
   - a `mount:` check on Windows said the **mountpoint was not found**, blaming

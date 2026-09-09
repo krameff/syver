@@ -233,14 +233,31 @@ passed before may now fail where it was never actually being checked.
 
 ## Commands support matrix
 
-| Test       | Linux                  | macOS               | Windows              |
-|:-----------|------------------------|---------------------|----------------------|
-| `add`      | {{ fully_supported }}  | {{ no_data }}       | {{ work_partially }} |
-| `autoadd`  | {{ fully_supported }}  | {{ no_data }}       | {{ no_data }}        |
-| `help`     | {{ fully_supported }}  | {{ no_data }}       | {{ work_partially }} |
-| `render`   | {{ fully_supported }}  | {{ no_data }}       | {{ no_data }}        |
-| `serve`    | {{ fully_supported }}  | {{ not_automated }} | {{ no_data }}        |
-| `validate` | {{ fully_supported }}  | {{ not_automated }} | {{ work_partially }} |
+| Test       | Linux                 | macOS                   | Windows                 |
+|:-----------|-----------------------|-------------------------|-------------------------|
+| `add`      | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
+| `autoadd`  | {{ fully_supported }} | {{ no_data }}           | {{ no_data }}           |
+| `help`     | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
+| `render`   | {{ fully_supported }} | {{ no_data }}           | {{ no_data }}           |
+| `serve`    | {{ fully_supported }} | {{community_supported}} | {{community_supported}} |
+| `validate` | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
+
+The macOS and Windows cells above are measured from CI, not estimated. Every
+`add`, `help`, `serve` and `validate` cell describes a lane that runs on every
+push and passes. `autoadd` is genuinely untested on both: its fixture carries
+`skip: true`, so it asserts nothing. `render` has no fixture on any platform.
+
+**Check rather than trust this table.** The workflow derives its target from
+`go env`, so reading the workflow tells you a lane is wired up, not that it ran.
+Read the job log:
+
+```bash
+gh run list --branch main --workflow=golangci.yaml --limit 1
+# then, in the "Integration tests (macos-latest)" and "(windows-latest)" jobs,
+# look for these lines:
+#   test-int-validate-<os>-<arch>   ... <os>-<arch>: N fixtures, N assertions, N skipped
+#   test-int-serve-<os>-<arch>      ... serve tests passed
+```
 
 ### `command` testing notes
 
