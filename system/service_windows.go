@@ -30,8 +30,9 @@ func NewServiceWindows(ctx context.Context, service string, system *System, conf
 // so cannot go through util.NewCommandContext. Same contract: the caller's
 // context, a bounded lifetime, and an error only when the context ended the run.
 //
-// Note the process-group caveat in util/procgroup_windows.go -- on Windows the
-// started powershell is killed, but a grandchild it spawned can survive.
+// The process tree is now bounded: NewCommandForWindowsPowershellContext puts
+// the powershell into a Job Object, so cancellation terminates a grandchild it
+// spawned rather than leaving it running. See util/procgroup_windows.go.
 func runHelperPowershell(ctx context.Context, name string, arg ...string) (*util.Command, error) {
 	if ctx == nil {
 		ctx = context.Background()
@@ -45,11 +46,12 @@ func runHelperPowershell(ctx context.Context, name string, arg ...string) (*util
 	// once: the bound was added to runHelperCommand and this copy was missed,
 	// leaving the Windows service path with cancellation and no I/O bound.
 	//
-	// The consequence is worse here than on POSIX rather than merely equal.
-	// util/procgroup_windows.go is a documented no-op, so there is no process
-	// group to kill and ANY grandchild survives -- not just one that deliberately
-	// detached. Every powershell that spawns something outliving it therefore
-	// takes the wedge path, where on Linux it takes a setsid to get there.
+	// This used to be worse here than on POSIX: util/procgroup_windows.go was a
+	// documented no-op, so ANY grandchild survived, not just one that had
+	// deliberately detached. FEAT-017 replaced that no-op with a Job Object and
+	// wired this constructor into it, so the tree is killed. The I/O bound below
+	// is still required -- a job kills processes, it does not unblock a read on
+	// a pipe handle the parent still holds.
 	//
 	// helperIOGrace, matching runHelperCommand. See that var's comment for why
 	// this path deliberately does not derive the grace from the deadline.
