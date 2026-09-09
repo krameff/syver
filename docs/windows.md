@@ -66,6 +66,13 @@ and `exists` on `user:`, `group:` and `interface:`.
 
 `registry:` is Windows-only, and is the resource most worth using here.
 
+`command:` timeouts are also **stronger** here than on Linux and macOS. A
+timed-out command's whole process tree is terminated through a Job Object, which
+a process cannot leave unless it was built to break away. On POSIX a process that
+calls `setsid` escapes the process group and survives. A command that *succeeds*
+is never touched, so a check that deliberately starts a background process and
+exits zero leaves it running.
+
 **Mind the trailing backslash.** The last path segment is read as a *value*
 name, so a key check needs a trailing `\`:
 
@@ -78,9 +85,19 @@ registry:
     exists: true          # a VALUE named HardenedPaths exists. Different check.
 ```
 
-Omitting the backslash does not error, it quietly asks a different question and
-answers it correctly, so a key check written that way reports `false` against a
-key that plainly exists. See [gossfile](gossfile.md#registry) for the full path
+Omitting the backslash does not error. It asks a different question and answers
+it correctly, so a key check written that way reports `false` against a key that
+plainly exists -- and because `exists: false` then *passes*, nothing fails to
+draw your attention to it. It is no longer silent: when a value lookup misses
+while a key of that name exists in the same place, syver logs a warning naming
+the alternative path. The grammar itself is deliberately not guessed at, because
+guessing moves the ambiguity somewhere you cannot see it.
+
+Hive names may be written short (`HKLM`), long (`HKEY_LOCAL_MACHINE`), or with
+the PowerShell provider colon (`HKLM:`), so a path pasted from `regedit`'s
+address bar or from `Get-ItemProperty` works unedited. A per-entry
+`view: 32|64|native` selects the WOW64 registry view.
+See [gossfile](gossfile.md#registry) for the full path
 grammar, including `::` for value names that themselves contain a backslash. It
 distinguishes three outcomes rather than two: a key that is absent, a key that
 exists, and a key that exists but could not be read. That last case used to be
@@ -154,7 +171,7 @@ that four fixtures assert nothing at all.
 | --- | --- | --- | --- |
 | `gossfile` | 13 of 13 | 51 | aggregate of the others |
 | `command` | 6 of 6 | 18 | |
-| `registry` | 7 of 8 | 12 | |
+| `registry` | 12 of 15 | 20 | 3 skipped: one GPO-delivered, two Defender view-difference |
 | `file` | 2 of 2 | 7 | includes an absent-file case |
 | `http` | 1 of 1 | 3 | |
 | `group` | 3 of 3 | 3 | includes an absent-account case |
@@ -174,9 +191,13 @@ that four fixtures assert nothing at all.
 **"Assertions" is not the same as "assertions that ran."** A resource whose
 existence check fails has its remaining attributes reported as *skipped* rather
 than failed, so one missing file turns five further assertions into skips. That
-cascade is why the same fixtures skip 33 assertions when driven from a Linux
-host and 19 on a real Windows Server host: on Windows the files and registry
-keys are actually there, so the dependent attributes run instead of cascading.
+cascade is why the same fixtures skip substantially more assertions when driven
+from a Linux host than on a real Windows Server host: on Windows the files and
+registry keys are actually there, so the dependent attributes run instead of
+cascading. `integration-tests/run-validate-tests.sh` prints both totals on every
+run and its header comment records the last measured pair with the date and
+commit; do not restate them here, because the Windows figure can only be
+re-measured on Windows and this page is edited far more often than that happens.
 It also means a resource quietly disappearing shows up as a rise in skips, not
 as a failure.
 

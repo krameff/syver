@@ -477,15 +477,36 @@ definitions:
           returned as its entries joined by newlines, not as a list, so use
           substring or regexp matchers rather than list matchers.
       type:
-        description: the value's data type
+        description: >-
+          the value's data type. REG_EXPAND_SZ values are compared as stored,
+          unexpanded, so %SystemRoot% is matched literally.
         type: string
         enum:
+          - REG_NONE
           - REG_SZ
           - REG_EXPAND_SZ
-          - REG_DWORD
-          - REG_QWORD
           - REG_BINARY
+          - REG_DWORD
+          - REG_DWORD_BIG_ENDIAN
+          - REG_LINK
           - REG_MULTI_SZ
+          - REG_RESOURCE_LIST
+          - REG_FULL_RESOURCE_DESCRIPTOR
+          - REG_RESOURCE_REQUIREMENTS_LIST
+          - REG_QWORD
+      view:
+        description: >-
+          which WOW64 registry view to read. Defaults to native, which is what
+          the OS shows a 64-bit process and what every spec written before this
+          attribute existed gets. Quote it: this schema types the attribute as a
+          string, so an unquoted 32 or 64 fails validation here even though
+          syver itself coerces the YAML integer and accepts it.
+        type: string
+        enum:
+          - "32"
+          - "64"
+          - native
+        default: native
       skip:
         type: boolean
         default: false
