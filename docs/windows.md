@@ -112,8 +112,12 @@ token, and every Windows token carries a mandatory integrity label
 than returning a wrong or empty list, so it will not mislead you, but do not use
 `groups:` in a Windows spec.
 
-**`process:` `status`.** Returns an empty list with no error when the per-process
-lookup fails, so an assertion can pass having learned nothing.
+**`process:` `status`.** Every assertion errors, because gopsutil has no
+Windows implementation for this field and every matching process therefore
+fails to read. It used to return an empty list with no error instead, so an
+assertion could pass having learned nothing; it now fails loudly rather than
+silently. `process:` `user` shares the same all-or-nothing rule but is
+unaffected in practice: it works on Windows.
 
 ### Not implemented yet
 
@@ -123,8 +127,10 @@ flag to explicitly set it`. It does not silently answer "not installed", which
 it did before this release. A backend over the Add/Remove Programs registry
 hives is planned.
 
-**`mount:`.** Reports a mountpoint-not-found error rather than an
-unimplemented one. Loud, but it blames the wrong thing.
+**`mount:`.** Every assertion errors with "not supported on this platform".
+It used to report a mountpoint-not-found error instead -- loud, but blaming
+the operator's path for what was actually a missing implementation. A real
+backend over `GetLogicalDriveStringsW` and related Win32 calls is planned.
 
 ## What is actually tested
 

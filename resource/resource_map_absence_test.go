@@ -14,10 +14,34 @@ import (
 // for errors that mean the lookup FAILED, not for the ones that mean it ran
 // and found nothing.
 //
-// Getting that boundary wrong is the whole risk. Warn on too much and every
-// `syver autoadd` over an ordinary directory emits noise about paths that are
-// not mounts; warn on too little and the original silent skip comes straight
-// back.
+// Getting that boundary wrong is the whole risk: warn on too much and autoadd
+// emits noise for outcomes that are answers rather than failures; warn on too
+// little and the original silent skip comes straight back.
+//
+// CORRECTION, 2026-09-08, after Vision checked the basis rather than the
+// pattern. An earlier version of this comment justified the mount case as
+// "every `syver autoadd` over an ordinary directory emits noise about paths
+// that are not mounts". That scenario cannot occur. `mount:` has no
+// `AutoAddSpec` -- only file, group, package, port, process, service and user
+// do -- so `ErrMountpointNotFound` never reaches this function today, and
+// `file:`'s Exists() is an os.Lstat that touches no mount lookup at all.
+//
+// SECOND CORRECTION, same day, same mistake one level down. The line above
+// originally went on to claim `ErrServiceNotFound` IS reachable, because
+// `service:` has an AutoAddSpec and returns that sentinel. Wrong again, and
+// wrong the same way: it checked that the type is autoadd-capable and that the
+// sentinel exists, without checking WHICH METHOD returns it.
+// `AppendSysResourceIfExists` calls only `Exists()`, and
+// `ServiceWindows.Exists()` returns `(false, nil)` for a missing service
+// (system/service_windows.go). `ErrServiceNotFound` comes from `Enabled()` and
+// `Running()`, which this path never calls.
+//
+// So BOTH listed sentinels are currently unreachable from the only call site,
+// and this function is forward-looking insurance rather than live protection.
+// It is kept deliberately: FEAT-018 makes the mount branch live, and the safe
+// direction is to over-list, since an unlisted sentinel costs one noisy warning
+// while a wrongly-listed one silently hides a broken lookup. But do not read
+// the comment above as describing something that fires today.
 
 func TestIsExpectedAbsenceAcceptsFoundNothing(t *testing.T) {
 	for _, err := range []error{
