@@ -13,6 +13,14 @@
     what a registry can read about them without pulling one
 
 - docs
+  - the Windows support matrix now records what was **measured** rather than
+    what was assumed. `port:` errors with `not implemented yet` on Windows:
+    gopsutil ships a Windows backend for connection enumeration, so the row had
+    recorded an assumption nobody had checked. `process: status` reads *not
+    implemented* rather than *broken*, because that is what the library reports.
+    `process: user` **works**, and had read *no data*. The page says where each
+    came from, and notes that the `port:` and `mount:` fixtures are skipped, so
+    a green Windows suite does not cover them
   - three documentation pages existed but were unreachable from the
     documentation index: **goss vs Syver**, **Windows** and **Testing**. They
     are now listed. Navigation on the published site was unaffected, since it is

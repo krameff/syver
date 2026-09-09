@@ -61,8 +61,8 @@ The legacy `GOSS_*` names are still honoured, and an exported-but-empty
 ## What works
 
 `file:` (existence, contents, size), `command:`, `http:`, `dns:`, `addr:`,
-`process:`, `service:`, `registry:`, and `exists` on `user:`, `group:` and
-`interface:`.
+`process:` (`running` and `user`, but not `status`), `service:`, `registry:`,
+and `exists` on `user:`, `group:` and `interface:`.
 
 `registry:` is Windows-only, and is the resource most worth using here.
 
@@ -126,6 +126,12 @@ errors with `could not detect Package type on this system, please use --package
 flag to explicitly set it`. It does not silently answer "not installed", which
 it did before this release. A backend over the Add/Remove Programs registry
 hives is planned.
+
+**`port:`.** Every assertion errors with `not implemented yet`. gopsutil ships
+a Windows backend for connection enumeration, so this one looked like it might
+already work and nobody had checked; measured on Windows Server 2025 on
+2026-09-09, it does not. The fixture stays skipped because un-skipping it would
+fail rather than reveal anything new.
 
 **`mount:`.** Every assertion errors with "not supported on this platform".
 It used to report a mountpoint-not-found error instead -- loud, but blaming

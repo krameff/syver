@@ -57,6 +57,24 @@ This matrix attempts to track parity across platforms.
 | {{ n_a }}               | Not applicable for this platform       |
 | {{ no_data }}           | Not yet tried, no data                 |
 
+!!! note "Windows `port:`, `process:` and `mount:` are measured, not assumed"
+
+    The Windows cells for these three were verified on Windows Server 2025 on
+    2026-09-09, not inferred from reading the code:
+
+    * `port:` errors with `not implemented yet`. gopsutil ships a Windows
+      backend, so this row previously recorded an assumption nobody had
+      checked. It is now confirmed.
+    * `process:` `status` errors the same way, which is why it reads
+      *not implemented* rather than *broken*: the library says so itself.
+    * `process:` `user` **works**, and previously read *no data*.
+    * `mount:` errors with `not supported on this platform`. It used to blame
+      the mountpoint instead.
+
+    Re-derive rather than trust this note. Build a Windows binary and run the
+    assertion; the fixtures for `port:` and `mount:` are deliberately skipped
+    because they would fail, so a green Windows suite does not cover them.
+
 !!! note "About partial support"
 
     This is ambiguous. Where you see this, check into the test coverage within `integration-tests/syver/{darwin|windows}/{test}.goss.yaml` for more detail.
@@ -130,8 +148,8 @@ This matrix attempts to track parity across platforms.
 |                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ not_implemented }}   |
 | **process**         |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-|                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ broken }}            |
-|                     | user                | {{ fully_supported }}   | {{ work_partially }}   | {{ no_data }}           |
+|                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ not_implemented }}   |
+|                     | user                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 | **service**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
