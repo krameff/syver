@@ -59,6 +59,36 @@ func TestCollectPerProcessFailsWhenEveryReadFails(t *testing.T) {
 	}
 }
 
+// TestCollectPerProcessCannotTellARaceFromSystemicAtOne pins the boundary the
+// all-or-nothing rule cannot express, found by review rather than by design.
+//
+// With exactly one matching process -- the common case for a single-instance
+// daemon -- "every read failed" and "the one read raced" are the same event.
+// The transient failure the rule claims to tolerate is therefore NOT tolerated
+// at n=1. That is accepted: the alternative is an empty result with a nil error
+// for a process that demonstrably exists, which is the silent-nothing outcome
+// this function exists to remove.
+//
+// This test exists so the boundary is stated rather than discovered. If a
+// future change makes n=1 tolerant again, it fails and forces the choice to be
+// deliberate.
+func TestCollectPerProcessCannotTellARaceFromSystemicAtOne(t *testing.T) {
+	race := errors.New("process vanished between listing and reading")
+	got, err := collectPerProcess([]*process.Process{{Pid: 1}}, "status",
+		func(*process.Process) ([]string, error) { return nil, race })
+
+	if err == nil {
+		t.Fatalf("n=1 with a racing read returned %v and a nil error; that is the "+
+			"silent-nothing outcome, not tolerance", got)
+	}
+	if !errors.Is(err, race) {
+		t.Errorf("error %v does not wrap the underlying cause", err)
+	}
+	if !strings.Contains(err.Error(), "all 1 matching processes") {
+		t.Errorf("error %q should say how many processes it was speaking for", err)
+	}
+}
+
 // An executable with no matching processes is not a failure. `Exists()` is what
 // answers that question, and making Status() error here would turn an ordinary
 // absent-process assertion into a hard failure.

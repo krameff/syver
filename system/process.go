@@ -103,11 +103,23 @@ func (p *DefProcess) User() ([]string, error) {
 // indistinguishable from an honest empty result unless the failures are
 // counted.
 //
-// The rule is deliberately "all of them" rather than "any of them": a systemic
-// failure is universal, whereas the race this tolerates is not. It needs no
+// The rule is deliberately "all of them" rather than "any of them". It needs no
 // platform check and no gopsutil sentinel, which matters because gopsutil's
 // ErrNotImplementedError lives in an internal package and cannot be compared
 // against from here.
+//
+// KNOW THE BOUNDARY, because an earlier version of this comment overstated it.
+// "All of them failed" and "the one race case" are THE SAME EVENT when exactly
+// one process matches, which is the common case for a single-instance daemon.
+// So a singleton whose read races DOES surface as an error here; it is not
+// tolerated. The rule cannot distinguish the two at n=1 and no counting rule
+// could.
+//
+// That is accepted rather than worked around. The alternative is returning an
+// empty result with a nil error for a process that demonstrably exists, which
+// is precisely the silent-nothing outcome this function was written to remove.
+// An error naming the attribute and the cause is the better failure. See
+// TestCollectPerProcessCannotTellARaceFromSystemicAtOne, which pins it.
 //
 // User() gets the same treatment as Status(), not because it is known broken
 // anywhere, but because the shape was identical and leaving one of two
