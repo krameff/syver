@@ -62,14 +62,28 @@ fi
 # degrading to `skip` reads as a clean pass on a suite that got smaller. Over a
 # third of the fixtures here carry `skip: true`, so that is not hypothetical.
 #
-# WHICH NUMBERS ARE SAFE TO PIN, measured 2026-09-08 rather than assumed:
+# WHICH NUMBERS ARE SAFE TO PIN, measured rather than assumed. This comment is
+# the ONE place the per-platform totals are written down; anything else that
+# needs them should re-run the loop below rather than repeat them.
 #   * `Count` is a property of the FIXTURE, not the host. Running every
 #     platform's fixtures against a locally built linux/amd64 binary reproduced
-#     CI's totals exactly -- 74 for linux-arm64, 82 for darwin, 122 for windows.
-#     Safe to pin everywhere, and seedable from any machine.
+#     CI's totals exactly -- 74 for linux-arm64, 82 for darwin, 122 for windows,
+#     measured 2026-09-08 on devel at a4d4594. Safe to pin everywhere, and
+#     seedable from any machine. Re-measured 2026-09-09 on
+#     feature/windows-registry-and-job-objects, windows is 130: the registry
+#     fixture went from 12 assertions to 20. Note the windows total counts the
+#     13 fixtures gossfile.goss.yaml aggregates twice, once directly and once
+#     through the aggregate; registry.goss.yaml is NOT one of those 13.
 #   * `Skipped` is host-independent on linux and darwin (32 and 44, both exactly
-#     matching CI) but NOT on Windows: the same fixtures skip 33 assertions when
-#     driven from a Linux host and 19 on a real Windows Server runner. So
+#     matching CI) but NOT on Windows. Driven from a Linux host the windows
+#     fixtures skipped 33 on devel at a4d4594 and skip 36 on
+#     feature/windows-registry-and-job-objects, both measured 2026-09-09 by
+#     the same method as the Count note above -- the windows fixtures run
+#     against a locally built linux/amd64 binary, which reproduces a4d4594's
+#     recorded 122/33 exactly, so the method is checkable rather than trusted.
+#     The real-Windows-host figure was 19 on a4d4594; it is
+#     NOT 19 any more, because registry.goss.yaml gained two `skip: true`
+#     entries, and nobody has re-run it on Windows to say what it is. So
 #     Windows fixtures deliberately declare no expect-skipped. Seed it from a
 #     real run on that platform, never by inference from another one.
 #   * `Failed` is host-dependent by design and is NOT pinned here. That is what

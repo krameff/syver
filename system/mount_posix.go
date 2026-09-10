@@ -8,6 +8,11 @@ import (
 	"syscall"
 )
 
+// mountSupported reports that this platform has a working mount lookup. It is
+// a no-op by design: the whole point of the check is that it changes nothing
+// where mount: is implemented. See ErrMountUnsupported in mount.go.
+func mountSupported() error { return nil }
+
 func getUsage(mountpoint string) (int, error) {
 	statfsOut := &syscall.Statfs_t{}
 	err := syscall.Statfs(mountpoint, statfsOut)

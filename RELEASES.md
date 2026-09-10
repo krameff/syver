@@ -20,7 +20,29 @@ are this project's own, cut after the fork.
 Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
-Every tag from v0.7.0 onward is annotated and GPG-signed with the same key.
+Every tag from v0.7.0 onward is annotated and GPG-signed.
+
+**Two different keys sign two different things, and confusing them makes a good
+signature look like a bad one.**
+
+| What | Signed by | Key |
+| --- | --- | --- |
+| Git tags | the maintainer's own key | `5154CE6E4F8712D87B9C870DCC071079D4E84F77` |
+| Release artifacts: `SHA256SUMS`, the SBOMs | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+
+So importing `krameff-syver-key.asc` and then running `git verify-tag` will
+report that it has no public key for the signature. That is expected, not a
+problem with the tag. Verify each with the key that signed it:
+
+```sh
+git verify-tag v0.11.2                     # maintainer key
+gpg --verify syver_0.11.2_SHA256SUMS.sig \
+             syver_0.11.2_SHA256SUMS       # project key
+```
+
+This line previously read "signed with the same key", which had no antecedent
+and invited exactly that mistake.
+
 "Released" is the date the tag object was created, which is not always the
 commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
 v0.6.0 has no tag in this repository and uses the date its changelog entry
@@ -37,6 +59,8 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
+  -- **assembled, not released**
 * [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
 * [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
@@ -50,6 +74,48 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.12.0 - Windows registry grammar and process trees
+
+**NOT RELEASED. Assembled on two feature branches, neither merged, nothing
+tagged.** This entry exists so the work is traceable before it ships; replace
+the pending fields at tag time rather than writing them now.
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `feature/windows-depth-wave2` (FEAT-013) and `feature/windows-registry-and-job-objects` (FEAT-012, FEAT-017), the second branched from the first. Both still need a PR; pushes do not build feature branches, so neither has been through CI |
+| Scope | measure at tag time: `git diff --stat devel..feature/windows-registry-and-job-objects` |
+| Changelog | [0.12.0](CHANGELOG.md#0120-based-on-krameffgoss-v060---windows-registry-grammar-and-process-trees) |
+
+**Why this is a minor and not a patch.** `registry:` gains a `view:` attribute.
+The resource layer is deliberately cross-platform, so a new attribute appears in
+`docs/schema.yaml` on every platform, not just the one that honours it. That is
+user-facing spec syntax and cannot ship under a patch.
+
+It also carries the container-package-description work that had been assembled
+on `devel` under an unreleased `0.11.3` heading. That heading no longer exists;
+the work rides here.
+
+**Validation, stated because it is unusually good for Windows work and unusually
+uneven.** FEAT-012 and FEAT-017 were exercised on two independent Windows images
+-- a Windows Server 2025 guest and a Windows 11 Enterprise host -- with the unit
+tests passing on both and the registry fixture producing an identical
+`Count: 20, Failed: 0, Skipped: 3`. The `view:` attribute was proven to read
+genuinely different data by creating one key through each WOW64 view with
+different values and reading both back through the shipped binary.
+FEAT-013 was the gap in this record and it is now closed: on 2026-09-10 its
+tests were run explicitly on Windows 11 from a binary built at `3bca090` and all
+passed, including `TestMountReportsUnsupportedNotNotFound` (the mount fix
+itself), `TestProcessNeverReportsNothingSuccessfully`, the four
+`TestCollectPerProcess` cases and the `RealPath` set. Two mount tests skip by
+design, being POSIX-only. All three of FEAT-012, FEAT-013 and FEAT-017 have now
+been exercised on a real Windows host.
 
 ---
 

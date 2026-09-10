@@ -1,6 +1,54 @@
 # Changelog
 
-## 0.11.3 based on krameff/goss v0.6.0 - container package description
+## 0.12.0 based on krameff/goss v0.6.0 - Windows registry grammar and process trees
+
+- windows registry
+  - hive names accept the spellings Windows tools actually print. `regedit`'s
+    address bar shows `HKEY_LOCAL_MACHINE\...` and `Get-ItemProperty` shows
+    `HKLM:\...`; both, and the long forms with the PowerShell colon, now parse
+    alongside the short names, case-insensitively. Previously a path copied out
+    of either tool had to be hand-edited before syver would take it
+  - **new attribute `view:`** -- `32`, `64` or `native`, selecting the WOW64
+    registry view a check reads. On 64-bit Windows some keys exist twice, and a
+    spec had no way to say which copy it meant: it got whichever syver's own
+    architecture saw. `native` is the default and behaves exactly as every
+    existing gossfile did, which a test pins rather than assumes
+  - `type:` reports the **full** `REG_*` set. `REG_NONE`, `REG_LINK`,
+    `REG_DWORD_BIG_ENDIAN` and the three `REG_RESOURCE_*` hardware descriptor
+    types previously came back as `UNKNOWN(n)`, so a type assertion against
+    them could not be written. `REG_DWORD_BIG_ENDIAN` is deliberately not read
+    as an integer: doing so would return a confidently wrong number in the
+    wrong byte order, so it renders as hex like the other opaque types
+  - a value lookup that misses while a **key of that name exists in the same
+    place** now says so. This is the one shape where a truthful answer reliably
+    answers a different question from the one asked: `HKLM\...\ProfileList`
+    asks about a value and is false, `HKLM\...\ProfileList\` asks about the
+    key and is true. Asserting `exists: false` against the first therefore
+    PASSES while testing nothing the author intended. The trailing backslash is
+    still not guessed at or made optional -- guessing moves the ambiguity
+    somewhere you cannot see it -- but the confusable case is no longer silent
+  - `REG_EXPAND_SZ` is documented as compared **unexpanded**: a value holding
+    `%SystemRoot%\System32` is matched as that literal text. Unchanged
+    behaviour, previously unstated
+
+- windows command timeouts
+  - a `command:` that timed out killed the process syver started and left
+    anything that process had spawned running. `command:` runs through
+    `cmd /c`, so the thing syver starts is a shell and the thing that hangs is
+    the shell's child -- meaning the leak was the normal case on Windows, not
+    an edge one. The process now runs inside a **Job Object** whose closure
+    terminates the whole tree
+  - this makes Windows **stronger** than Linux and macOS here, which is worth
+    stating because the documentation said the opposite. A process that calls
+    `setsid` leaves the POSIX process group and is permanently out of reach; a
+    process cannot leave a job unless it was created to break away and the job
+    permits it. The daemonising case that escapes on POSIX does not escape on
+    Windows
+  - a command that **succeeds** is untouched. Only a timeout terminates the
+    tree, so a check that deliberately starts a background process and exits
+    zero still leaves it running
+  - the Windows PowerShell probe path used by `service:` had no process-group
+    protection at all, and now shares the same mechanism
 
 - container image
   - the package page for the published image showed **no description**. The
@@ -13,6 +61,14 @@
     what a registry can read about them without pulling one
 
 - docs
+  - the Windows support matrix now records what was **measured** rather than
+    what was assumed. `port:` errors with `not implemented yet` on Windows:
+    gopsutil ships a Windows backend for connection enumeration, so the row had
+    recorded an assumption nobody had checked. `process: status` reads *not
+    implemented* rather than *broken*, because that is what the library reports.
+    `process: user` **works**, and had read *no data*. The page says where each
+    came from, and notes that the `port:` and `mount:` fixtures are skipped, so
+    a green Windows suite does not cover them
   - three documentation pages existed but were unreachable from the
     documentation index: **goss vs Syver**, **Windows** and **Testing**. They
     are now listed. Navigation on the published site was unaffected, since it is
@@ -64,6 +120,63 @@
     assertions driven from Linux and 19 on a real Windows host, and it is why a
     resource quietly disappearing shows up as a rise in skips rather than a
     failure
+  - the command support matrix in `docs/platforms.md` understated macOS and
+    Windows. It marked `serve` on Windows as never tried, and `serve` and
+    `validate` on macOS as working but without automated tests. All three run on
+    every push and pass, as do `add` and `help` on both platforms. The cells are
+    now measured from CI job logs rather than estimated, and the page says which
+    log lines prove them, because the workflow derives its target from `go env`
+    and so tells you a lane is wired up rather than that it ran. `autoadd` and
+    `render` are unchanged: `autoadd`'s fixture is skipped on both platforms and
+    `render` has no fixture anywhere
+
+
+- windows
+  - a `mount:` check on Windows said the **mountpoint was not found**, blaming
+    the path the operator wrote for what is actually a missing implementation.
+    It now says it is not supported on this platform. This is Windows-only:
+    `mount:` is already fully supported on macOS, through the same POSIX lookup
+    Linux uses, so neither platform's behaviour changes. The fix is a platform
+    capability check placed before the shared lookup rather than a reordering
+    of it, so supported platforms take exactly the path they did
+  - `process: status` returned an **empty list and no error** on Windows, where
+    the underlying library cannot read process state at all. The check ran,
+    found the process, reported nothing about it and passed. It now errors when
+    every matching process fails to read, while still tolerating a process that
+    exits between being listed and being read when others were read
+    successfully. **Note the boundary:** where exactly one process matches,
+    which is the common case for a single-instance daemon, those two are the
+    same event and the check errors rather than tolerating it. That is the
+    intended trade: an error naming the cause is better than an empty result
+    reported as success for a process that demonstrably exists.
+    `process: user` had the same shape and gets the same rule
+  - `syver add mount` on Windows now **fails** instead of silently writing an
+    `exists: false` entry it never verified. It is the same fix seen from the
+    `add` side: the old mountpoint-not-found error was excluded from
+    propagation as an ordinary "not a mount" answer, and the honest
+    not-supported error is not
+  - a gossfile include written as an absolute Windows path (`C:\...`) was
+    resolved relative to the including file instead, because the absoluteness
+    test was a literal check for a leading `/`. Paths beginning `/` still behave
+    exactly as before on every platform. **A UNC path (`\\server\share\...`)
+    now resolves too**, where it was previously joined onto the including file's
+    directory and silently failed to resolve. That follows from using the
+    platform's own definition of absolute, and makes a gossfile on a Windows
+    file share usable as a shared include
+  - `~\Documents\x` did not expand on Windows. Home-directory expansion split
+    the path on `/` only, so the whole string was read as an account name
+
+- autoadd
+  - `syver autoadd` now honours `--log-level` / `SYVER_LOGLEVEL`, and its
+    output carries the same timestamped format as every other subcommand. It
+    was the one verb that never installed the level filter, which did not matter
+    while nothing in that path logged. The warning below made it matter
+  - `syver autoadd` **silently skipped** any resource whose existence check
+    failed, making an unreadable resource indistinguishable from one that is
+    genuinely absent. It now reports the reason and carries on, rather than
+    either hiding it or aborting the whole run over one entry. Lookups that ran
+    and found nothing, such as a path that is not a mount or a service that is
+    not registered, stay quiet: those are answers, not failures
 
 ## 0.11.2 based on krameff/goss v0.6.0 - signed SBOMs and a patched base image
 

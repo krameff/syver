@@ -175,10 +175,14 @@ exit code is for. `Count` is a property of the fixture and is pinned everywhere.
 worth knowing because it is not obvious. Skips are not purely declarative: a
 resource whose existence check fails has its remaining attributes reported as
 *skipped* rather than failed, so one missing file turns five further assertions
-into skips. The Windows fixtures therefore skip 33 assertions when driven from a
-Linux host and 19 on a real Windows host, where the files and registry keys
-actually exist. Seed that value from a run on the platform itself, never by
-inference from another one.
+into skips. The Windows fixtures therefore skip materially more assertions when
+driven from a Linux host than on a real Windows host, where the files and
+registry keys actually exist and the dependent attributes run instead of
+cascading. Seed that value from a run on the platform itself, never by inference
+from another one -- and note that a real Windows figure goes stale the moment a
+fixture gains a `skip: true` entry, which is not visible from any other
+platform. `run-validate-tests.sh` prints both totals on every run and its header
+comment records the last measured pair, with the date and commit.
 
 That cascade is also what makes `expect-skipped` worth pinning at all: a
 resource that quietly stops being present raises the skip count without failing
