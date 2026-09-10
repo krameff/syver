@@ -6,6 +6,7 @@ package util
 import (
 	"os/exec"
 	"sync"
+	"sync/atomic"
 	"unsafe"
 
 	"golang.org/x/sys/windows"
@@ -19,9 +20,17 @@ import (
 // worse than the behaviour this replaces, because we have already taken over
 // exec.CommandContext's default cancel. The fallback path depends on knowing
 // which of the two happened.
+//
+// attached MUST be atomic. It is written by attachProcessGroup on the goroutine
+// running Run, and read by the cmd.Cancel closure, which os/exec invokes from
+// its own watchCtx goroutine the moment the context expires. Those two race by
+// construction whenever a command times out -- the only path this file exists
+// to serve. A plain bool passed every test on two Windows hosts and was caught
+// by `-race` on the CI runner: neither host had a C compiler, so cgo was
+// unavailable and the detector never ran locally.
 type jobState struct {
 	handle   windows.Handle
-	attached bool
+	attached atomic.Bool
 }
 
 // jobs maps a command to its Job Object.
@@ -81,7 +90,7 @@ func configureProcessGroup(cmd *exec.Cmd) {
 	jobs.Store(cmd, state)
 
 	cmd.Cancel = func() error {
-		if !state.attached {
+		if !state.attached.Load() {
 			// The job is empty, so closing it terminates nothing. Fall back to
 			// what exec.CommandContext would have done unaided.
 			if cmd.Process == nil {
@@ -142,7 +151,7 @@ func attachProcessGroup(cmd *exec.Cmd) error {
 	if err := windows.AssignProcessToJobObject(state.handle, h); err != nil {
 		return err
 	}
-	state.attached = true
+	state.attached.Store(true)
 	return nil
 }
 
