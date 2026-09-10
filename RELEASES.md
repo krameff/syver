@@ -109,8 +109,13 @@ tests passing on both and the registry fixture producing an identical
 `Count: 20, Failed: 0, Skipped: 3`. The `view:` attribute was proven to read
 genuinely different data by creating one key through each WOW64 view with
 different values and reading both back through the shipped binary.
-**FEAT-013, on the older branch, has never been run on Windows at all.** Do not
-let the strength of the first two imply anything about the third.
+FEAT-013 was the gap in this record and it is now closed: on 2026-09-10 its
+tests were run explicitly on Windows 11 from a binary built at `3bca090` and all
+passed, including `TestMountReportsUnsupportedNotNotFound` (the mount fix
+itself), `TestProcessNeverReportsNothingSuccessfully`, the four
+`TestCollectPerProcess` cases and the `RealPath` set. Two mount tests skip by
+design, being POSIX-only. All three of FEAT-012, FEAT-013 and FEAT-017 have now
+been exercised on a real Windows host.
 
 ---
 
