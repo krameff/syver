@@ -50,8 +50,9 @@ records.
 
 ## Re-cut tags
 
-Four tags were deleted and re-created after first being pushed: `v0.9.1`,
-`v0.10.0`, `v0.11.0` and `v0.11.1`.
+Five tags were deleted and re-created after first being pushed: `v0.9.1`,
+`v0.10.0`, `v0.11.0`, `v0.11.1` and `v0.12.0`. Each was re-created on the same
+commit, so the released contents are unchanged.
 
 **If you fetched one of those tags before it was re-cut, your copy is stale and
 git will not correct it on its own.** Run `git fetch --tags --force`. Released
@@ -60,7 +61,6 @@ artifacts and signatures always correspond to the tag as it now stands.
 ## Contents
 
 * [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
-  -- **assembled, not released**
 * [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
 * [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
@@ -79,56 +79,36 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## v0.12.0 - Windows registry grammar and process trees
 
-**NOT RELEASED. Merged to `devel`, release PR open against `main`, nothing
-tagged.** This entry exists so the work is traceable before it ships; replace
-the pending fields at tag time rather than writing them now.
-
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | pending |
-| Commit | pending |
+| Released | 2026-09-10 |
+| Tag | `v0.12.0` |
+| Commit | `1d9aebd` |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`. FEAT-013 was built on `feature/windows-depth-wave2` and FEAT-012 and FEAT-017 on `feature/windows-registry-and-job-objects`, which branched from it and so carried both; that single branch merged through PR #39, and `devel` reaches `main` through PR #40 |
-| Scope | 27 commits excluding merges, 138 files, +3392 / -192, measured `origin/main..origin/devel` at `d23532d`. Re-measure against the tag: `git diff --shortstat v0.11.2..v0.12.0` |
+| Integration branch | `devel`, merged to `main` through PR #40. The Windows work reached `devel` through PR #39 |
+| Scope | 28 commits (excluding merges), 138 files, +3405 / -192, measured at `v0.12.0` against `v0.11.2` |
 | Changelog | [0.12.0](CHANGELOG.md#0120-based-on-krameffgoss-v060---windows-registry-grammar-and-process-trees) |
 
-**Why this is a minor and not a patch.** `registry:` gains a `view:` attribute.
-The resource layer is deliberately cross-platform, so a new attribute appears in
-`docs/schema.yaml` on every platform, not just the one that honours it. That is
-user-facing spec syntax and cannot ship under a patch.
+A minor rather than a patch because `registry:` gains a `view:` attribute. The
+resource layer is deliberately cross-platform, so a new attribute appears in
+`docs/schema.yaml` on every platform rather than only the one that honours it,
+which makes it user-facing spec syntax.
 
-It also carries the container-package-description work that had been assembled
-on `devel` under an unreleased `0.11.3` heading. That heading no longer exists;
-the work rides here.
+This release also carries the container package description and documentation
+index work that had been assembled on `devel` for an earlier patch.
 
-**Validation, stated because it is unusually good for Windows work and unusually
-uneven.** FEAT-012 and FEAT-017 were exercised on two independent Windows images
--- a Windows Server 2025 guest and a Windows 11 Enterprise host -- with the unit
-tests passing on both and the registry fixture producing an identical
-`Count: 20, Failed: 0, Skipped: 3`. The `view:` attribute was proven to read
-genuinely different data by creating one key through each WOW64 view with
-different values and reading both back through the shipped binary.
-FEAT-013 was the gap in this record and it is now closed: on 2026-09-10 its
-tests were run explicitly on Windows 11 from a binary built at `3bca090` and all
-passed, including `TestMountReportsUnsupportedNotNotFound` (the mount fix
-itself), `TestProcessNeverReportsNothingSuccessfully`, the four
-`TestCollectPerProcess` cases and the `RealPath` set. Two mount tests skip by
-design, being POSIX-only. All three of FEAT-012, FEAT-013 and FEAT-017 have now
-been exercised on a real Windows host.
+**Windows coverage.** The registry, process-tree and correctness work was
+exercised on two independent Windows images, a Windows Server 2025 guest and a
+Windows 11 Enterprise host, rather than cross-compiled alone. The Windows
+registry fixture produces an identical `Count: 20, Failed: 0, Skipped: 3` on
+both. The `view:` attribute was verified to read genuinely different data by
+writing one key through each WOW64 view and reading both back through the
+shipped binary.
 
-**A data race was found by CI and fixed before merge.** The Job Object work
-passed on both Windows hosts and then failed `windows-latest` immediately:
-`-race` needs cgo needs a C compiler, neither host had one, so the detector was
-never linked into the binaries those runs used. `jobState.attached` was written
-by `attachProcessGroup` on the goroutine running `Run` and read by the
-`cmd.Cancel` closure on os/exec's watchCtx goroutine, which race on every
-timeout. Fixed with an `atomic.Bool` in `3df9949`, and the before and after were
-both proven under `-race` on the one Windows machine here that has mingw.
-
-Also system-tested against `ansible-lockdown/Windows11-CIS-Audit` v3.0.0, which
-runs syver and gates on its version: 540 check files, 1389 assertions, every
-failure traceable to real host state.
+It was additionally run against
+[ansible-lockdown/Windows11-CIS-Audit](https://github.com/ansible-lockdown/Windows11-CIS-Audit)
+v3.0.0, a 540-file benchmark that uses syver: 1389 assertions, with every
+reported failure traceable to the state of the host under test.
 
 ---
 
