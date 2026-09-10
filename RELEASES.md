@@ -79,7 +79,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## v0.12.0 - Windows registry grammar and process trees
 
-**NOT RELEASED. Assembled on two feature branches, neither merged, nothing
+**NOT RELEASED. Merged to `devel`, release PR open against `main`, nothing
 tagged.** This entry exists so the work is traceable before it ships; replace
 the pending fields at tag time rather than writing them now.
 
@@ -89,8 +89,8 @@ the pending fields at tag time rather than writing them now.
 | Tag | pending |
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `feature/windows-depth-wave2` (FEAT-013) and `feature/windows-registry-and-job-objects` (FEAT-012, FEAT-017), the second branched from the first. Both still need a PR; pushes do not build feature branches, so neither has been through CI |
-| Scope | measure at tag time: `git diff --stat devel..feature/windows-registry-and-job-objects` |
+| Integration branch | `devel`. FEAT-013 was built on `feature/windows-depth-wave2` and FEAT-012 and FEAT-017 on `feature/windows-registry-and-job-objects`, which branched from it and so carried both; that single branch merged through PR #39, and `devel` reaches `main` through PR #40 |
+| Scope | 27 commits excluding merges, 138 files, +3392 / -192, measured `origin/main..origin/devel` at `d23532d`. Re-measure against the tag: `git diff --shortstat v0.11.2..v0.12.0` |
 | Changelog | [0.12.0](CHANGELOG.md#0120-based-on-krameffgoss-v060---windows-registry-grammar-and-process-trees) |
 
 **Why this is a minor and not a patch.** `registry:` gains a `view:` attribute.
@@ -116,6 +116,19 @@ itself), `TestProcessNeverReportsNothingSuccessfully`, the four
 `TestCollectPerProcess` cases and the `RealPath` set. Two mount tests skip by
 design, being POSIX-only. All three of FEAT-012, FEAT-013 and FEAT-017 have now
 been exercised on a real Windows host.
+
+**A data race was found by CI and fixed before merge.** The Job Object work
+passed on both Windows hosts and then failed `windows-latest` immediately:
+`-race` needs cgo needs a C compiler, neither host had one, so the detector was
+never linked into the binaries those runs used. `jobState.attached` was written
+by `attachProcessGroup` on the goroutine running `Run` and read by the
+`cmd.Cancel` closure on os/exec's watchCtx goroutine, which race on every
+timeout. Fixed with an `atomic.Bool` in `3df9949`, and the before and after were
+both proven under `-race` on the one Windows machine here that has mingw.
+
+Also system-tested against `ansible-lockdown/Windows11-CIS-Audit` v3.0.0, which
+runs syver and gates on its version: 540 check files, 1389 assertions, every
+failure traceable to real host state.
 
 ---
 
