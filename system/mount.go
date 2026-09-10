@@ -21,6 +21,27 @@ import (
 // error. See FEAT-010 SW-10 / Trap 1's reasoning, applied here.
 var ErrMountpointNotFound = errors.New("mountpoint not found")
 
+// ErrMountUnsupported is returned when the platform has no mount lookup at
+// all, as distinct from a lookup that ran and found nothing. Following the
+// sentinel-error idiom already used by registry (ErrRegistryUnsupported),
+// package (ErrNullPackage) and file (ErrFileOwnershipUnsupported).
+//
+// WHY THIS EXISTS RATHER THAN A REORDER. setup() calls getMount before the
+// platform getUsage, and on Windows the vendored mountinfo returns an EMPTY
+// TABLE rather than an error -- its own comment says "Do NOT return an
+// error!" -- which getMount converts to ErrMountpointNotFound. So every
+// Windows mount check blamed the operator's mountpoint for what is actually a
+// missing implementation, and mount_windows.go's honest error was unreachable.
+// FEAT-010 SW-7 recorded that and deferred it; FEAT-011 W2-12(a) scheduled it.
+//
+// The obvious fix is to run getUsage first. It was rejected: getMount and
+// getUsage are shared by every OS, and reordering them changes which error a
+// non-existent path produces on Linux and macOS, where mount: is fully
+// supported and heavily used. A platform capability check placed BEFORE both
+// is a no-op everywhere the platform is supported, so Linux and macOS
+// behaviour is unchanged by construction rather than by inspection.
+var ErrMountUnsupported = errors.New("mount: not supported on this platform")
+
 type Mount interface {
 	MountPoint() string
 	Exists() (bool, error)
@@ -53,6 +74,15 @@ func (m *DefMount) setup() error {
 		return m.err
 	}
 	m.loaded = true
+
+	// Before anything else: does this platform have a mount lookup at all? See
+	// ErrMountUnsupported for why this is a separate check rather than a
+	// reordering of the two calls below.
+	if err := mountSupported(); err != nil {
+		m.exists = false
+		m.err = err
+		return m.err
+	}
 
 	mountInfo, err := getMount(m.mountPoint, m.Timeout)
 	if err != nil {

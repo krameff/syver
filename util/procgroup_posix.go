@@ -45,3 +45,13 @@ func configureProcessGroup(cmd *exec.Cmd) {
 		return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
 	}
 }
+
+// attachProcessGroup is a no-op on POSIX. The group is configured before Start
+// via SysProcAttr.Setpgid, so there is nothing to do once the process exists.
+// It exists so that util.Command.Run has one shape on every platform; Windows
+// cannot assign a process to its Job Object until Start has run.
+func attachProcessGroup(cmd *exec.Cmd) error { return nil }
+
+// releaseProcessGroup is a no-op on POSIX. Killing the group is driven entirely
+// by cmd.Cancel above, and there is no handle to release afterwards.
+func releaseProcessGroup(cmd *exec.Cmd, kill bool) error { return nil }

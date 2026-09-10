@@ -3,25 +3,29 @@
 
 package system
 
-import "errors"
-
-// errNotImplemented is currently UNREACHABLE in practice (FEAT-010 SW-7,
-// deliberate, documented deferral -- not missed). system/mount.go's
-// setup() calls getMount() first; on Windows the vendored mountinfo
-// implementation returns an empty table rather than an error (its own
-// comment says "Do NOT return an error!"), which getMount converts to
-// ErrMountpointNotFound before getUsage (this function) is ever reached.
-// So every Windows mount check fails with "mountpoint not found" --
-// misleading (it blames the mountpoint, not the missing implementation)
-// but loud, which this spec's own priority order (a misleading-but-loud
-// error is a far smaller problem than a silent pass) treats as acceptable
-// to leave as-is here.
+// mountSupported reports that Windows has no mount lookup.
 //
-// Making this reachable means reordering getMount, which is cross-platform
-// code shared by every OS -- not "obviously safe" to restructure inside
-// this spec's Windows-focused, Linux-verified scope, so it is left as-is.
-var errNotImplemented = errors.New("not implemented")
+// Until FEAT-013 this package could not say so. system/mount.go's setup()
+// called getMount first, and on Windows the vendored mountinfo returns an
+// EMPTY TABLE rather than an error -- its own comment says "Do NOT return an
+// error!" -- which getMount converted to ErrMountpointNotFound. Every Windows
+// mount check therefore failed by blaming the operator's mountpoint for what
+// is actually a missing implementation, and the honest error below was
+// unreachable. Recorded as FEAT-010 SW-7, scheduled as FEAT-011 W2-12(a).
+//
+// setup() now consults this before getMount, so the answer is truthful. See
+// ErrMountUnsupported in mount.go for why the fix is a capability check rather
+// than a reordering of the shared code path.
+//
+// A real Windows backend is FEAT-011 W2-12(b), specced as FEAT-018:
+// GetLogicalDriveStringsW, GetVolumeInformationW and GetDiskFreeSpaceExW.
+// `opts` and `source` have no Windows meaning and stay unsupported rather than
+// being faked.
+func mountSupported() error { return ErrMountUnsupported }
 
+// getUsage is unreachable while mountSupported returns an error, and is kept
+// so the platform still satisfies the same shape as mount_posix.go. FEAT-018
+// replaces its body.
 func getUsage(mountpoint string) (int, error) {
-	return 0, errNotImplemented
+	return 0, ErrMountUnsupported
 }

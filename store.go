@@ -21,6 +21,24 @@ import (
 	"github.com/krameff/syver/util"
 )
 
+// isRootedIncludePath reports whether a `gossfile:` include should be used as
+// given, rather than resolved relative to the file that included it.
+//
+// This used to be a bare strings.HasPrefix(path, "/"), which no `C:\...` path
+// satisfies, so a genuinely absolute Windows include was joined onto the
+// including file's directory and silently resolved somewhere else entirely.
+// See FEAT-013 / FEAT-011 W2-9 (SW-12).
+//
+// BOTH tests are kept, deliberately. On Unix they are the same test --
+// filepath.IsAbs is exactly this prefix check -- so Linux and macOS behaviour
+// is provably unchanged. On Windows they differ: filepath.IsAbs("/shared/x")
+// is false there, because a drive-relative path is not absolute. Dropping the
+// prefix test would have changed how an existing Windows gossfile resolves,
+// which is a silent behaviour change rather than a fix.
+func isRootedIncludePath(p string) bool {
+	return filepath.IsAbs(p) || strings.HasPrefix(p, "/")
+}
+
 const (
 	UNSET = iota
 	JSON
@@ -355,7 +373,7 @@ func mergeJSONData(syverConfig SyverConfig, depth int, path string) (SyverConfig
 	for _, k := range keys {
 		g := syverConfig.Syverfiles[k]
 		var fpath string
-		if strings.HasPrefix(g.GetSyverfile(), "/") {
+		if isRootedIncludePath(g.GetSyverfile()) {
 			fpath = g.GetSyverfile()
 		} else {
 			fpath = filepath.Join(path, g.GetSyverfile())

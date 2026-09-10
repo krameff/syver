@@ -250,17 +250,24 @@ the hash for backwards compatibility
     `exec` string carries the same power, since whoever controls the vars file
     controls part of the command.
 
-    On timeout the command is killed along with any child processes it started
-    (on Linux and macOS; see [platform support](platforms.md) for Windows).
+    On timeout the command is killed along with any child processes it started,
+    on every platform.
 
-    One exception, and it is deliberate rather than an oversight: a process that
-    detaches itself into a new session -- `setsid`, `nohup`, most daemons -- has
-    left the group syver signals, so it survives the timeout and is reparented to
-    init. Syver has no portable way to find it again. Under `serve` each such
-    timeout leaves one process behind for as long as it chooses to run, so a spec
-    that repeatedly times out a daemonising command will accumulate them. If a
-    check needs to start a daemon, have it start the daemon and exit, rather than
-    relying on the timeout to clean up.
+    One exception on Linux and macOS, deliberate rather than an oversight: a
+    process that detaches itself into a new session -- `setsid`, `nohup`, most
+    daemons -- has left the group syver signals, so it survives the timeout and
+    is reparented to init. Syver has no portable way to find it again. Under
+    `serve` each such timeout leaves one process behind for as long as it chooses
+    to run, so a spec that repeatedly times out a daemonising command will
+    accumulate them. If a check needs to start a daemon, have it start the daemon
+    and exit, rather than relying on the timeout to clean up.
+
+    **Windows has no such exception.** The process tree is held in a Job Object,
+    which a process cannot leave unless it was created with
+    `CREATE_BREAKAWAY_FROM_JOB` and the job allows it, so a detaching child is
+    terminated with the rest. A command that succeeds is never touched: only a
+    timeout terminates the tree, so a check that deliberately starts a background
+    process and exits zero leaves it running.
 
 !!! note "timeout values"
 
@@ -609,11 +616,19 @@ registry:
     exists: true
 ```
 
-Supported hives, as the first path segment:
+Supported hives, as the first path segment. Each may be written short, long,
+or with the PowerShell provider colon, so a path pasted from `regedit`'s address
+bar or from `Get-ItemProperty` output works unedited:
 
-`HKLM` (HKEY_LOCAL_MACHINE), `HKCU` (HKEY_CURRENT_USER),
-`HKCR` (HKEY_CLASSES_ROOT), `HKU` (HKEY_USERS),
-`HKCC` (HKEY_CURRENT_CONFIG).
+| Short | Long | PowerShell |
+| :-- | :-- | :-- |
+| `HKLM` | `HKEY_LOCAL_MACHINE` | `HKLM:` |
+| `HKCU` | `HKEY_CURRENT_USER` | `HKCU:` |
+| `HKCR` | `HKEY_CLASSES_ROOT` | `HKCR:` |
+| `HKU` | `HKEY_USERS` | `HKU:` |
+| `HKCC` | `HKEY_CURRENT_CONFIG` | `HKCC:` |
+
+Hive names are case-insensitive.
 
 Attributes:
 
@@ -622,12 +637,70 @@ Attributes:
   [matcher](#matchers). Note `REG_MULTI_SZ` is returned as its entries joined
   by newlines, not as a list, so use `contain-substring` or `match-regexp`
   rather than list matchers like `contain-element`.
-* `type` -- the value's data type, one of `REG_SZ`, `REG_EXPAND_SZ`,
-  `REG_DWORD`, `REG_QWORD`, `REG_BINARY`, `REG_MULTI_SZ`.
+* `type` -- the value's data type. Every `REG_*` type is reported, including
+  `REG_NONE`, `REG_LINK`, `REG_DWORD_BIG_ENDIAN` and the three `REG_RESOURCE_*`
+  hardware descriptor types.
+* `view` -- which WOW64 registry view to read: `32`, `64`, or `native`.
+  Defaults to `native`, which is what every spec written before this attribute
+  existed gets, and means whatever the OS shows a 64-bit process.
+
+#### Choosing a view
+
+On 64-bit Windows some keys exist twice. A 32-bit program is redirected under
+`Wow6432Node` and sees a different copy from a 64-bit one. `view:` lets a spec
+say which copy it means instead of inheriting syver's own architecture:
+
+```yaml
+registry:
+  # the redirected copy a 32-bit installer wrote, under Wow6432Node
+  HKLM\SOFTWARE\Vendor\Product\Version:
+    exists: true
+    view: "32"
+  # the native 64-bit copy. Same path, different branch -- so give the two
+  # entries distinct keys, or use `name:` to point both at one path
+  HKLM\SOFTWARE\Vendor\Product64\Version:
+    exists: true
+    view: "64"
+```
+
+Quote the value. Syver itself accepts `view: 32` unquoted -- the YAML integer is
+coerced to a string on load, and renders back out as `view: "32"` -- but
+[`schema.yaml`](schema.yaml) types the attribute as a string, so the unquoted
+form fails schema validation against a spec syver would have run. Quoting keeps
+the two in step. `view` is matched case-insensitively and surrounding whitespace
+is ignored, so `NATIVE` and `native` are the same value.
+
+#### The trailing backslash, and why it is not guessed
 
 By default the last backslash-separated segment of the path is treated as the
 value name. Use the explicit `::` separator when that guess would be wrong,
 for example when a value name contains backslashes.
+
+A **trailing backslash addresses the key itself** rather than a value, and the
+difference is not cosmetic. These two ask different questions and both answer
+truthfully:
+
+```text
+HKLM\...\ProfileList     exists -> false   is there a VALUE named ProfileList?
+HKLM\...\ProfileList\    exists -> true    is there a KEY named ProfileList?
+```
+
+syver does not guess which you meant, because guessing would move the ambiguity
+somewhere you cannot see it. Instead, when a value lookup misses and a key of
+that name exists in the same place, it logs a warning naming the alternative.
+Asserting `exists: false` against the first form therefore passes **and** tells
+you it may not be testing what you think.
+
+A key can exist while having no default value, so `exists: true` on a path
+ending in a backslash alongside a `value` lookup that reports not-found is a
+coherent pair rather than a contradiction.
+
+#### REG_EXPAND_SZ is compared unexpanded
+
+A `REG_EXPAND_SZ` value is matched as stored. A value holding
+`%SystemRoot%\System32` is compared as that literal text, not as
+`C:\Windows\System32`. This is deliberate: benchmarks state the stored form,
+and expansion depends on the environment of whoever is asking.
 
 ### package
 

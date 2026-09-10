@@ -10,14 +10,21 @@ import (
 
 type Registry struct {
 	DiscoveryMeta `yaml:",inline" json:",inline"`
-	Title         string  `json:"title,omitempty" yaml:"title,omitempty"`
-	Meta          meta    `json:"meta,omitempty" yaml:"meta,omitempty"`
-	id            string  `json:"-" yaml:"-"`
-	Name          string  `json:"name,omitempty" yaml:"name,omitempty"`
-	Exists        matcher `json:"exists" yaml:"exists"`
-	Value         matcher `json:"value,omitempty" yaml:"value,omitempty"`
-	Type          matcher `json:"type,omitempty" yaml:"type,omitempty"`
-	Skip          bool    `json:"skip,omitempty" yaml:"skip,omitempty"`
+	Title         string `json:"title,omitempty" yaml:"title,omitempty"`
+	Meta          meta   `json:"meta,omitempty" yaml:"meta,omitempty"`
+	id            string `json:"-" yaml:"-"`
+	Name          string `json:"name,omitempty" yaml:"name,omitempty"`
+	// View selects the WOW64 registry view: "32", "64" or "native".
+	//
+	// omitempty is load-bearing twice over. It keeps the attribute out of every
+	// gossfile that does not use it, so no golden changes and no existing spec
+	// gains a field it never asked for; and empty parses as native, which is
+	// exactly the behaviour that existed before this attribute did.
+	View   string  `json:"view,omitempty" yaml:"view,omitempty"`
+	Exists matcher `json:"exists" yaml:"exists"`
+	Value  matcher `json:"value,omitempty" yaml:"value,omitempty"`
+	Type   matcher `json:"type,omitempty" yaml:"type,omitempty"`
+	Skip   bool    `json:"skip,omitempty" yaml:"skip,omitempty"`
 }
 
 const (
@@ -66,6 +73,10 @@ func (r *Registry) Validate(ctx context.Context, sys *system.System) []TestResul
 	ctx = withID(ctx, r.ID())
 	skip := r.Skip
 	sysRegistry := sys.NewRegistry(ctx, r.GetName(), sys, util.Config{})
+	// An unusable view is carried by the system object and surfaces from the
+	// accessors, so a bad `view:` fails the assertions that depended on it
+	// rather than being reported here and nowhere else.
+	_ = sysRegistry.SetView(r.View)
 
 	var results []TestResult
 	results = append(results, ValidateValue(r, "exists", r.Exists, sysRegistry.Exists, skip))

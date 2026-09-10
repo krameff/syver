@@ -1,3 +1,7 @@
+# expect-count: 20
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
 registry:
   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName:
@@ -53,3 +57,64 @@ registry:
 
   HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProfileList:
     exists: false
+
+  # FEAT-012 W2-3. The spellings regedit's address bar and Get-ItemProperty
+  # actually show. Before this, a path copied from either had to be hand-edited
+  # into the short form before syver would take it.
+  HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName:
+    exists: true
+    value:
+      match-regexp: "Windows.*"
+
+  HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName:
+    exists: true
+
+  # FEAT-012 W2-4. `view: native` must mean exactly what no view at all means,
+  # so this entry and the first one in this file are the same assertion written
+  # two ways. If they ever disagree, adding the attribute changed the default.
+  productname-explicit-native:
+    name: HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName
+    exists: true
+    view: native
+
+  productname-64bit-view:
+    name: HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName
+    exists: true
+    view: "64"
+
+  # `view: "32"` must RESOLVE, not merely be accepted. ProductName is present
+  # in both views (measured on Windows Server 2025, 2026-09-09:
+  # `reg query "HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion" /v ProductName
+  # /reg:32` and `/reg:64` both succeed), so this asserts the redirected lookup
+  # works rather than asserting a difference.
+  productname-32bit-view:
+    name: HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\ProductName
+    exists: true
+    view: "32"
+
+  # The pair where the two views genuinely DISAGREE, which is the whole point of
+  # the attribute. Skipped for the same reason the HardenedPaths entry above is:
+  # it depends on the image, not on syver.
+  #
+  # MEASURED on Windows Server 2025, 2026-09-09, rather than reasoned:
+  #   reg query "HKLM\SOFTWARE\Microsoft\Windows Defender" /reg:64  -> exists
+  #   reg query "HKLM\SOFTWARE\Microsoft\Windows Defender" /reg:32  -> absent
+  # Defender writes only to the 64-bit branch. It can be absent or removed on a
+  # hardened or minimal image, so a CI runner is not guaranteed to match and
+  # these must not gate the suite.
+  #
+  # An earlier version of this pair used HKLM\SOFTWARE\Wow6432Node and asserted
+  # it was absent from the 32-bit view, reasoning that the view would redirect
+  # into a nested Wow6432Node. That was WRONG -- measured the same day, it exists
+  # under BOTH views -- and it would have failed CI. Do not restore it.
+  defender-64bit-view:
+    name: HKLM\SOFTWARE\Microsoft\Windows Defender\
+    exists: true
+    view: "64"
+    skip: true
+
+  defender-32bit-view:
+    name: HKLM\SOFTWARE\Microsoft\Windows Defender\
+    exists: false
+    view: "32"
+    skip: true

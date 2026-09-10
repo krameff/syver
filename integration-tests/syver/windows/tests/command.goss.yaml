@@ -1,3 +1,7 @@
+# expect-count: 18
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
 # Every command: budget in the Windows fixtures is 30000, and that is not
 # generosity for its own sake. A cold windows-latest runner pays powershell

@@ -84,6 +84,17 @@ func AddResource(fileName string, syverConfig SyverConfig, resourceName, key str
 // AutoAddResources is a simple wrapper to add multiple resources
 func AutoAddResources(fileName string, keys []string, c *util.Config) error {
 	var err error
+	// autoadd was the one subcommand that never installed the level filter.
+	// AddResources, validate and serve all call this; autoadd did not, and it
+	// did not matter while nothing here logged. FEAT-013 added a [WARN] for a
+	// resource skipped because its lookup failed, which made it matter: without
+	// this, `syver -L ERROR autoadd ...` could not silence that line, and it
+	// printed in Go's raw default format rather than the RFC3339 one every
+	// other [WARN] in this codebase uses.
+	err = setLogLevel(c)
+	if err != nil {
+		return err
+	}
 	outStoreFormat, err = getStoreFormatFromFileName(fileName)
 	if err != nil {
 		return err

@@ -1,10 +1,21 @@
+# expect-count: 4
+# expect-skipped is deliberately absent: these fixtures skip a
+# different number of assertions on a real Windows host than when
+# driven from another platform. Seed it from a Windows run only.
 ---
-# NOT touched by FEAT-010. SW-7 (mount_windows.go's honest errNotImplemented
-# is unreachable -- system/mount.go's getMount fails first with the
-# misleading-but-loud ErrMountpointNotFound) was deliberately deferred to
-# FEAT-011: reaching errNotImplemented needs reordering getMount, which is
-# cross-platform code shared by every OS and not "obviously safe" to
-# restructure within this spec's scope. See system/mount_windows.go.
+# SW-7 IS RESOLVED. This comment used to say the honest "not implemented"
+# error was unreachable, because system/mount.go's getMount failed first with
+# the misleading ErrMountpointNotFound, and that FEAT-011 would fix it by
+# reordering getMount. FEAT-013 resolved it WITHOUT that reorder: a
+# mountSupported() capability check now runs before getMount, so a Windows
+# mount check reports ErrMountUnsupported. The reorder was rejected because
+# getMount is shared by every OS and its order decides which error a missing
+# path produces where mount: actually works. See system/mount_windows.go.
+#
+# STILL SKIPPED, and for a different reason now. There is no Windows backend,
+# so this asserts nothing. Un-skipping it is FEAT-018's acceptance criterion,
+# at which point it also needs an `# expect-skipped:` seeded from a real
+# Windows run -- not inferred from another platform.
 mount:
   'c:':
     exists: true

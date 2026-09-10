@@ -1,3 +1,5 @@
+# expect-count: 7
+# expect-skipped: 0
 ---
 file:
   integration-tests/syver/testdata/static-file.txt:

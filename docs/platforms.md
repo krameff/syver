@@ -24,13 +24,15 @@ To try out the alpha functionality, you must do one of:
 * set an environment variable `SYVER_USE_ALPHA=1` (or the legacy `GOSS_USE_ALPHA=1`,
   which is still honoured; `SYVER_USE_ALPHA` wins when both are set to a non-empty value).
 
-One concrete difference worth knowing before you rely on Windows: syver puts a
-timed-out check's process into its own process group and kills the group, and
-Windows has no equivalent, so there the started process is killed and anything it
-spawned survives. On Linux and macOS only a process that deliberately detaches
-into a new session escapes that way. Syver still bounds how long it waits, so a
-check fails rather than hanging, but on Windows expect leftover processes after a
-timeout more often than the other platforms.
+One concrete difference worth knowing, and it now runs the other way. A
+timed-out check's process tree is terminated on every platform, but by different
+means and with different reach. Linux and macOS put the process into its own
+process group and kill the group, which a process that deliberately detaches
+into a new session (`setsid`, `nohup`, most daemons) escapes. Windows puts it
+into a Job Object, which a process cannot leave unless it was created to break
+away and the job permits it, so **the daemonising case that escapes on Linux and
+macOS does not escape on Windows.** Syver bounds how long it waits either way, so
+a check fails rather than hanging.
 
 The macOS and Windows support is community driven;
 there is no commitment to adding features / fixing bugs for those platforms.
@@ -57,6 +59,24 @@ This matrix attempts to track parity across platforms.
 | {{ n_a }}               | Not applicable for this platform       |
 | {{ no_data }}           | Not yet tried, no data                 |
 
+!!! note "Windows `port:`, `process:` and `mount:` are measured, not assumed"
+
+    The Windows cells for these three were verified on Windows Server 2025 on
+    2026-09-09, not inferred from reading the code:
+
+    * `port:` errors with `not implemented yet`. gopsutil ships a Windows
+      backend, so this row previously recorded an assumption nobody had
+      checked. It is now confirmed.
+    * `process:` `status` errors the same way, which is why it reads
+      *not implemented* rather than *broken*: the library says so itself.
+    * `process:` `user` **works**, and previously read *no data*.
+    * `mount:` errors with `not supported on this platform`. It used to blame
+      the mountpoint instead.
+
+    Re-derive rather than trust this note. Build a Windows binary and run the
+    assertion; the fixtures for `port:` and `mount:` are deliberately skipped
+    because they would fail, so a green Windows suite does not cover them.
+
 !!! note "About partial support"
 
     This is ambiguous. Where you see this, check into the test coverage within `integration-tests/syver/{darwin|windows}/{test}.goss.yaml` for more detail.
@@ -74,7 +94,7 @@ This matrix attempts to track parity across platforms.
 |                     | exit-status         | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | stdout              | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | stderr              | {{ fully_supported }}   | {{ not_automated }}    | {{ not_automated }}     |
-|                     | timeout             | {{ fully_supported }}   | {{ not_automated }}    | {{ not_automated }}     |
+|                     | timeout             | {{ fully_supported }}   | {{ not_automated }}    | {{ work_partially }}    |
 | **dns**             |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | resolvable          | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | addrs               | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
@@ -115,6 +135,7 @@ This matrix attempts to track parity across platforms.
 |                     | exists              | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
 |                     | value               | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
 |                     | type                | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
+|                     | view                | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
 | **mount**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | opts                | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
@@ -130,8 +151,8 @@ This matrix attempts to track parity across platforms.
 |                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ not_implemented }}   |
 | **process**         |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-|                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ broken }}            |
-|                     | user                | {{ fully_supported }}   | {{ work_partially }}   | {{ no_data }}           |
+|                     | status              | {{ fully_supported }}   | {{ work_partially }}   | {{ not_implemented }}   |
+|                     | user                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 | **service**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
@@ -215,14 +236,40 @@ passed before may now fail where it was never actually being checked.
 
 ## Commands support matrix
 
-| Test       | Linux                  | macOS               | Windows              |
-|:-----------|------------------------|---------------------|----------------------|
-| `add`      | {{ fully_supported }}  | {{ no_data }}       | {{ work_partially }} |
-| `autoadd`  | {{ fully_supported }}  | {{ no_data }}       | {{ no_data }}        |
-| `help`     | {{ fully_supported }}  | {{ no_data }}       | {{ work_partially }} |
-| `render`   | {{ fully_supported }}  | {{ no_data }}       | {{ no_data }}        |
-| `serve`    | {{ fully_supported }}  | {{ not_automated }} | {{ no_data }}        |
-| `validate` | {{ fully_supported }}  | {{ not_automated }} | {{ work_partially }} |
+| Test       | Linux                 | macOS                   | Windows                 |
+|:-----------|-----------------------|-------------------------|-------------------------|
+| `add`      | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
+| `autoadd`  | {{ fully_supported }} | {{ no_data }}           | {{ no_data }}           |
+| `help`     | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
+| `render`   | {{ fully_supported }} | {{ no_data }}           | {{ no_data }}           |
+| `serve`    | {{ fully_supported }} | {{community_supported}} | {{community_supported}} |
+| `validate` | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
+
+`command:` `timeout` on **Windows** moved from *not automated* to *partially
+tested* in this release: `util/procgroup_windows_test.go` asserts both that a
+timed-out command's grandchild is terminated and that a succeeding command's
+background child is not, and the `windows-latest` leg of `golangci.yaml` runs
+`make test`, which passes no `-short`, so both execute in CI. The macOS cell is
+unchanged: nothing there tests timeout expiry. No fixture on any platform
+asserts what happens when a budget runs out, which is why this is *partially*
+tested rather than fully.
+
+The macOS and Windows cells above are measured from CI, not estimated. Every
+`add`, `help`, `serve` and `validate` cell describes a lane that runs on every
+push and passes. `autoadd` is genuinely untested on both: its fixture carries
+`skip: true`, so it asserts nothing. `render` has no fixture on any platform.
+
+**Check rather than trust this table.** The workflow derives its target from
+`go env`, so reading the workflow tells you a lane is wired up, not that it ran.
+Read the job log:
+
+```bash
+gh run list --branch main --workflow=golangci.yaml --limit 1
+# then, in the "Integration tests (macos-latest)" and "(windows-latest)" jobs,
+# look for these lines:
+#   test-int-validate-<os>-<arch>   ... <os>-<arch>: N fixtures, N assertions, N skipped
+#   test-int-serve-<os>-<arch>      ... serve tests passed
+```
 
 ### `command` testing notes
 

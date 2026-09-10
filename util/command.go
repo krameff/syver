@@ -58,6 +58,17 @@ func (c *Command) Run() error {
 	c.Cmd.Stdout = &c.Stdout
 	c.Cmd.Stderr = &c.Stderr
 
+	// FIRST, and before the LookPath early return below: on Windows
+	// configureProcessGroup has already created a Job Object handle, and every
+	// path out of this function has to give it back. Releasing is idempotent and
+	// a no-op when nothing was registered, so this is safe on the paths that
+	// never start a process and on POSIX, where both hooks do nothing.
+	//
+	// kill=false because this is the ORDINARY exit. Terminating the tree is
+	// cmd.Cancel's job and happens only on a timeout; doing it here would kill a
+	// background process a successful command deliberately started.
+	defer releaseProcessGroup(c.Cmd, false)
+
 	if _, err := exec.LookPath(c.name); err != nil {
 		c.Err = err
 		return c.Err
@@ -67,6 +78,13 @@ func (c *Command) Run() error {
 		c.Err = err
 		return c.Err
 	}
+
+	// A no-op unless configureProcessGroup registered something, so a
+	// context-free NewCommand is unaffected. On Windows this is where the
+	// process joins its Job Object -- the earliest point at which a process
+	// exists to assign. An assignment failure is not a check failure: the
+	// command ran, and cmd.Cancel falls back to killing the direct child.
+	_ = attachProcessGroup(c.Cmd)
 
 	if err := c.Cmd.Wait(); err != nil {
 		c.Err = err

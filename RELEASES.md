@@ -20,14 +20,48 @@ are this project's own, cut after the fork.
 Releases are assembled on `devel` and merged to `main` at release time, so from
 0.9.1 onward a release carries several branches rather than one.
 
-Every tag from v0.7.0 onward is annotated and GPG-signed with the same key.
+Every tag from v0.7.0 onward is annotated and GPG-signed.
+
+**Two different keys sign two different things, and confusing them makes a good
+signature look like a bad one.**
+
+| What | Signed by | Key |
+| --- | --- | --- |
+| Git tags | the maintainer's own key | `5154CE6E4F8712D87B9C870DCC071079D4E84F77` |
+| Release artifacts: `SHA256SUMS`, the SBOMs | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+
+So importing `krameff-syver-key.asc` and then running `git verify-tag` will
+report that it has no public key for the signature. That is expected, not a
+problem with the tag. Verify each with the key that signed it:
+
+```sh
+git verify-tag v0.11.2                     # maintainer key
+gpg --verify syver_0.11.2_SHA256SUMS.sig \
+             syver_0.11.2_SHA256SUMS       # project key
+```
+
+This line previously read "signed with the same key", which had no antecedent
+and invited exactly that mistake.
+
 "Released" is the date the tag object was created, which is not always the
 commit date: v0.7.0 was committed on 2026-08-18 and tagged on 2026-08-20.
 v0.6.0 has no tag in this repository and uses the date its changelog entry
 records.
 
+## Re-cut tags
+
+Four tags were deleted and re-created after first being pushed: `v0.9.1`,
+`v0.10.0`, `v0.11.0` and `v0.11.1`.
+
+**If you fetched one of those tags before it was re-cut, your copy is stale and
+git will not correct it on its own.** Run `git fetch --tags --force`. Released
+artifacts and signatures always correspond to the tag as it now stands.
+
 ## Contents
 
+* [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
+  -- **assembled, not released**
+* [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
 * [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
 * [v0.10.0 - Templating moved from sprig to sprout](#v0100---templating-moved-from-sprig-to-sprout)
@@ -43,12 +77,120 @@ records.
 
 ---
 
+## v0.12.0 - Windows registry grammar and process trees
+
+**NOT RELEASED. Merged to `devel`, release PR open against `main`, nothing
+tagged.** This entry exists so the work is traceable before it ships; replace
+the pending fields at tag time rather than writing them now.
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. FEAT-013 was built on `feature/windows-depth-wave2` and FEAT-012 and FEAT-017 on `feature/windows-registry-and-job-objects`, which branched from it and so carried both; that single branch merged through PR #39, and `devel` reaches `main` through PR #40 |
+| Scope | 27 commits excluding merges, 138 files, +3392 / -192, measured `origin/main..origin/devel` at `d23532d`. Re-measure against the tag: `git diff --shortstat v0.11.2..v0.12.0` |
+| Changelog | [0.12.0](CHANGELOG.md#0120-based-on-krameffgoss-v060---windows-registry-grammar-and-process-trees) |
+
+**Why this is a minor and not a patch.** `registry:` gains a `view:` attribute.
+The resource layer is deliberately cross-platform, so a new attribute appears in
+`docs/schema.yaml` on every platform, not just the one that honours it. That is
+user-facing spec syntax and cannot ship under a patch.
+
+It also carries the container-package-description work that had been assembled
+on `devel` under an unreleased `0.11.3` heading. That heading no longer exists;
+the work rides here.
+
+**Validation, stated because it is unusually good for Windows work and unusually
+uneven.** FEAT-012 and FEAT-017 were exercised on two independent Windows images
+-- a Windows Server 2025 guest and a Windows 11 Enterprise host -- with the unit
+tests passing on both and the registry fixture producing an identical
+`Count: 20, Failed: 0, Skipped: 3`. The `view:` attribute was proven to read
+genuinely different data by creating one key through each WOW64 view with
+different values and reading both back through the shipped binary.
+FEAT-013 was the gap in this record and it is now closed: on 2026-09-10 its
+tests were run explicitly on Windows 11 from a binary built at `3bca090` and all
+passed, including `TestMountReportsUnsupportedNotNotFound` (the mount fix
+itself), `TestProcessNeverReportsNothingSuccessfully`, the four
+`TestCollectPerProcess` cases and the `RealPath` set. Two mount tests skip by
+design, being POSIX-only. All three of FEAT-012, FEAT-013 and FEAT-017 have now
+been exercised on a real Windows host.
+
+**A data race was found by CI and fixed before merge.** The Job Object work
+passed on both Windows hosts and then failed `windows-latest` immediately:
+`-race` needs cgo needs a C compiler, neither host had one, so the detector was
+never linked into the binaries those runs used. `jobState.attached` was written
+by `attachProcessGroup` on the goroutine running `Run` and read by the
+`cmd.Cancel` closure on os/exec's watchCtx goroutine, which race on every
+timeout. Fixed with an `atomic.Bool` in `3df9949`, and the before and after were
+both proven under `-race` on the one Windows machine here that has mingw.
+
+Also system-tested against `ansible-lockdown/Windows11-CIS-Audit` v3.0.0, which
+runs syver and gates on its version: 540 check files, 1389 assertions, every
+failure traceable to real host state.
+
+---
+
+## v0.11.2 - Signed SBOMs and a patched base image
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-09-08 |
+| Tag | `v0.11.2` |
+| Commit | `e888146` |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, merged through PR #37. No feature branch; the commits were made directly on `devel` |
+| Scope | 7 commits (6 excluding merges), 7 files, +237 / -109, measured at `v0.11.2` against `v0.11.1` |
+| Changelog | [0.11.2](CHANGELOG.md#0112-based-on-krameffgoss-v060---signed-sboms-and-a-patched-base-image) |
+
+Two supply-chain changes and no Go source change, so the binaries are
+functionally identical to v0.11.1.
+
+Every release now publishes a software bill of materials, one SPDX 2.3 document
+per binary named to match it, each signed with the same key as the checksum
+file. Signed releases were already a divergence from upstream, which publishes
+checksums and neither signatures nor SBOMs; this extends that into the half of
+the supply-chain story neither project told.
+
+The container image now upgrades its Alpine packages at build time. The base
+image is republished infrequently, so building alone shipped whatever package
+set had been baked into it months earlier, and a container scan was reporting
+OpenSSL advisories against the published image as a result. Pinning the base to
+its point release does not help: the minor tag and the point release resolve to
+the same digest. Syver's own binary is statically linked with cgo disabled and
+calls none of those libraries, so nothing syver does was exploitable through
+them, but the image is documented as a base image and an unpatched package in it
+is inherited by every downstream `FROM`.
+
+**Breaking:** none. Nothing in the program changed.
+
+**Gate at release:** every workflow green **on `e888146` itself**, the tagged
+commit, rather than on an ancestor: `Golang ci` across all twelve jobs including
+`windows-latest` and macOS, `Validate YAML`, `Documentation`, `CodeQL Advanced`
+and `Docker image for Syver`. `Build release artifacts` then ran on the tag and
+completed success. That the gate and the tag name the same commit is the point:
+the two preceding releases were tagged on trees their gates had never seen.
+
+**Verified after the fact, not inferred.** The SBOM path had never run before
+this release, and a failure at that stage would have come after the build and
+the signing. The release carries eight `.spdx.json` documents and eight matching
+`.sig` files alongside the signed checksum file. The published image
+`ghcr.io/krameff/syver:v0.11.2` was pulled and inspected: it carries the
+upgraded OpenSSL packages with nothing left upgradable, which also confirms the
+upgrade step ran through goreleaser's arm64 build under QEMU and not only in the
+workflow it was developed against. Open code-scanning alerts fell from
+twenty-one to one, the remainder being a Go advisory that has no published fix
+and that `govulncheck` reports as required but never called.
+
+---
+
 ## v0.11.1 - Documentation site corrections
 
 | Field | Value |
 | --- | --- |
 | Released | 2026-09-07 |
-| Tag | `v0.11.1`. Cut twice; see the note below |
+| Tag | `v0.11.1`. Cut twice; see [Re-cut tags](#re-cut-tags) |
 | Commit | `f9f6b2c` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`, merged through PR #36. No feature branch; the commits were made directly on `devel` |
@@ -95,7 +237,7 @@ re-run with no change; a transient fetch, not a finding.
 | Field | Value |
 | --- | --- |
 | Released | 2026-09-07 |
-| Tag | `v0.11.0`. Cut twice; see the note below the gate |
+| Tag | `v0.11.0`. Cut twice; see [Re-cut tags](#re-cut-tags) |
 | Commit | `5729f8a` |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`. One feature branch, `feature/windows-truthfulness` (PR #34), plus three dependency commits and two CI fixes taken during the release |

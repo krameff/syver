@@ -46,6 +46,12 @@ func NewCommandForWindowsCmdContext(ctx context.Context, name string, arg ...str
 		CmdLine:       strings.Join(arg, " "),
 		CreationFlags: 0,
 	}
+	// AFTER SysProcAttr, which is assigned wholesale just above and would
+	// otherwise discard anything set before it. This constructor is the
+	// `command:` path on Windows and does not go through NewCommandContext, so
+	// without this line the Job Object hook never runs on the one path whose
+	// grandchildren leak.
+	configureProcessGroup(command.Cmd)
 
 	return command
 }
@@ -70,6 +76,11 @@ func NewCommandForWindowsPowershellContext(ctx context.Context, name string, arg
 		CmdLine:       cmdLine,
 		CreationFlags: 0,
 	}
+	// Same reason as NewCommandForWindowsCmdContext. system/service_windows.go
+	// carries a comment saying this path has no process-group protection at
+	// all; this is the line that makes that comment obsolete, and that comment
+	// is updated to match.
+	configureProcessGroup(command.Cmd)
 
 	return command
 }
