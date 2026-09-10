@@ -2,11 +2,6 @@
 
 ## 0.12.0 based on krameff/goss v0.6.0 - Windows registry grammar and process trees
 
-<!-- HEADING CHANGED FROM 0.11.3 DELIBERATELY. `registry:` gained a `view:`
-     attribute, which is new user-facing spec syntax and appears in the schema
-     on every platform, so this can no longer ship as a patch. Everything that
-     was already under the 0.11.3 heading is unchanged and now rides here. -->
-
 - windows registry
   - hive names accept the spellings Windows tools actually print. `regedit`'s
     address bar shows `HKEY_LOCAL_MACHINE\...` and `Get-ItemProperty` shows

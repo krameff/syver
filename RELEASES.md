@@ -59,6 +59,8 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
+  -- **assembled, not released**
 * [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
 * [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
 * [v0.11.0 - Windows: stop returning confident wrong answers](#v0110---windows-stop-returning-confident-wrong-answers)
@@ -72,6 +74,43 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.12.0 - Windows registry grammar and process trees
+
+**NOT RELEASED. Assembled on two feature branches, neither merged, nothing
+tagged.** This entry exists so the work is traceable before it ships; replace
+the pending fields at tag time rather than writing them now.
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `feature/windows-depth-wave2` (FEAT-013) and `feature/windows-registry-and-job-objects` (FEAT-012, FEAT-017), the second branched from the first. Both still need a PR; pushes do not build feature branches, so neither has been through CI |
+| Scope | measure at tag time: `git diff --stat devel..feature/windows-registry-and-job-objects` |
+| Changelog | [0.12.0](CHANGELOG.md#0120-based-on-krameffgoss-v060---windows-registry-grammar-and-process-trees) |
+
+**Why this is a minor and not a patch.** `registry:` gains a `view:` attribute.
+The resource layer is deliberately cross-platform, so a new attribute appears in
+`docs/schema.yaml` on every platform, not just the one that honours it. That is
+user-facing spec syntax and cannot ship under a patch.
+
+It also carries the container-package-description work that had been assembled
+on `devel` under an unreleased `0.11.3` heading. That heading no longer exists;
+the work rides here.
+
+**Validation, stated because it is unusually good for Windows work and unusually
+uneven.** FEAT-012 and FEAT-017 were exercised on two independent Windows images
+-- a Windows Server 2025 guest and a Windows 11 Enterprise host -- with the unit
+tests passing on both and the registry fixture producing an identical
+`Count: 20, Failed: 0, Skipped: 3`. The `view:` attribute was proven to read
+genuinely different data by creating one key through each WOW64 view with
+different values and reading both back through the shipped binary.
+**FEAT-013, on the older branch, has never been run on Windows at all.** Do not
+let the strength of the first two imply anything about the third.
 
 ---
 
