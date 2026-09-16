@@ -72,21 +72,28 @@ dockers_v2:
     # Annotations are NOT a duplicate of the labels above. Labels live in each
     # per-architecture image config; GitHub Packages reads the multi-arch INDEX,
     # which carries no labels at all, so a label-only image publishes with an
-    # empty description on its package page. Unscoped keys here default to
-    # `index:` on a multi-platform build, which is the level GHCR reads.
+    # empty description on its package page. An unscoped key defaults to
+    # `index:` on a multi-platform build, which is the level GHCR reads; the
+    # `index,manifest:` prefix also annotates each per-architecture manifest,
+    # matching the branch image built by docker-syver.yaml.
     # Verify after a release rather than trusting this comment: the index
-    # annotations must be non-null in
-    #   curl -H "Accept: application/vnd.oci.image.index.v1+json" \
+    # annotations must be non-null in the raw index. GHCR challenges a bare
+    # request with 401 even for a public package, so fetch a token first:
+    #   TOK=$(curl -s "https://ghcr.io/token?scope=repository:<owner>/syver:pull&service=ghcr.io" | jq -r .token)
+    #   curl -s -H "Authorization: Bearer $TOK" \
+    #        -H "Accept: application/vnd.oci.image.index.v1+json" \
     #        https://ghcr.io/v2/<owner>/syver/manifests/v<version>
+    # `podman manifest inspect` is NOT a substitute: it prints no annotations
+    # at all, and reads as a missing description when the index has one.
     annotations:
-      "org.opencontainers.image.created": "{{ .Date }}"
-      "org.opencontainers.image.description": "Quick and Easy server testing/validation"
-      "org.opencontainers.image.licenses": "Apache-2.0"
-      "org.opencontainers.image.revision": "{{ .FullCommit }}"
-      "org.opencontainers.image.source": "{{ .GitURL }}"
-      "org.opencontainers.image.title": "{{ .ProjectName }}"
-      "org.opencontainers.image.url": "{{ .GitURL }}"
-      "org.opencontainers.image.version": "{{ .Version }}"
+      "index,manifest:org.opencontainers.image.created": "{{ .Date }}"
+      "index,manifest:org.opencontainers.image.description": "Quick and Easy server testing/validation"
+      "index,manifest:org.opencontainers.image.licenses": "Apache-2.0"
+      "index,manifest:org.opencontainers.image.revision": "{{ .FullCommit }}"
+      "index,manifest:org.opencontainers.image.source": "{{ .GitURL }}"
+      "index,manifest:org.opencontainers.image.title": "{{ .ProjectName }}"
+      "index,manifest:org.opencontainers.image.url": "{{ .GitURL }}"
+      "index,manifest:org.opencontainers.image.version": "{{ .Version }}"
     platforms:
       - linux/amd64
       - linux/arm64
