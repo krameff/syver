@@ -1,6 +1,23 @@
 # Changelog
 
-## 0.12.1 based on krameff/goss v0.6.0 - maintenance
+## 0.12.1 based on krameff/goss v0.6.0 - quieter serve logs and nerdctl support
+
+- serve
+  - `syver serve` no longer writes `Stale cache[...], running tests` every time
+    its result cache expires. The line carried no log level, and a line without
+    one passes the log filter at every setting, so even `-L WARN` or `-L ERROR`
+    could not silence it; a health endpoint probed every few seconds filled its
+    logs with it. It is now a `DEBUG` message, shown with `-L DEBUG` or
+    `-L TRACE`. Upstream goss made the same change in goss-org/goss#1092
+
+- dsyver and the dgoss shim
+  - `CONTAINER_RUNTIME=nerdctl` is accepted alongside `docker` and `podman`.
+    Follows the proposal in goss-org/goss#1048. `dcsyver` is unchanged: its
+    compose handling only knows Docker Compose
+  - with rootless `nerdctl`, `GOSS_FILES_STRATEGY=cp` now stops at once with an
+    error pointing at `mount`. Rootless `nerdctl` cannot copy files into a
+    container before it starts, which is exactly what that strategy does, so it
+    previously failed partway through with a container already created
 
 - dependencies
   - `golang.org/x/sys` moves from 0.47.0 to 0.48.0. This is the library syver
