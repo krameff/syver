@@ -60,6 +60,8 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.12.1 - Quieter serve logs and nerdctl support](#v0121---quieter-serve-logs-and-nerdctl-support)
+  -- **assembled, not released**
 * [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
 * [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
 * [v0.11.1 - Documentation site corrections](#v0111---documentation-site-corrections)
@@ -74,6 +76,29 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.12.1 - Quieter serve logs and nerdctl support
+
+**NOT RELEASED. Assembled on `devel`, nothing tagged.** This entry exists so the
+work is traceable before it ships; replace the pending fields at tag time rather
+than writing them now.
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`. No feature branch: the dependency update merged through PR #41 and the rest was committed directly |
+| Scope | measure at tag time: `git log --oneline --no-merges v0.12.0..v0.12.1` and `git diff --shortstat v0.12.0 v0.12.1` |
+| Changelog | [0.12.1](CHANGELOG.md#0121-based-on-krameffgoss-v060---quieter-serve-logs-and-nerdctl-support) |
+
+A patch: a serve log that ignored `-L` now respects it, the `dsyver` wrapper
+accepts `nerdctl`, plus a dependency update, release image metadata and the
+v0.12.0 release record. No gossfile syntax changes, and `docs/schema.yaml` is
+untouched.
 
 ---
 

@@ -61,7 +61,7 @@ checks whether the conditions in the file are met. Only then does syver start th
 actual check with the file `./goss.yaml`. This is used, for example, to wait
 until a certain port is open before executing the tests.
 
-In most cases one can just substitute the runtime command (`docker` or `podman`)
+In most cases one can just substitute the runtime command (`docker`, `nerdctl` or `podman`)
 for the dgoss command, for example:
 
 **run:**
@@ -169,7 +169,8 @@ Strategy used for copying goss files into the container. If set to `'mount'` a v
 and log output is streamed into the container as `/syver/docker_output.log` file. Other strategy is `'cp'` which uses
 `'docker cp'` command to copy goss files into container. With the `'cp'` strategy you lose the ability to write
 tests or waits against the container output. The `'cp'` strategy is required especially when container daemon is
-not on the local machine.
+not on the local machine. It is not supported with rootless `nerdctl`, which cannot copy into a container before it
+starts, and the wrapper stops with an error in that case rather than failing partway.
 (Default `'mount'`)
 
 #### CONTAINER_LOG_OUTPUT
@@ -183,5 +184,9 @@ Location of the temporary directory used by dgoss. (Default `'$(mktemp -d /tmp/t
 
 #### CONTAINER_RUNTIME
 
-Container runtime to use - `docker` or `podman`. Defaults to `docker`. Note that `podman` requires a run command to keep
-the container running. This defaults to `sleep infinity` in case only an image is passed to `dgoss` commands.
+Container runtime to use - `docker`, `nerdctl` or `podman`. Defaults to `docker`. Note that `podman` requires a run command
+to keep the container running. This defaults to `sleep infinity` in case only an image is passed to `dgoss` commands.
+
+With `nerdctl`, the SELinux relabel requested on the mounted directory (`:z`) takes effect only when `nerdctl` itself runs
+with `--selinux-enabled`. If a container on an SELinux-enforcing host cannot read the mounted files, use
+`GOSS_FILES_STRATEGY=cp` with rootful `nerdctl`.
