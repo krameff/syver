@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.12.2 based on krameff/goss v0.6.0 - mount support on Windows
+
+- windows mount
+  - `mount:` now works on Windows for drive letters. `exists`, `filesystem` and
+    `usage` are checked against the real volume, where every `mount:` assertion
+    previously errored with "not supported on this platform"
+  - write the mountpoint as a drive letter: `c:`, `C:`, `C:\` and `C:/` all mean
+    the same drive. A volume mounted at a folder path is not covered, and
+    asking for one errors saying only drive letters are supported, rather than
+    reporting it missing
+  - `filesystem` is reported as Windows names it, such as `NTFS`, so a value
+    copied from any Windows tool matches
+  - `opts`, `vfs-opts` and `source` have no Windows meaning and error there
+    rather than answering with an empty value that an empty assertion would
+    pass against
+  - mapped network drives belong to a logon session, so an audit run as a
+    service or over WinRM sees the drives that session sees, not a user's
+    mapped drives. Documented on the Windows page
+
 ## 0.12.1 based on krameff/goss v0.6.0 - quieter serve logs and nerdctl support
 
 - serve
