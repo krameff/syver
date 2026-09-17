@@ -254,7 +254,10 @@ unchanged: nothing there tests timeout expiry. No fixture on any platform
 asserts what happens when a budget runs out, which is why this is *partially*
 tested rather than fully.
 
-The macOS and Windows cells above are measured from CI, not estimated. Every
+The macOS and Windows cells above are measured from CI, not estimated.
+**macOS in CI means Apple silicon only.** `macos-latest` is arm64, so CI runs
+the `darwin-arm64` fixtures; the `darwin-amd64` set is run by
+`make test-int-darwin-all` on an Intel Mac and by nothing in CI. Every
 `add`, `help`, `serve` and `validate` cell describes a lane that runs on every
 push and passes. `autoadd` is genuinely untested on both: its fixture carries
 `skip: true`, so it asserts nothing. `render` has no fixture on any platform.

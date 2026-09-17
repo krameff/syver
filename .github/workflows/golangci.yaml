@@ -171,6 +171,9 @@ jobs:
 
       - name: Integration tests
         shell: bash
+        # The target comes from the runner, so macos-latest (arm64) runs the
+        # darwin-arm64 fixtures only. integration-tests/syver/darwin-amd64 is
+        # exercised locally by `make test-int-darwin-all`, never here.
         run: |
           os_name="$(go env GOOS)"
           arch="$(go env GOARCH)"
