@@ -71,7 +71,10 @@ fi
 #     measured 2026-09-08 on devel at a4d4594. Safe to pin everywhere, and
 #     seedable from any machine. Re-measured 2026-09-09 on
 #     feature/windows-registry-and-job-objects, windows is 130: the registry
-#     fixture went from 12 assertions to 20. Note the windows total counts the
+#     fixture went from 12 assertions to 20. Measured 2026-09-17 on a real
+#     Windows Server 2025 host on feature/windows-mount-backend, windows is
+#     128: FEAT-018 took the mount fixture from 4 assertions to 3, counted twice
+#     for the reason below. Note the windows total counts the
 #     13 fixtures gossfile.goss.yaml aggregates twice, once directly and once
 #     through the aggregate; registry.goss.yaml is NOT one of those 13.
 #   * `Skipped` is host-independent on linux and darwin (32 and 44, both exactly
@@ -81,11 +84,11 @@ fi
 #     the same method as the Count note above -- the windows fixtures run
 #     against a locally built linux/amd64 binary, which reproduces a4d4594's
 #     recorded 122/33 exactly, so the method is checkable rather than trusted.
-#     The real-Windows-host figure was 19 on a4d4594; it is
-#     NOT 19 any more, because registry.goss.yaml gained two `skip: true`
-#     entries, and nobody has re-run it on Windows to say what it is. So
-#     Windows fixtures deliberately declare no expect-skipped. Seed it from a
-#     real run on that platform, never by inference from another one.
+#     The real-Windows-host figure was 19 on a4d4594 and 13 on
+#     feature/windows-mount-backend, measured 2026-09-17 on Windows Server 2025.
+#     Windows fixtures declare expect-skipped only where it has been seeded
+#     from a real run on that platform (mount.goss.yaml, 0), never by
+#     inference from another one.
 #   * `Failed` is host-dependent by design and is NOT pinned here. That is what
 #     the exit code above is for.
 #

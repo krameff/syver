@@ -1,29 +1,18 @@
-# expect-count: 4
-# expect-skipped is deliberately absent: these fixtures skip a
-# different number of assertions on a real Windows host than when
-# driven from another platform. Seed it from a Windows run only.
+# expect-count: 3
+# expect-skipped: 0
 ---
-# SW-7 IS RESOLVED. This comment used to say the honest "not implemented"
-# error was unreachable, because system/mount.go's getMount failed first with
-# the misleading ErrMountpointNotFound, and that FEAT-011 would fix it by
-# reordering getMount. FEAT-013 resolved it WITHOUT that reorder: a
-# mountSupported() capability check now runs before getMount, so a Windows
-# mount check reports ErrMountUnsupported. The reorder was rejected because
-# getMount is shared by every OS and its order decides which error a missing
-# path produces where mount: actually works. See system/mount_windows.go.
+# FEAT-018: mount: has a Windows backend, covering drive letters only.
 #
-# STILL SKIPPED, and for a different reason now. There is no Windows backend,
-# so this asserts nothing. Un-skipping it is FEAT-018's acceptance criterion,
-# at which point it also needs an `# expect-skipped:` seeded from a real
-# Windows run -- not inferred from another platform.
+# opts, vfs-opts and source are deliberately not asserted. They have no Windows
+# meaning and return an error there, so asserting them would fail rather than
+# pass on an empty value.
+#
+# expect-skipped is seeded from a run on a real Windows host, not inferred.
+# Driven from another platform, `c:` does not exist and the existence failure
+# turns the two dependent assertions into skips, so the number differs.
 mount:
   'c:':
     exists: true
-    filesystem: ntfs
-
-    opts: []  #  not applicable on Windows
-    source: ''  #  not applicable on Windows
+    filesystem: NTFS
     usage:
       lt: 95
-
-    skip: true  # needs implementation
