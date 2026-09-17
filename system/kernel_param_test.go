@@ -2,6 +2,8 @@ package system
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -57,5 +59,39 @@ func TestDefKernelParamExists_NoProcSys(t *testing.T) {
 	}
 	if !errors.Is(err, ErrKernelParamUnsupported) {
 		t.Errorf("Exists() with no /proc/sys = (%v, %v), want (false, ErrKernelParamUnsupported)", exists, err)
+	}
+}
+
+// TestDefKernelParamValue_ReadsDottedKeyAsPath pins the lookup that replaced
+// go-sysctl's Get against a fixture tree, so it runs identically on hosts with
+// and without /proc/sys: dots become directories, and the trailing newline
+// procfs always writes is trimmed.
+//
+// REVERT-PROOF: dropping the TrimSpace fails the value comparison, and dropping
+// the dot-to-separator replacement fails the lookup with os.ErrNotExist.
+func TestDefKernelParamValue_ReadsDottedKeyAsPath(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "net", "ipv4")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "ip_forward"), []byte("1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	orig := procSysPath
+	procSysPath = root
+	defer func() { procSysPath = orig }()
+
+	got, err := (&DefKernelParam{key: "net.ipv4.ip_forward"}).Value()
+	if err != nil {
+		t.Fatalf("Value() error = %v", err)
+	}
+	if got != "1" {
+		t.Errorf("Value() = %q, want %q", got, "1")
+	}
+
+	_, err = (&DefKernelParam{key: "net.ipv4.not_a_param"}).Value()
+	if !errors.Is(err, os.ErrNotExist) {
+		t.Errorf("Value() for a missing key error = %v, want os.ErrNotExist", err)
 	}
 }
