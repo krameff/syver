@@ -81,6 +81,14 @@ run(){
         fi
         ;;
       cp)
+        # Rootless nerdctl cannot copy into a container that is not running
+        # (it needs the running task's namespaces), and this strategy copies
+        # between create and start. Refuse up front rather than failing midway
+        # with a container already created. Rootless docker and podman are fine.
+        if [ "$CONTAINER_RUNTIME" == "nerdctl" ] && \
+            $CONTAINER_RUNTIME info --format '{{json .SecurityOptions}}' 2> /dev/null | grep -q 'name=rootless'; then
+            error "GOSS_FILES_STRATEGY=cp is not supported with rootless nerdctl, use GOSS_FILES_STRATEGY=mount"
+        fi
         info "Creating $CONTAINER_RUNTIME container"
         id=$($CONTAINER_RUNTIME create "${@:2}")
         info "Copy goss files into container"
@@ -135,7 +143,7 @@ GOSS_PATH="${GOSS_PATH:-$(which syver 2> /dev/null || which goss 2> /dev/null ||
 [[ ${GOSS_WAIT_OPTS+x} ]] || GOSS_WAIT_OPTS="-r 30s -s 1s > /dev/null"
 GOSS_SLEEP=${GOSS_SLEEP:-0.2}
 
-[[ $CONTAINER_RUNTIME =~ ^(docker|podman)$ ]] || { error "Runtime must be one of docker or podman"; }
+[[ $CONTAINER_RUNTIME =~ ^(docker|nerdctl|podman)$ ]] || { error "Runtime must be one of docker, nerdctl or podman"; }
 
 case "$1" in
     run)

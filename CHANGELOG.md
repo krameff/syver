@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.12.1 based on krameff/goss v0.6.0 - quieter serve logs and nerdctl support
+
+- serve
+  - `syver serve` no longer writes `Stale cache[...], running tests` every time
+    its result cache expires. The line carried no log level, and a line without
+    one passes the log filter at every setting, so even `-L WARN` or `-L ERROR`
+    could not silence it; a health endpoint probed every few seconds filled its
+    logs with it. It is now a `DEBUG` message, shown with `-L DEBUG` or
+    `-L TRACE`. Upstream goss made the same change in goss-org/goss#1092
+
+- dsyver and the dgoss shim
+  - `CONTAINER_RUNTIME=nerdctl` is accepted alongside `docker` and `podman`.
+    Follows the proposal in goss-org/goss#1048. `dcsyver` is unchanged: its
+    compose handling only knows Docker Compose
+  - with rootless `nerdctl`, `GOSS_FILES_STRATEGY=cp` now stops at once with an
+    error pointing at `mount`. Rootless `nerdctl` cannot copy files into a
+    container before it starts, which is exactly what that strategy does, so it
+    previously failed partway through with a container already created
+
+- dependencies
+  - `golang.org/x/sys` moves from 0.47.0 to 0.48.0. This is the library syver
+    uses for Windows system calls, including the registry and the Job Objects
+    that end a timed-out command's whole process tree, so it matters most on
+    Windows. It is a routine update with no expected change to any check
+
+- container image
+  - release images now carry their descriptive metadata on each
+    per-architecture image as well as on the multi-architecture index. 0.12.0
+    said this was already so for both image kinds; it was true of the moving
+    `main` image only, and the release images had it on the index alone. The
+    package page read the index either way, so its description was never
+    affected
+
+- docs
+  - `RELEASES.md` records v0.12.0, including that its tag was re-created on the
+    same commit after first being pushed. If you fetched `v0.12.0` before then,
+    run `git fetch --tags --force`; the released contents are unchanged
+
 ## 0.12.0 based on krameff/goss v0.6.0 - Windows registry grammar and process trees
 
 - windows registry

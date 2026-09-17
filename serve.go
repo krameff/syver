@@ -205,6 +205,13 @@ func anyFailed(tra [][]resource.TestResult) bool {
 	return false
 }
 
+// cacheMissLogFormat is logged on every cache miss, which under a health probe
+// is every cache interval. It carries a level so the log filter can hold it
+// back at the default INFO: an unprefixed line passes logutils' filter at every
+// level, including WARN and ERROR, so without one `serve` wrote it continuously
+// and `-L` could not silence it.
+const cacheMissLogFormat = "[DEBUG] Stale cache[%s], running tests"
+
 // fillCache runs the validation and stores the result, serializing concurrent
 // misses so that a burst of probes arriving on a cold or just-expired cache
 // triggers one sweep of the system rather than one per request.
@@ -226,7 +233,7 @@ func (h healthHandler) fillCache(cacheKey string) [][]resource.TestResult {
 		return tmp.([][]resource.TestResult)
 	}
 
-	log.Printf("Stale cache[%s], running tests", cacheKey)
+	log.Printf(cacheMissLogFormat, cacheKey)
 	h.sys = system.New(h.c.PackageManager)
 	tra := h.validate(h.baseCtx)
 	h.cache.SetDefault(cacheKey, tra)
