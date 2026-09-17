@@ -77,7 +77,7 @@ test-int-serve-%: release/syver-%
 	./integration-tests/run-serve-tests.sh $*
 
 release/syver-%: $(GO_FILES)
-	./release-build.sh -p $* -v $(or $(RELEASE_TAG),$(shell git describe --tags --always 2>/dev/null),0.0.0)
+	./release-build.sh -p $* -v $(or $(RELEASE_TAG),$(shell ./ci/version.sh 2>/dev/null),0.0.0)
 
 release:
 	$(MAKE) clean
