@@ -2,6 +2,20 @@
 
 ## 0.12.2 based on krameff/goss v0.6.0 - mount support on Windows
 
+- version reporting
+  - a binary built from source with `make build` now reports the release it
+    contains, such as `v0.12.1-3-g<commit>`. It reported `v0.9.4-<n>-g<commit>`
+    long after 0.9.4, because releases are tagged on a merge commit that the
+    development branch never sees, so the newest tag it could find was an old
+    one. Released binaries were never affected, only ones built locally. Set
+    `RELEASE_TAG` to override the stamp as before
+
+- dependencies
+  - the `go-sysctl` library is gone. `kernel-param:` reads `/proc/sys`
+    directly, which is what that library did for the single call syver made,
+    and it brought several lint and analysis tools into the dependency graph as
+    requirements. No check behaves differently
+
 - windows mount
   - `mount:` now works on Windows for drive letters. `exists`, `filesystem` and
     `usage` are checked against the real volume, where every `mount:` assertion
