@@ -4,9 +4,10 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/krameff/syver/util"
-	"github.com/lorenzosaino/go-sysctl"
 )
 
 type KernelParam interface {
@@ -37,7 +38,7 @@ func (k *DefKernelParam) Key() string {
 // /proc/sys filesystem to query at all -- most notably Windows, which has no
 // procfs concept, but any other host missing procfs hits the same path.
 //
-// sysctl.Get is a single os.ReadFile(DefaultPath+key) call, so a missing
+// Value is a single os.ReadFile of the key's path under procSysPath, so a missing
 // individual key and a missing /proc/sys tree both surface as the identical
 // os.ErrNotExist -- there is no way to distinguish "this key does not exist
 // on a real Linux host" from "there is no procfs at all here" from that one
@@ -47,12 +48,16 @@ func (k *DefKernelParam) Key() string {
 // specific key, and that must not be reported as false, nil. See SW-5.
 var ErrKernelParamUnsupported = errors.New("kernel-param is not supported on this platform (no /proc/sys); on Windows use registry: instead")
 
-// procSysExists reports whether sysctl.Get's base directory exists at all.
+// procSysPath is where kernel parameters are read from. A package-level var so
+// tests can point it at a fixture tree.
+var procSysPath = "/proc/sys/"
+
+// procSysExists reports whether procSysPath exists at all.
 // A package-level var (rather than a direct os.Stat call inside Exists) so
 // tests can substitute it without needing a host that genuinely lacks
 // /proc/sys.
 var procSysExists = func() bool {
-	_, err := os.Stat(sysctl.DefaultPath)
+	_, err := os.Stat(procSysPath)
 	return err == nil
 }
 
@@ -66,6 +71,14 @@ func (k *DefKernelParam) Exists() (bool, error) {
 	return true, nil
 }
 
+// Value reads the parameter the way sysctl(8) names it: every dot in the key
+// becomes a path separator under procSysPath, and surrounding whitespace is
+// trimmed. This is exactly what github.com/lorenzosaino/go-sysctl's Get did,
+// which syver used for this one call until it was replaced by these few lines.
 func (k *DefKernelParam) Value() (string, error) {
-	return sysctl.Get(k.key)
+	data, err := os.ReadFile(filepath.Join(procSysPath, strings.ReplaceAll(k.key, ".", "/")))
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(data)), nil
 }
