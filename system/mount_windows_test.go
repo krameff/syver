@@ -6,22 +6,17 @@ package system
 import (
 	"context"
 	"errors"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/krameff/syver/util"
+	"golang.org/x/sys/windows"
 )
 
-// FEAT-013 Task 4 / FEAT-011 W2-12(a), asserted end to end rather than through
-// the helper.
-//
-// mount_supported_test.go proves mountSupported() returns the right answer.
-// That is not the same as proving an operator sees it: the whole defect was
-// that the honest error existed and was unreachable, so a test of the honest
-// error alone would have passed before this fix as well.
-//
-// These drive DefMount.Exists(), the path a gossfile actually takes.
+// FEAT-018: mount: on Windows, driven through DefMount, the path a gossfile
+// takes. These replace the FEAT-013 tests that asserted every Windows mount
+// check reported "not supported"; that was the honest answer while there was
+// no backend.
 
 func windowsTestConfig(t *testing.T) util.Config {
 	t.Helper()
@@ -35,70 +30,112 @@ func windowsTestConfig(t *testing.T) util.Config {
 	return *c
 }
 
-// TestMountReportsUnsupportedNotNotFound is the regression this fix exists for.
-//
-// Before it, every Windows mount check failed with "mountpoint not found",
-// because the vendored mountinfo returns an empty table on Windows and
-// getMount converts that to ErrMountpointNotFound. The message blamed the
-// operator's path for a missing implementation, and for a hardening audit a
-// confidently wrong reason is worse than no answer.
-func TestMountReportsUnsupportedNotNotFound(t *testing.T) {
-	// A drive that certainly exists. The point is that even a real, present
-	// mount point reports unsupported, because there is no backend at all.
-	for _, mountPoint := range []string{`c:`, `C:\`, `/`} {
-		t.Run(mountPoint, func(t *testing.T) {
-			m := NewDefMount(context.Background(), mountPoint, nil, windowsTestConfig(t))
+// systemDrive is the drive Windows is installed on, which certainly exists and
+// is readable, rather than assuming it is C:.
+func systemDrive(t *testing.T) string {
+	t.Helper()
+	dir, err := windows.GetWindowsDirectory()
+	if err != nil {
+		t.Fatalf("GetWindowsDirectory: %v", err)
+	}
+	return dir[:2]
+}
+
+func TestMountSystemDriveExistsWithFilesystemAndUsage(t *testing.T) {
+	drive := systemDrive(t)
+	for _, spelling := range []string{drive, drive + `\`} {
+		t.Run(spelling, func(t *testing.T) {
+			m := NewDefMount(context.Background(), spelling, nil, windowsTestConfig(t))
+
 			exists, err := m.Exists()
-			if err == nil {
-				t.Fatalf("Exists() on %q returned (%v, nil); Windows has no mount backend and must say so", mountPoint, exists)
+			if err != nil || !exists {
+				t.Fatalf("Exists() = (%v, %v), want (true, nil)", exists, err)
 			}
-			if errors.Is(err, ErrMountpointNotFound) {
-				t.Fatalf("Exists() on %q = %v; this is the regression -- it blames the mountpoint for a missing implementation", mountPoint, err)
+			fs, err := m.Filesystem()
+			if err != nil || fs == "" {
+				t.Fatalf("Filesystem() = (%q, %v), want a filesystem name", fs, err)
 			}
-			if !errors.Is(err, ErrMountUnsupported) {
-				t.Fatalf("Exists() on %q = %v, want ErrMountUnsupported", mountPoint, err)
+			usage, err := m.Usage()
+			if err != nil || usage < 0 || usage > 100 {
+				t.Fatalf("Usage() = (%d, %v), want a percentage", usage, err)
 			}
+			t.Logf("%s: filesystem=%s usage=%d%%", spelling, fs, usage)
 		})
 	}
 }
 
-// TestMountAttributesAlsoReportUnsupported checks the other accessors take the
-// same path. Each calls setup() independently, so one of them could report
-// differently from Exists() without this noticing.
-func TestMountAttributesAlsoReportUnsupported(t *testing.T) {
-	m := NewDefMount(context.Background(), `c:`, nil, windowsTestConfig(t))
+// The filesystem name is reported as Windows gives it, not lower-cased, so it
+// matches what every Windows tool shows.
+func TestMountFilesystemIsReportedAsWindowsNamesIt(t *testing.T) {
+	drive := systemDrive(t)
+	root, err := windows.UTF16PtrFromString(drive + `\`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	buf := make([]uint16, windows.MAX_PATH+1)
+	if err := windows.GetVolumeInformation(root, nil, 0, nil, nil, nil, &buf[0], uint32(len(buf))); err != nil {
+		t.Fatalf("GetVolumeInformation: %v", err)
+	}
+	want := windows.UTF16ToString(buf)
 
-	if _, err := m.Filesystem(); !errors.Is(err, ErrMountUnsupported) {
-		t.Errorf("Filesystem() = %v, want ErrMountUnsupported", err)
+	got, err := NewDefMount(context.Background(), drive, nil, windowsTestConfig(t)).Filesystem()
+	if err != nil {
+		t.Fatalf("Filesystem() error = %v", err)
 	}
-	if _, err := m.Usage(); !errors.Is(err, ErrMountUnsupported) {
-		t.Errorf("Usage() = %v, want ErrMountUnsupported", err)
-	}
-	if _, err := m.Opts(); !errors.Is(err, ErrMountUnsupported) {
-		t.Errorf("Opts() = %v, want ErrMountUnsupported", err)
-	}
-	if _, err := m.Source(); !errors.Is(err, ErrMountUnsupported) {
-		t.Errorf("Source() = %v, want ErrMountUnsupported", err)
+	if got != want {
+		t.Errorf("Filesystem() = %q, want %q exactly as Windows reports it", got, want)
 	}
 }
 
-// TestMountErrorIsActionable guards the operator-facing half. The error is the
-// only thing a user sees, and "not supported on this platform" is what tells
-// them to stop debugging their path. A future refactor that preserved the
-// sentinel identity but lost the wording would pass every test above.
-func TestMountErrorIsActionable(t *testing.T) {
-	m := NewDefMount(context.Background(), `c:`, nil, windowsTestConfig(t))
-	_, err := m.Exists()
-	if err == nil {
-		t.Fatal("Exists() returned nil error")
+// An unused letter is a lookup that ran and found nothing.
+func TestMountUnusedDriveLetterIsNotFound(t *testing.T) {
+	mask, err := windows.GetLogicalDrives()
+	if err != nil {
+		t.Fatalf("GetLogicalDrives: %v", err)
 	}
-	msg := err.Error()
-	for _, want := range []string{"mount", "not supported"} {
-		if !strings.Contains(msg, want) {
-			t.Errorf("error %q does not mention %q; an operator cannot act on it", msg, want)
+	unused := ""
+	for i := 25; i >= 0; i-- {
+		if mask&(1<<uint(i)) == 0 {
+			unused = string(rune('A'+i)) + ":"
+			break
 		}
 	}
-	if strings.Contains(msg, "not found") {
-		t.Errorf("error %q still reads as a missing mountpoint", msg)
+	if unused == "" {
+		t.Skip("every drive letter is in use")
+	}
+
+	_, err = NewDefMount(context.Background(), unused, nil, windowsTestConfig(t)).Exists()
+	if !errors.Is(err, ErrMountpointNotFound) {
+		t.Fatalf("Exists() on unused %s = %v, want ErrMountpointNotFound", unused, err)
+	}
+}
+
+// A folder path is outside what mount: covers on Windows, and must say so
+// rather than read as a missing mountpoint.
+func TestMountFolderPathIsUnsupportedNotNotFound(t *testing.T) {
+	for _, path := range []string{systemDrive(t) + `\Windows`, `/`} {
+		_, err := NewDefMount(context.Background(), path, nil, windowsTestConfig(t)).Exists()
+		if errors.Is(err, ErrMountpointNotFound) {
+			t.Errorf("Exists() on %q = %v; it blames the path for a scope limit", path, err)
+		}
+		if !errors.Is(err, ErrMountUnsupported) {
+			t.Errorf("Exists() on %q = %v, want ErrMountUnsupported", path, err)
+		}
+	}
+}
+
+// opts, vfs-opts and source have no Windows meaning. An empty value with a nil
+// error would let `opts: []` pass for the wrong reason.
+func TestMountAttributesWithoutWindowsMeaningError(t *testing.T) {
+	m := NewDefMount(context.Background(), systemDrive(t), nil, windowsTestConfig(t))
+
+	if _, err := m.Opts(); !errors.Is(err, ErrMountAttributeUnsupported) {
+		t.Errorf("Opts() = %v, want ErrMountAttributeUnsupported", err)
+	}
+	if _, err := m.VfsOpts(); !errors.Is(err, ErrMountAttributeUnsupported) {
+		t.Errorf("VfsOpts() = %v, want ErrMountAttributeUnsupported", err)
+	}
+	if _, err := m.Source(); !errors.Is(err, ErrMountAttributeUnsupported) {
+		t.Errorf("Source() = %v, want ErrMountAttributeUnsupported", err)
 	}
 }

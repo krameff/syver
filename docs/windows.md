@@ -150,10 +150,25 @@ already work and nobody had checked; measured on Windows Server 2025 on
 2026-09-09, it does not. The fixture stays skipped because un-skipping it would
 fail rather than reveal anything new.
 
-**`mount:`.** Every assertion errors with "not supported on this platform".
-It used to report a mountpoint-not-found error instead -- loud, but blaming
-the operator's path for what was actually a missing implementation. A real
-backend over `GetLogicalDriveStringsW` and related Win32 calls is planned.
+**`mount:`.** Works for drive letters. `exists`, `filesystem` and `usage` are
+supported; `opts`, `vfs-opts` and `source` have no Windows meaning and error
+rather than answering with an empty value.
+
+* Write the mountpoint as a drive letter: `c:`, `C:`, `C:\` and `C:/` all mean
+  the same drive. A volume mounted at a folder path is not covered, and asking
+  for one errors with "covers drive letters such as C: only" rather than
+  reporting it missing. (Folder mount points are enumerated by
+  `FindFirstVolumeMountPoint`, which syver does not use.)
+* `filesystem` is reported as Windows names it: `NTFS`, `FAT32`, `exFAT`, not
+  lower-cased.
+* `usage` is the percentage of the volume in use, counting all free space
+  rather than the calling user's quota, so it means the same as on Linux.
+* Mapped network drives belong to a logon session. syver reports the drives the
+  session running it can see, so an audit run as a service or over WinRM does
+  not see a user's mapped drives.
+* A drive that is present but cannot be read, such as a card reader with no
+  card, errors on every assertion, `exists` included, in the same way an
+  unreadable mount does on Linux.
 
 ## What is actually tested
 
@@ -165,11 +180,11 @@ That directive is checked on every run, so it cannot drift from the fixture
 silently.
 
 A passing Windows run covers less than it looks like, and the honest position is
-that four fixtures assert nothing at all.
+that three fixtures assert nothing at all.
 
 | Fixture | Live entries | Assertions | Notes |
 | --- | --- | --- | --- |
-| `gossfile` | 13 of 13 | 51 | aggregate of the others |
+| `gossfile` | 13 of 13 | 50 | aggregate of the others |
 | `command` | 6 of 6 | 18 | |
 | `registry` | 12 of 15 | 20 | 3 skipped: one GPO-delivered, two Defender view-difference |
 | `file` | 2 of 2 | 7 | includes an absent-file case |
@@ -179,11 +194,11 @@ that four fixtures assert nothing at all.
 | `dns` | 1 of 1 | 2 | |
 | `interface` | 2 of 2 | 2 | includes an absent-adapter case |
 | `process` | 2 of 2 | 2 | |
+| `mount` | 1 of 1 | 3 | drive letter `c:` |
 | `service` | 1 of 1 | 2 | |
 | `user` | 2 of 2 | 2 | includes an absent-account case |
 | `add`, `help`, `validate` | 1 of 1 each | 2 each | CLI command fixtures |
 | `autoadd` | **0 of 1** | 2 | asserts nothing |
-| `mount` | **0 of 1** | 4 | asserts nothing |
 | `package` | **0 of 1** | 2 | asserts nothing |
 | `port` | **0 of 1** | 2 | asserts nothing |
 | `kernel-param` | **not run at all** | | excluded by filename; nothing to assert |
