@@ -60,9 +60,21 @@ dockers_v2:
   - id: images
     ids:
       - binaries
+    # ONE description: "Syver - Quick and Easy server validation", the README H1,
+    # settled 2026-09-19. Do not count its sites from memory --
+    #   grep -rn 'Quick and Easy' . --exclude-dir=.git --exclude-dir=release
+    # Two of them will not match that string and are the traps:
+    #   * the GitHub REPOSITORY DESCRIPTION is not in this tree at all, and it is
+    #     where docker-syver.yaml's metadata-action gets the `:main` image's
+    #     description from -- it reads nothing here. Changing this file alone is
+    #     what put two descriptions on one package page from 2026-09-10.
+    #   * cmd/syver/syver.go's `Usage:` carries the sentence WITHOUT the "Syver -"
+    #     prefix on purpose. urfave/cli renders `Name` + " - " + `Usage`, so the
+    #     help output already reads "syver - Quick and Easy server validation";
+    #     adding the prefix there would print the name twice.
     labels:
       "org.opencontainers.image.created": "{{ .Date }}"
-      "org.opencontainers.image.description": "Quick and Easy server testing/validation"
+      "org.opencontainers.image.description": "Syver - Quick and Easy server validation"
       "org.opencontainers.image.licenses": "Apache-2.0"
       "org.opencontainers.image.revision": "{{ .FullCommit }}"
       "org.opencontainers.image.source": "{{ .GitURL }}"
@@ -87,7 +99,7 @@ dockers_v2:
     # at all, and reads as a missing description when the index has one.
     annotations:
       "index,manifest:org.opencontainers.image.created": "{{ .Date }}"
-      "index,manifest:org.opencontainers.image.description": "Quick and Easy server testing/validation"
+      "index,manifest:org.opencontainers.image.description": "Syver - Quick and Easy server validation"
       "index,manifest:org.opencontainers.image.licenses": "Apache-2.0"
       "index,manifest:org.opencontainers.image.revision": "{{ .FullCommit }}"
       "index,manifest:org.opencontainers.image.source": "{{ .GitURL }}"
