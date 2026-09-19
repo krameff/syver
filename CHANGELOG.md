@@ -15,6 +15,15 @@
     directly, which is what that library did for the single call syver made,
     and it brought several lint and analysis tools into the dependency graph as
     requirements. No check behaves differently
+  - `urfave/cli`, the command line framework, moves to 3.12.0. Every flag,
+    command and environment variable behaves as before, and rendered output is
+    byte-identical either side of it. One cosmetic change comes with it, from
+    upstream: `syver serve --help` no longer lists the global
+    `--log-level`/`-L` flag. **The flag still works on `serve`**, in both
+    spellings, and `syver --help` and `syver validate --help` are unchanged
+  - the container build actions used by CI move to `docker/build-push-action`
+    7.4.0 and `docker/setup-buildx-action` 4.4.1. Nothing in a published image
+    changes
 
 - windows mount
   - `mount:` now works on Windows for drive letters. `exists`, `filesystem` and
