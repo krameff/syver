@@ -61,7 +61,6 @@ artifacts and signatures always correspond to the tag as it now stands.
 ## Contents
 
 * [v0.12.2 - Mount support on Windows](#v0122---mount-support-on-windows)
-  -- **assembled, not released**
 * [v0.12.1 - Quieter serve logs and nerdctl support](#v0121---quieter-serve-logs-and-nerdctl-support)
 * [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
 * [v0.11.2 - Signed SBOMs and a patched base image](#v0112---signed-sboms-and-a-patched-base-image)
@@ -82,18 +81,14 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## v0.12.2 - Mount support on Windows
 
-**NOT RELEASED. Assembled on `devel`, nothing tagged.** This entry exists so the
-work is traceable before it ships; replace the pending fields at tag time rather
-than writing them now.
-
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | pending |
-| Commit | pending |
+| Released | 2026-09-19 |
+| Tag | `v0.12.2` |
+| Commit | `ee7859e` |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, from three branches: `fix/dev-build-version` (PR #45), `feature/fixture-and-sysctl-cleanup` (PR #44) and `feature/windows-mount-backend` (PR #46) |
-| Scope | measure at tag time: `git log --oneline --no-merges v0.12.1..v0.12.2` and `git diff --shortstat v0.12.1 v0.12.2` |
+| Integration branch | `devel`, merged to `main` through PR #50. Three feature branches reached `devel`: `fix/dev-build-version` (PR #45), `feature/fixture-and-sysctl-cleanup` (PR #44) and `feature/windows-mount-backend` (PR #46), plus three dependency bumps (PRs #47, #48, #49) |
+| Scope | 14 commits (excluding merges), 34 files, +737 / -984, measured at `v0.12.2` against `v0.12.1` |
 | Changelog | [0.12.2](CHANGELOG.md#0122-based-on-krameffgoss-v060---mount-support-on-windows) |
 
 A patch: `mount:` gains a Windows backend, but no new attributes, so
@@ -103,7 +98,10 @@ locally built binaries and one dependency removed.
 **Windows coverage.** FEAT-018 was exercised on the Windows Server 2025 guest
 rather than cross-compiled alone: the mount tests pass under `-race`, `C:`
 reports `NTFS` at 42% used, and the un-skipped mount fixture produces
-`Count: 3, Failed: 0, Skipped: 0`.
+`Count: 3, Failed: 0, Skipped: 0`. The whole release was then re-run at one
+commit on all three platforms -- local, the Docker suite on the remote builder,
+and the guest's unit, validate and serve suites -- rather than inferred from
+one of them.
 
 ---
 
