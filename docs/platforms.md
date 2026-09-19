@@ -70,12 +70,13 @@ This matrix attempts to track parity across platforms.
     * `process:` `status` errors the same way, which is why it reads
       *not implemented* rather than *broken*: the library says so itself.
     * `process:` `user` **works**, and previously read *no data*.
-    * `mount:` errors with `not supported on this platform`. It used to blame
-      the mountpoint instead.
+    * `mount:` works for drive letters, measured on the same host on
+      2026-09-17: `exists`, `filesystem` and `usage` pass on `c:`. `opts` and
+      `source` have no Windows meaning and error. See the Windows page.
 
     Re-derive rather than trust this note. Build a Windows binary and run the
-    assertion; the fixtures for `port:` and `mount:` are deliberately skipped
-    because they would fail, so a green Windows suite does not cover them.
+    assertion; the fixture for `port:` is deliberately skipped because it would
+    fail, so a green Windows suite does not cover it.
 
 !!! note "About partial support"
 
@@ -136,12 +137,12 @@ This matrix attempts to track parity across platforms.
 |                     | value               | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
 |                     | type                | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
 |                     | view                | {{ n_a }}               | {{ n_a }}              | {{ work_partially }}    |
-| **mount**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+| **mount**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ fully_supported }}   |
 |                     | opts                | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
 |                     | source              | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
-|                     | filesystem          | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | usage               | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | filesystem          | {{ fully_supported }}   | {{ not_implemented }}  | {{ fully_supported }}   |
+|                     | usage               | {{ fully_supported }}   | {{ not_implemented }}  | {{ fully_supported }}   |
 | **matching**        |                     | {{ fully_supported }}   | {{ no_data }}          | {{ no_data }}           |
 | **package**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | installed           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
@@ -254,7 +255,10 @@ unchanged: nothing there tests timeout expiry. No fixture on any platform
 asserts what happens when a budget runs out, which is why this is *partially*
 tested rather than fully.
 
-The macOS and Windows cells above are measured from CI, not estimated. Every
+The macOS and Windows cells above are measured from CI, not estimated.
+**macOS in CI means Apple silicon only.** `macos-latest` is arm64, so CI runs
+the `darwin-arm64` fixtures; the `darwin-amd64` set is run by
+`make test-int-darwin-all` on an Intel Mac and by nothing in CI. Every
 `add`, `help`, `serve` and `validate` cell describes a lane that runs on every
 push and passes. `autoadd` is genuinely untested on both: its fixture carries
 `skip: true`, so it asserts nothing. `render` has no fixture on any platform.

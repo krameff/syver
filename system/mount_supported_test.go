@@ -10,11 +10,12 @@ import (
 	"github.com/krameff/syver/util"
 )
 
-// These tests exist for FEAT-013 Task 4 / FEAT-011 W2-12(a). The change makes
-// Windows report honestly that mount: is not implemented, instead of blaming
-// the operator's mountpoint. Making Windows truthful is the easy half. The
-// acceptance criterion is the other half: that Linux and macOS behaviour is
-// unchanged. That is what these assert.
+// These tests date from FEAT-013 Task 4, which made Windows report that mount:
+// was not implemented instead of blaming the operator's mountpoint. FEAT-018
+// then moved the POSIX lookup into mount_posix.go and gave Windows its own
+// (mount_windows.go, tested in mount_windows_test.go). What these still pin is
+// the half that carries risk for the platforms mount: has always served: Linux
+// and macOS behaviour is unchanged.
 
 // newTestConfig builds the minimal util.Config these tests need. NewConfig
 // returns an error, and a test that ignored it could mask a config change with
@@ -31,37 +32,16 @@ func newTestConfig(t *testing.T) util.Config {
 	return *c
 }
 
-// TestMountSupportedMatchesPlatform pins the capability answer itself. If a
-// future change makes mountSupported return an error on a platform where
-// mount: is implemented, every mount assertion on that platform starts failing
-// and this catches it in one line.
-func TestMountSupportedMatchesPlatform(t *testing.T) {
-	err := mountSupported()
-	if runtime.GOOS == "windows" {
-		if !errors.Is(err, ErrMountUnsupported) {
-			t.Fatalf("mountSupported() = %v, want ErrMountUnsupported on windows", err)
-		}
-		return
-	}
-	if err != nil {
-		t.Fatalf("mountSupported() = %v, want nil on %s", err, runtime.GOOS)
-	}
-}
-
 // TestMountLookupStillRunsOnSupportedPlatforms is the regression guard for the
 // half of this change that carries risk.
 //
-// The capability check was deliberately placed BEFORE getMount rather than
-// reordering getMount and getUsage, because those two are shared by every OS
-// and their order determines which error a missing path produces. This asserts
-// the shared path still reaches the real lookup: a bogus mountpoint must come
-// back as ErrMountpointNotFound, the everyday "ran and found nothing" answer,
-// and must NOT come back as ErrMountUnsupported.
-//
-// Getting those two confused is precisely the defect being fixed, in reverse.
+// The POSIX lookup must still run: a bogus mountpoint comes back as
+// ErrMountpointNotFound, the everyday "ran and found nothing" answer, and must
+// NOT come back as ErrMountUnsupported. Confusing those two is the defect
+// FEAT-013 fixed on Windows, in reverse.
 func TestMountLookupStillRunsOnSupportedPlatforms(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("windows has no mount lookup; covered by TestMountSupportedMatchesPlatform")
+		t.Skip("POSIX mount table; windows is covered by mount_windows_test.go")
 	}
 
 	m := NewDefMount(context.Background(), "/syver-no-such-mountpoint-ffffffff", nil, newTestConfig(t))
@@ -78,11 +58,10 @@ func TestMountLookupStillRunsOnSupportedPlatforms(t *testing.T) {
 }
 
 // TestMountResolvesARealMountpoint proves the lookup does more than fail
-// consistently. Without it, a mountSupported() that wrongly returned an error
-// would still pass the test above if the error text happened to match.
+// consistently: a real mountpoint resolves, with a filesystem and a usage.
 func TestMountResolvesARealMountpoint(t *testing.T) {
 	if runtime.GOOS == "windows" {
-		t.Skip("windows has no mount lookup")
+		t.Skip("POSIX mount table; windows is covered by mount_windows_test.go")
 	}
 
 	m := NewDefMount(context.Background(), "/", nil, newTestConfig(t))

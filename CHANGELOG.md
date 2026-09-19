@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.12.2 based on krameff/goss v0.6.0 - mount support on Windows
+
+- version reporting
+  - a binary built from source with `make build` now reports the release it
+    contains, such as `v0.12.1-3-g<commit>`. It reported `v0.9.4-<n>-g<commit>`
+    long after 0.9.4, because releases are tagged on a merge commit that the
+    development branch never sees, so the newest tag it could find was an old
+    one. Released binaries were never affected, only ones built locally. Set
+    `RELEASE_TAG` to override the stamp as before
+
+- dependencies
+  - the `go-sysctl` library is gone. `kernel-param:` reads `/proc/sys`
+    directly, which is what that library did for the single call syver made,
+    and it brought several lint and analysis tools into the dependency graph as
+    requirements. No check behaves differently
+  - `urfave/cli`, the command line framework, moves to 3.12.0. Every flag,
+    command and environment variable behaves as before, and rendered output is
+    byte-identical either side of it. One cosmetic change comes with it, from
+    upstream: `syver serve --help` no longer lists the global
+    `--log-level`/`-L` flag. **The flag still works on `serve`**, in both
+    spellings, and `syver --help` and `syver validate --help` are unchanged
+  - the container build actions used by CI move to `docker/build-push-action`
+    7.4.0 and `docker/setup-buildx-action` 4.4.1. Nothing in a published image
+    changes
+
+- windows mount
+  - `mount:` now works on Windows for drive letters. `exists`, `filesystem` and
+    `usage` are checked against the real volume, where every `mount:` assertion
+    previously errored with "not supported on this platform"
+  - write the mountpoint as a drive letter: `c:`, `C:`, `C:\` and `C:/` all mean
+    the same drive. A volume mounted at a folder path is not covered, and
+    asking for one errors saying only drive letters are supported, rather than
+    reporting it missing
+  - `filesystem` is reported as Windows names it, such as `NTFS`, so a value
+    copied from any Windows tool matches
+  - `opts`, `vfs-opts` and `source` have no Windows meaning and error there
+    rather than answering with an empty value that an empty assertion would
+    pass against
+  - mapped network drives belong to a logon session, so an audit run as a
+    service or over WinRM sees the drives that session sees, not a user's
+    mapped drives. Documented on the Windows page
+
 ## 0.12.1 based on krameff/goss v0.6.0 - quieter serve logs and nerdctl support
 
 - serve
