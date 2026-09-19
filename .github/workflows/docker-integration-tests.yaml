@@ -88,7 +88,7 @@ jobs:
             rocks.syver.dockerfile-md5=${{ steps.md5_result.outputs.md5 }}
 
       - name: Build and push tag
-        uses: docker/build-push-action@v7.3.0
+        uses: docker/build-push-action@v7.4.0
         with:
           context: integration-tests
           file: ${{ matrix.dockerfile }}

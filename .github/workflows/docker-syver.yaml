@@ -113,7 +113,7 @@ jobs:
 
       - name: Build main syver image
         if: github.ref_name == 'main'
-        uses: docker/build-push-action@v7.3.0
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           file: Dockerfile
