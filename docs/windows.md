@@ -259,10 +259,10 @@ that three fixtures assert nothing at all.
 
 | Fixture | Live entries | Assertions | Notes |
 | --- | --- | --- | --- |
-| `gossfile` | 13 of 13 | 50 | aggregate of the others |
+| `gossfile` | 13 of 13 | 61 | aggregate of the others, so its count is the sum of theirs |
 | `command` | 6 of 6 | 18 | |
 | `registry` | 12 of 15 | 20 | 3 skipped: one GPO-delivered, two Defender view-difference |
-| `file` | 2 of 2 | 7 | includes an absent-file case |
+| `file` | 3 of 3 | 11 | includes an absent-file case, and owner plus `acl`/`acl-sid` on a system path |
 | `http` | 1 of 1 | 3 | |
 | `group` | 3 of 3 | 3 | includes an absent-account case |
 | `addr` | 2 of 2 | 2 | |
@@ -270,7 +270,7 @@ that three fixtures assert nothing at all.
 | `interface` | 2 of 2 | 2 | includes an absent-adapter case |
 | `process` | 2 of 2 | 2 | |
 | `mount` | 1 of 1 | 3 | drive letter `c:` |
-| `service` | 1 of 1 | 2 | |
+| `service` | 2 of 2 | 9 | the six SCM attributes, and a real MULTI_SZ dependency list |
 | `user` | 2 of 2 | 2 | includes an absent-account case |
 | `add`, `help`, `validate` | 1 of 1 each | 2 each | CLI command fixtures |
 | `autoadd` | **0 of 1** | 2 | asserts nothing |

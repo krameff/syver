@@ -440,6 +440,8 @@ Service:
 * sysV init
 * OpenRC init
 * Upstart
+* Windows Service Control Manager (alpha, with six Windows-only attributes --
+  see [windows](https://github.com/krameff/syver/blob/main/docs/windows.md))
 
 Port:
 
