@@ -33,9 +33,16 @@ supported for, and a check whose target the account cannot read errors rather
 than passing.
 
 One check is deliberately kept working without elevation. `service:` opens the
-service-control manager with read-only access rights, because a read-only check
-demanding administrator would regress exactly the locked-down hosts syver exists
-to validate.
+service control manager with `SC_MANAGER_CONNECT` alone, and each service with
+`SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS` -- the minimum that answers the
+question -- because a read-only check demanding administrator would regress
+exactly the locked-down hosts syver exists to validate.
+
+Verified as a standard user rather than assumed, and that mattered: asking the
+SCM for one right more than it needs is refused outright on a network logon.
+Authenticated Users are granted `SC_MANAGER_CONNECT` and nothing else; the right
+to enumerate services goes to *interactive* users. So neither CI, which runs as
+an administrator, nor an interactive test could have found it.
 
 `file:` `acl` needs `READ_CONTROL` on the file, which an ordinary account
 normally holds on anything it can read. Audit entries (the SACL) need a further
@@ -117,6 +124,12 @@ others, which is what a hardening control usually means. See
 the matchers.
 
 `registry:` is Windows-only, and is the resource most worth using here.
+
+**`service:` reads the Service Control Manager directly** and reports six further
+attributes: `start-type`, `delayed-start`, `run-as`, `dependencies`,
+`display-name` and `pid`. It no longer shells out to PowerShell at all, which also
+fixes a service name containing a space -- that never worked through the old
+command line. See [gossfile](gossfile.md#windows-only-service-attributes).
 
 `command:` timeouts are also **stronger** here than on Linux and macOS. A
 timed-out command's whole process tree is terminated through a Job Object, which
@@ -319,6 +332,15 @@ being checked.
   Windows output.
 * `syver add service <name>` fails for a service that does not exist, rather
   than writing a plausible `enabled: false` block.
+* `service: <name>: {enabled: true}` now **passes** for a service whose start type
+  is `boot` or `system`, where it used to report `enabled: false`. Every kernel
+  driver and much of the early boot chain is in that category, so a spec that
+  asserted `enabled: false` against one was passing on a wrong answer. The old
+  implementation substring-matched the word "Automatic" and those two start types
+  do not contain it.
+* `syver add service <name>` now also writes `start-type`, `delayed-start`,
+  `run-as`, `display-name` and, where the service has any, `dependencies`. It does
+  not write `pid`: a pid changes at every restart.
 * `syver add file <path>` now writes a real `owner`, `group` and `acl`, read from
   the file's security descriptor. It previously omitted all three rather than
   writing a fabricated `"-1"`, and before that it wrote the fabrication. `mode`,

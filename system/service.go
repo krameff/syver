@@ -2,7 +2,6 @@ package system
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 )
 
@@ -12,6 +11,15 @@ type Service interface {
 	Enabled() (bool, error)
 	Running() (bool, error)
 	RunLevels() ([]string, error)
+	// The six below are FEAT-014 and describe a Windows service. Every non-Windows
+	// backend gets them from windowsOnlyServiceAttrs, which returns
+	// ErrServiceWindowsAttrUnsupported -- see that type.
+	StartType() (string, error)
+	DelayedStart() (bool, error)
+	RunAs() (string, error)
+	Dependencies() ([]string, error)
+	DisplayName() (string, error)
+	Pid() (int, error)
 }
 
 // ErrServiceNotFound is returned by Enabled and Running on Windows
@@ -28,64 +36,48 @@ var ErrServiceNotFound = errors.New("service not found")
 // nil slice with no indication Windows was the reason. See FEAT-010 S-5.
 var ErrServiceRunLevelsUnsupported = errors.New("service runlevels is not supported on this platform")
 
-// psSingleQuote renders s as a PowerShell SINGLE-quoted string literal, which
-// is the only correct way to put a gossfile-supplied service name into a
-// PowerShell command line here.
+// ErrServiceWindowsAttrUnsupported is returned by the six Windows service
+// attributes on every other platform. FEAT-014.
 //
-// THIS EXISTS BECAUSE `%q` WAS WRONG AND LOOKED RIGHT. The three probes in
-// service_windows.go used fmt.Sprintf("... -Name %q ...", s.service), and %q
-// applies GO string-literal escaping, not PowerShell escaping. PowerShell
-// DOUBLE-quoted strings interpolate $(...) subexpressions, executing what is
-// inside while merely building the string, and %q does not escape `$` because
-// `$` is an ordinary printable character to Go. So a service name of
-// `$(calc.exe)` ran calc.exe with no quote-breaking needed at all. Separately,
-// PowerShell does not treat `\` as an escape inside double quotes, so the `\"`
-// that %q emits for an embedded quote does not escape it either.
+// A sentinel rather than a zero value, for the reason FEAT-010 established across
+// this package: `start-type: automatic` on a Linux host must FAIL, loudly, rather
+// than compare against "" and report something the system was never asked. A
+// gossfile that sets a Windows-only attribute on Linux is a spec bug, and the
+// tool's job is to say so.
+var ErrServiceWindowsAttrUnsupported = errors.New("service start-type/delayed-start/run-as/dependencies/display-name/pid are Windows-only")
+
+// windowsOnlyServiceAttrs supplies those six accessors for ServiceInit,
+// ServiceUpstart and ServiceSystemd by embedding, rather than repeating eighteen
+// near-identical stubs across three files. Adding a seventh Windows attribute
+// means one method here, not four.
 //
-// Single-quoted PowerShell strings interpolate NOTHING. The only metacharacter
-// is `'` itself, escaped by doubling. That makes this the minimal complete fix.
-// Do not "improve" it back to %q, and do not switch the call sites to double
-// quotes.
-//
-// The command line reaches CreateProcess verbatim via SysProcAttr.CmdLine (see
-// util.NewCommandForWindowsPowershellContext), so Go's own argv escaping never
-// applies and cannot be relied on here.
-func psSingleQuote(s string) string {
-	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+// Deliberately NOT given to ServiceWindows, which implements all six for real.
+type windowsOnlyServiceAttrs struct{}
+
+func (windowsOnlyServiceAttrs) StartType() (string, error) {
+	return "", ErrServiceWindowsAttrUnsupported
+}
+
+func (windowsOnlyServiceAttrs) DelayedStart() (bool, error) {
+	return false, ErrServiceWindowsAttrUnsupported
+}
+
+func (windowsOnlyServiceAttrs) RunAs() (string, error) {
+	return "", ErrServiceWindowsAttrUnsupported
+}
+
+func (windowsOnlyServiceAttrs) Dependencies() ([]string, error) {
+	return nil, ErrServiceWindowsAttrUnsupported
+}
+
+func (windowsOnlyServiceAttrs) DisplayName() (string, error) {
+	return "", ErrServiceWindowsAttrUnsupported
+}
+
+func (windowsOnlyServiceAttrs) Pid() (int, error) {
+	return 0, ErrServiceWindowsAttrUnsupported
 }
 
 func invalidService(s string) bool {
 	return strings.ContainsRune(s, '/')
-}
-
-// parseServiceExistsProbe turns ServiceWindows.Exists's PowerShell probe
-// output into (bool, error). It expects exactly the literal "True" or
-// "False" that syver's own probe script emits -- never a Windows-generated
-// message -- so kept as a pure function, and in this untagged file rather
-// than service_windows.go, so it is unit-testable from Linux by feeding it a
-// captured PowerShell result directly, without spawning PowerShell. See
-// FEAT-010 Task 4 / D-7.
-func parseServiceExistsProbe(stdout, stderr string) (bool, error) {
-	switch strings.TrimSpace(stdout) {
-	case "True":
-		return true, nil
-	case "False":
-		return false, nil
-	default:
-		return false, fmt.Errorf("unexpected Get-Service probe output: stdout=%q stderr=%q", stdout, stderr)
-	}
-}
-
-// parseServiceAttributeProbe turns Enabled/Running's combined
-// existence-plus-attribute probe output into the raw attribute value and an
-// existence flag. The probe script emits either "EXISTS|<value>" or the bare
-// literal "ABSENT" -- both chosen by syver, never rendered by Windows, so
-// absence detection here does not depend on locale. Pure and untagged for
-// the same testability reason as parseServiceExistsProbe.
-func parseServiceAttributeProbe(stdout string) (value string, exists bool) {
-	out := strings.TrimSpace(stdout)
-	if out == "ABSENT" {
-		return "", false
-	}
-	return out, true
 }

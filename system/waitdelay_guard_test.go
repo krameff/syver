@@ -12,12 +12,14 @@ import (
 // Every function that runs a util.Command must bound its I/O.
 //
 // This is a SOURCE-level check, deliberately, because the defect it guards
-// against is invisible to a normal test on this host. system/service_windows.go
-// carries runHelperPowershell, a near-duplicate of runHelperCommand that exists
-// because the powershell wrapper builds its Cmd differently. When the WaitDelay
-// bound was added to runHelperCommand, that copy was missed -- and being
-// //go:build windows, no test on Linux or on go-builder (AlmaLinux) could
-// notice. No Windows host exists in this sandbox or on the remote either, so
+// against is invisible to a normal test on this host. The case it was written
+// from: system/service_windows.go used to carry runHelperPowershell, a
+// near-duplicate of runHelperCommand that existed because the powershell wrapper
+// builds its Cmd differently. When the WaitDelay bound was added to
+// runHelperCommand, that copy was missed -- and being //go:build windows, no test
+// on Linux or on go-builder (AlmaLinux) could notice. (That duplicate is GONE as
+// of FEAT-014, which removed the subprocess entirely. The guard stays: the class
+// of defect is about duplication of a runner, not about that one function.) No Windows host exists in this sandbox or on the remote either, so
 // "run it on Windows CI" is not a substitute.
 //
 // It reads the directory itself and parses each file with parser.ParseFile,
@@ -73,10 +75,17 @@ func TestEveryCommandRunnerBoundsItsIO(t *testing.T) {
 
 	// A guard that silently matches nothing is worse than no guard: if Run were
 	// renamed or wrapped, every check above would vacuously pass. Assert the
-	// guard still has reach. Three runners today -- runHelperCommand,
-	// runHelperPowershell, runCommand.
-	if checked < 3 {
-		t.Errorf("found only %d command runners, expected at least 3 -- this guard "+
+	// guard still has reach. TWO runners today -- runHelperCommand and
+	// runCommand.
+	//
+	// It was three until FEAT-014 (2026-09-21). runHelperPowershell went with the
+	// PowerShell subprocess when `service:` moved to the Service Control Manager
+	// API, and this threshold was lowered deliberately rather than to make a red
+	// test green: the guard reported "lost its reach", which is exactly what it
+	// should say when a runner disappears. If a THIRD runner ever comes back,
+	// raise this number with it.
+	if checked < 2 {
+		t.Errorf("found only %d command runners, expected at least 2 -- this guard "+
 			"has lost its reach, not the code its bound", checked)
 	}
 }
