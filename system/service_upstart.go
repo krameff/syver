@@ -12,6 +12,7 @@ import (
 )
 
 type ServiceUpstart struct {
+	windowsOnlyServiceAttrs // FEAT-014: the six Windows-only attributes, as errors
 	// ctx bounds and cancels the `service ... status` subprocess in Running.
 	// See the matching field on ServiceSystemd.
 	ctx     context.Context

@@ -45,6 +45,25 @@ func (conformanceService) Enabled() (bool, error)       { return true, nil }
 func (conformanceService) Running() (bool, error)       { return true, nil }
 func (conformanceService) RunLevels() ([]string, error) { return []string{}, nil }
 
+// FEAT-014's Windows-only attributes. This fake answers them as an unsupported
+// platform would, which is what keeps generated_empty_test.go honest: a generator
+// that emitted `dependencies: []` for a host that cannot report them would be
+// caught rather than shipped.
+func (conformanceService) StartType() (string, error) {
+	return "", system.ErrServiceWindowsAttrUnsupported
+}
+func (conformanceService) DelayedStart() (bool, error) {
+	return false, system.ErrServiceWindowsAttrUnsupported
+}
+func (conformanceService) RunAs() (string, error) { return "", system.ErrServiceWindowsAttrUnsupported }
+func (conformanceService) Dependencies() ([]string, error) {
+	return nil, system.ErrServiceWindowsAttrUnsupported
+}
+func (conformanceService) DisplayName() (string, error) {
+	return "", system.ErrServiceWindowsAttrUnsupported
+}
+func (conformanceService) Pid() (int, error) { return 0, system.ErrServiceWindowsAttrUnsupported }
+
 type conformanceCommand struct{}
 
 func (conformanceCommand) Command() string          { return "command-fake" }

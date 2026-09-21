@@ -160,6 +160,12 @@ This matrix attempts to track parity across platforms.
 |                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | runlevels           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | start-type          | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | delayed-start       | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | run-as              | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | dependencies        | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | display-name        | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | pid                 | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 | **user**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | uid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
@@ -231,6 +237,12 @@ explicit error instead:
   exist, rather than writing a plausible `enabled: false` block for a name
   that was never there. This is the same shape as `package` above, and the
   opposite of `file`, which only omits keys.
+* `service:` on Windows reads the Service Control Manager rather than shelling
+  out to PowerShell, and adds `start-type`, `delayed-start`, `run-as`,
+  `dependencies`, `display-name` and `pid`. `enabled: true` now holds for a
+  service whose start type is `boot` or `system`; it previously reported false for
+  both. The SCM is opened with read-only access rights so the check still works
+  for a non-administrator.
 * `user: <name>: {exists: false}`, `group:` and `interface:` -- these now
   distinguish "the lookup ran and found nothing" from "the lookup could not
   run". The first still reports `exists: false` exactly as before; the second

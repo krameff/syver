@@ -1,4 +1,4 @@
-# expect-count: 2
+# expect-count: 9
 # expect-skipped is deliberately absent: these fixtures skip a
 # different number of assertions on a real Windows host than when
 # driven from another platform. Seed it from a Windows run only.
@@ -21,7 +21,46 @@
 # passing fixture can be written for an absent name, by design. The unit tests
 # cover that path; see also package.goss.yaml, which is skipped for the
 # related reason that every assertion errors there.
+#
+# FEAT-014 added the six attributes below. Every value here was MEASURED on
+# Windows Server 2025 and cross-checked against `sc.exe qc` output for the same
+# service, rather than taken from documentation.
 service:
   EventLog:
     enabled: true
     running: true
+    # START_TYPE 2 (AUTO_START) in sc.exe's rendering. `enabled: true` above is
+    # derived from the same field: FEAT-014 fixed that to include BOOT_START and
+    # SYSTEM_START, which used to report as not-enabled.
+    start-type: automatic
+    # A separate flag, not a sixth start type: the Services UI's "Automatic
+    # (Delayed Start)" is start-type automatic PLUS this.
+    delayed-start: false
+    # The account as the SCM stores it, NOT normalised. Built-in account names are
+    # invariant strings here, unlike the localised display name below. Note other
+    # services report `localSystem` with a lowercase L -- that is Windows' stored
+    # spelling and syver does not tidy it.
+    run-as: 'NT AUTHORITY\LocalService'
+    # LOCALISED. Both the go-builder guest and the CI runner are English-language
+    # Windows; this assertion would fail on a German host and that is a property
+    # of the attribute, not a bug. Assert the service key name, not the display
+    # name, in a spec that has to travel.
+    display-name: Windows Event Log
+    # Asserted as a range, not a value: a pid changes at every restart, which is
+    # also why `syver add service` deliberately does not emit one. gt: 0 is the
+    # meaningful claim -- a running service has a process.
+    pid:
+      gt: 0
+
+  # Dnscache carries a real MULTI_SZ dependency list, which EventLog does not (it
+  # has none at all). It is here to exercise the double-null-terminated string
+  # walk on a live host: `sc.exe qc Dnscache` reports nsi and Afd, and syver
+  # returns exactly those two, verbatim and in that order.
+  #
+  # contain-element rather than consist-of on purpose: an image that adds a
+  # dependency should not fail this fixture. The parser is what is under test
+  # here, not the fleet's configuration.
+  Dnscache:
+    running: true
+    dependencies:
+      contain-element: nsi

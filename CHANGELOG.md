@@ -35,6 +35,37 @@ at tag time rather than written now.
     Windows is run as an administrator, and the page now says which checks depend
     on that and which deliberately do not
 
+- Windows services read the Service Control Manager
+  - `service:` no longer shells out to PowerShell. It reads the SCM directly,
+    which removes a subprocess per attribute and fixes a service name containing
+    a space -- that never worked through the old command line
+  - **`enabled: true` now holds for a service whose start type is `boot` or
+    `system`.** Both previously reported as not enabled, because the old
+    implementation matched the word "Automatic" and neither of those contains it.
+    Every kernel driver and much of the early boot chain is in that category, so a
+    spec asserting `enabled: false` against one was passing on a wrong answer
+  - six new attributes: `start-type` (`boot`, `system`, `automatic`, `manual`,
+    `disabled`), `delayed-start`, `run-as`, `dependencies`, `display-name` and
+    `pid`
+  - `run-as` is the account as the SCM stores it and is not normalised: Windows
+    itself reports `LocalSystem`, `localSystem` and `NT AUTHORITY\LocalService`
+    in different places, and syver reports what the machine says. `display-name`
+    is localised, so assert the service key name in a spec that must run on more
+    than one Windows language
+  - `pid` is 0 when the service is not running, and `syver add service` does not
+    emit it: a pid changes at every restart, so a generated spec pinning one would
+    fail at the next reboot. Assert a range such as `gt: 0`
+  - `syver add service` now also writes `start-type`, `delayed-start`, `run-as`,
+    `display-name` and, where the service has any, `dependencies`
+  - **the check still works without administrator rights**, and is verified that
+    way rather than assumed. The service control manager is opened with
+    `SC_MANAGER_CONNECT` alone and each service with
+    `SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS`. The obvious library for this asks
+    for all-access on both, which requires elevation, so a read-only check would
+    have started demanding it
+  - all six attributes error on every other platform rather than comparing against
+    an empty value, so a Windows-only attribute in a Linux spec fails loudly
+
 - container image metadata
   - the published image description now matches the project's own one-line
     description everywhere it appears. The release images and the branch image

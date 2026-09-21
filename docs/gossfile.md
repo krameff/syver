@@ -868,6 +868,46 @@ service:
 
 `runlevels` is only supported on Alpine init, sysv init, and upstart
 
+#### Windows-only service attributes
+
+On Windows, `service:` reads the Service Control Manager directly and six further
+attributes are available:
+
+```yaml
+service:
+  EventLog:
+    enabled: true
+    running: true
+    start-type: automatic     # boot, system, automatic, manual, disabled
+    delayed-start: false
+    run-as: 'NT AUTHORITY\LocalService'
+    display-name: Windows Event Log
+    pid:
+      gt: 0                   # a range, not a value -- see below
+  Dnscache:
+    dependencies:
+      contain-element: nsi
+```
+
+* `start-type` is what `enabled` is derived from. `enabled` is true for `boot`,
+  `system` and `automatic`.
+* `delayed-start` is a separate flag rather than a sixth start type: the Services
+  UI's "Automatic (Delayed Start)" is `start-type: automatic` plus
+  `delayed-start: true`.
+* `run-as` is the account as the SCM stores it, **not normalised**. Windows itself
+  reports `LocalSystem`, `localSystem` and `NT AUTHORITY\LocalService` in
+  different places, and syver reports what the machine says.
+* `dependencies` lists services and load-order groups that must start first,
+  verbatim. A name beginning with `+` is a load-order group, not a service.
+* `display-name` is **localised**. Assert the service key name instead in a spec
+  that has to run on more than one Windows language.
+* `pid` is 0 when the service is not running, and `syver add service` does not
+  emit it: a pid changes at every restart, so a generated spec pinning one would
+  fail at the next reboot. Assert a range.
+
+All six error on every other platform, so a spec that sets one on Linux fails
+rather than quietly comparing against an empty value.
+
 !!! note
     This will **not** automatically check if the process is alive, it will check the status from `systemd`/`upstart`/`init`.
 
