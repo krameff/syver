@@ -22,6 +22,17 @@ func (f *DefFile) Mode() (string, error) {
 	return mode, nil
 }
 
+// Acl and AclSid report the Windows DACL and have no POSIX implementation. See
+// ErrFileAclUnsupported in file.go for why this is an error and not an empty
+// list. A POSIX ACL backend would be new scope, not a gap in FEAT-016.
+func (f *DefFile) Acl() ([]string, error) {
+	return nil, ErrFileAclUnsupported
+}
+
+func (f *DefFile) AclSid() ([]string, error) {
+	return nil, ErrFileAclUnsupported
+}
+
 func (f *DefFile) Owner() (string, error) {
 	uidS, err := f.getFileInfo(func(fi os.FileInfo) string {
 		return fmt.Sprint(fi.Sys().(*syscall.Stat_t).Uid)

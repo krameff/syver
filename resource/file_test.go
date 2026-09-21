@@ -17,6 +17,8 @@ import (
 // a real file or a working directory service.
 type fakeSysFile struct {
 	ownerErr, groupErr error
+	acl, aclSid        []string
+	aclErr             error
 }
 
 func (f *fakeSysFile) Path() string                 { return "/srv/app/config.yaml" }
@@ -33,6 +35,8 @@ func (f *fakeSysFile) LinkedTo() (string, error)    { return "", nil }
 func (f *fakeSysFile) Md5() (string, error)         { return "", nil }
 func (f *fakeSysFile) Sha256() (string, error)      { return "", nil }
 func (f *fakeSysFile) Sha512() (string, error)      { return "", nil }
+func (f *fakeSysFile) Acl() ([]string, error)       { return f.acl, f.aclErr }
+func (f *fakeSysFile) AclSid() ([]string, error)    { return f.aclSid, f.aclErr }
 
 // A wedged directory service must not produce a gossfile that quietly checks
 // less than the user thinks.
@@ -121,4 +125,35 @@ func TestLookupDidNotRunDoesNotMatchErrFileOwnershipUnsupported(t *testing.T) {
 			"doing so turns `syver add file` on Windows into a hard failure " +
 			"instead of omitting mode/owner/group, per FEAT-010 D-4")
 	}
+}
+
+// FEAT-016 D7. `syver add file` emits acl: and NOT acl-sid:, because add exists
+// to bootstrap a readable spec and a wall of SIDs is not that. Making a spec
+// locale-proof is a deliberate edit to acl-sid:, which docs/windows.md says.
+//
+// If this test is ever changed to expect both, read D7 first: emitting both
+// doubles every discovered file's output for a need most specs do not have.
+func TestNewFileEmitsAclNamesOnly(t *testing.T) {
+	sys := &fakeSysFile{
+		acl:    []string{`BUILTIN\Administrators:(I)(F)`, `BUILTIN\Users:(I)(RX)`},
+		aclSid: []string{`S-1-5-32-544:(I)(F)`, `S-1-5-32-545:(I)(RX)`},
+	}
+	f, err := NewFile(sys, util.Config{})
+	assert.NilError(t, err)
+	assert.DeepEqual(t, f.Acl, matcher([]string{`BUILTIN\Administrators:(I)(F)`, `BUILTIN\Users:(I)(RX)`}))
+	assert.Assert(t, f.AclSid == nil, "add must not emit acl-sid:, got %v", f.AclSid)
+}
+
+// A platform with no ACL support must omit the key quietly rather than fail the
+// run: `syver add file` on Linux returns ErrFileAclUnsupported for every file, and
+// aborting there would break discovery on the platform most people use.
+//
+// Contrast owner/group above, where a TIMEOUT is fatal. The distinction is the
+// same one NewFile's comment draws: a lookup that ran and found nothing may be
+// omitted silently; a lookup that never ran may not. An unsupported platform is
+// the former -- syver knows the answer, and the answer is "not here".
+func TestNewFileOmitsAclWhenUnsupported(t *testing.T) {
+	f, err := NewFile(&fakeSysFile{aclErr: system.ErrFileAclUnsupported}, util.Config{})
+	assert.NilError(t, err)
+	assert.Assert(t, f.Acl == nil, "acl: should be omitted when the platform cannot report it, got %v", f.Acl)
 }

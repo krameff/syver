@@ -102,6 +102,8 @@ func (conformanceFile) LinkedTo() (string, error) { return "", nil }
 func (conformanceFile) Md5() (string, error)      { return "", nil }
 func (conformanceFile) Sha256() (string, error)   { return "", nil }
 func (conformanceFile) Sha512() (string, error)   { return "", nil }
+func (conformanceFile) Acl() ([]string, error)    { return nil, nil }
+func (conformanceFile) AclSid() ([]string, error) { return nil, nil }
 
 type conformanceMount struct{}
 

@@ -83,7 +83,7 @@ func TestNoGeneratorEmitsAnEmptyList(t *testing.T) {
 		make func() (any, error)
 		keys []string
 	}{
-		{"file", func() (any, error) { return NewFile(conformanceFile{}, util.Config{}) }, []string{"contents:"}},
+		{"file", func() (any, error) { return NewFile(conformanceFile{}, util.Config{}) }, []string{"contents:", "acl:", "acl-sid:"}},
 		{"port", func() (any, error) {
 			return NewPort(&fakeSysPort{port: "tcp:22", listening: true}, util.Config{})
 		}, []string{"ip:", "pid:"}},

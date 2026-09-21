@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.13.0 based on krameff/goss v0.6.0 - file owners and permissions on Windows
+
+**NOT RELEASED.** Assembled on a branch; the fields in `RELEASES.md` are filled
+at tag time rather than written now.
+
+- file owners and permissions on Windows
+  - `file:` reports a real `owner` and `group` on Windows. Both previously
+    errored as unsupported, and before that they wrote a fabricated `"-1"`, so a
+    generated spec asserted an owner nobody had checked
+  - two new attributes report the file's permissions: `acl` lists the DACL one
+    entry per ACE with principals as `DOMAIN\Name`, and `acl-sid` lists exactly
+    the same entries with principals as SIDs. Each entry is spelled the way
+    `icacls` prints it, so a failing assertion can be compared against
+    `icacls <path>` without translating anything
+  - **prefer `acl-sid` for a spec that runs on more than one Windows locale.**
+    `BUILTIN\Administrators` is a localised name and a German host calls the same
+    account something else, whereas `S-1-5-32-544` is the same everywhere.
+    `syver add file` writes `acl`, the readable form; switching is a key rename
+  - both are ordinary lists, so the existing array matchers do the work: a bare
+    list means those entries are present, `consist-of` means these and no others,
+    which is what a hardening control usually intends. The same principal can
+    appear twice, which is normal -- on `C:\Windows`, `BUILTIN\Administrators`
+    holds `(M)` on the directory and `(OI)(CI)(IO)(F)` for what is inside it
+  - `mode`, `uid` and `gid` remain unsupported on Windows and now say why in the
+    documentation. `uid` and `gid` are a category mismatch, since Windows
+    identifies accounts by SID and those attributes are integers. `mode` is a
+    decision: a POSIX mode could only be derived from an ACL lossily, and a
+    plausible `0644` computed from a DACL would let a cross-platform spec pass on
+    Windows for the wrong reason. `acl` answers what `mode` asks
+  - off Windows both attributes error rather than reporting an empty list, so a
+    cross-platform spec fails loudly instead of quietly agreeing with itself
+  - `docs/windows.md` gains a section on privileges, which it never had: syver on
+    Windows is run as an administrator, and the page now says which checks depend
+    on that and which deliberately do not
+
+- container image metadata
+  - the published image description now matches the project's own one-line
+    description everywhere it appears. The release images and the branch image
+    previously carried different text, because one is baked into the release
+    configuration and the other is taken from the repository description
+
 ## 0.12.2 based on krameff/goss v0.6.0 - mount support on Windows
 
 - version reporting

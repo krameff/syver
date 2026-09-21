@@ -105,8 +105,10 @@ This matrix attempts to track parity across platforms.
 |                     | exists              | {{ fully_supported }}   | {{ work_partially }}   | {{community_supported}} |
 |                     | mode                | {{ fully_supported }}   | {{ work_partially }}   | {{ not_implemented }}   |
 |                     | size                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-|                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ not_implemented }}   |
-|                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ not_implemented }}   |
+|                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ work_partially }}    |
+|                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ work_partially }}    |
+|                     | acl                 | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | acl-sid             | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | filetype            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | contains            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | md5                 | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
@@ -210,9 +212,15 @@ explicit error instead:
   to explicitly set it`. `syver add package` **hard-fails** the same way
   (this differs from `file`, below, which only omits keys -- there is no
   honest "installed: unknown" to write for a package).
-* `syver add file <path>` -- `mode`, `owner` and `group` are simply
-  **omitted** from the generated spec rather than written as a fabricated
-  `"-1"`. `syver add` still exits 0.
+* `syver add file <path>` -- `owner`, `group` and `acl` are now **written from
+  the file's security descriptor**. `mode`, `uid` and `gid` remain **omitted**
+  rather than written as a fabricated `"-1"`: the first by decision (a POSIX mode
+  derived from a DACL would be lossy and would let a cross-platform spec pass for
+  the wrong reason) and the other two as a category mismatch, since Windows
+  identifies accounts by SID. `syver add` still exits 0.
+  `acl-sid` is deliberately not emitted -- it is the locale-proof form and
+  switching to it is an explicit edit. See
+  [windows](windows.md#what-works).
 * `registry: <key>: {exists: false}` -- a key that exists but could not be
   read (e.g. `ERROR_ACCESS_DENIED`) now errors, instead of being reported as
   absent. A genuinely absent key still reports `exists: false` as before.
