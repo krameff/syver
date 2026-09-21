@@ -60,6 +60,8 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.13.0 - File owners and services on Windows](#v0130---file-owners-and-services-on-windows)
+  -- **assembled, not released**
 * [v0.12.2 - Mount support on Windows](#v0122---mount-support-on-windows)
 * [v0.12.1 - Quieter serve logs and nerdctl support](#v0121---quieter-serve-logs-and-nerdctl-support)
 * [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
@@ -76,6 +78,72 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.13.0 - File owners and services on Windows
+
+**NOT RELEASED. Assembled on four branches, nothing merged to `devel` and nothing
+tagged.** This entry exists so the work is traceable before it ships; replace the
+pending fields at tag time rather than writing them now.
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | pending. FOUR branches to reach `devel`, and **three of them are STACKED**: `feature/windows-file-owner-acl` (FEAT-016) -> `feature/windows-service-scm` (FEAT-014, and it carries the aggregate-fixture count fix) -> `feature/cross-platform-gate`, so merging the last brings all three in order. `fix/one-image-description` is independent and can merge either side of them |
+| Scope | measure at tag time: `git log --oneline --no-merges v0.12.2..v0.13.0` and `git diff --shortstat v0.12.2 v0.13.0` |
+| Changelog | [0.13.0](CHANGELOG.md#0130-based-on-krameffgoss-v060---file-owners-and-permissions-on-windows) |
+
+**A MINOR, and `docs/schema.yaml` DID change** -- unlike 0.12.2, which was a patch
+precisely because it added no attributes. This release adds eight: `acl` and
+`acl-sid` on `file:`, and `start-type`, `delayed-start`, `run-as`, `dependencies`,
+`display-name` and `pid` on `service:`. The schema is served raw from the public
+repository, so it reaches consumers the moment this merges to `main`.
+
+One behaviour change is worth calling out before the changelog does:
+`service: <name>: {enabled: true}` now holds for a service whose start type is
+`boot` or `system`, where it previously reported not-enabled. Every kernel driver
+is in that category, so a spec asserting `enabled: false` against one was passing
+on a wrong answer.
+
+**Windows coverage, and the part that only a real host could establish.** Both
+features were exercised on the Windows Server 2025 guest, not cross-compiled
+alone. `file:` reports owner, group and the DACL, and `syver add file` output is
+byte-identical to `icacls` on the same path. `service:` reads the Service Control
+Manager with no PowerShell subprocess left in its path.
+
+**`service:` was also run as a STANDARD USER, and that is what makes the release
+trustworthy rather than merely green.** A standard account was provisioned on the
+guest for it. The first run failed every assertion: the implementation asked the
+SCM for `SC_MANAGER_ENUMERATE_SERVICE` as well as `SC_MANAGER_CONNECT`, and
+`sc sdshow scmanager` grants Authenticated Users `CC` alone -- enumerate belongs to
+*interactive* users, so `OpenSCManager` itself returned access-denied on a network
+logon. Nothing enumerates, the right was dropped, and the suite now returns
+identical results elevated and unelevated from one binary. **Neither CI nor an
+interactive test could have found that:** CI runs as an administrator, and an
+interactive non-admin session would have been granted the right.
+
+**Suites run at one commit** (`a64c392`, before the gate branch): Linux unit under
+`-race`, `make check`, `make lint`, 202/202 goldens; the Docker suite on the remote
+builder green at its recorded counts (rockylinux9 126, almalinux10 126, jammy 126,
+alpine3 127, arch 106, all `Failed: 0`) which is what proves the `Service`
+interface gaining six methods left the Linux backends alone; and on the guest the
+unit tests, the validate suite (19 fixtures, 150 assertions, 13 skipped) and the
+serve suite 8/8.
+
+**What the gate itself gained.** Lint and the vulnerability scan now run for
+Windows and macOS as well as the host, on the release gate and on pushes to
+`devel`. Both tools resolve per-platform, so before this no Windows-only source
+file had ever been linted or had its call graph analysed -- which is how two dead
+functions sat in `system/file.go` from 0.11.0 until now.
+
+**Outstanding before the tag:** nothing has been pushed, so CI has not run. The
+`windows-latest` job is the first place the new fixtures meet a different machine,
+and the `file:` fixture asserts `BUILTIN\Administrators` and `S-1-5-18` on the
+hosts file -- expected to hold, verified only on the guest.
 
 ---
 
