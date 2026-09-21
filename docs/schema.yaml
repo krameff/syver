@@ -140,6 +140,27 @@ definitions:
         default: root
       gid:
         type: integer
+      acl:
+        type:
+          - array
+          - "null"
+        description: >-
+          Windows only. The file's DACL, one element per ACE, spelled as icacls
+          prints it: PRINCIPAL:(I)(DENY)(OI)(CI)(IO)(NP)(RIGHTS), with each
+          parenthesised group present only when it applies. Principals are
+          DOMAIN\Name, which is LOCALISED -- use acl-sid for a spec that must run
+          on a non-English Windows. A bare list asserts the ACEs are present;
+          consist-of asserts these and no others. Errors on every other platform
+          rather than reporting an empty list.
+      acl-sid:
+        type:
+          - array
+          - "null"
+        description: >-
+          Windows only. Exactly the ACEs acl reports, in the same order, with
+          principals as SID strings (S-1-5-32-544) instead of localised names.
+          The portable form: a spec written with acl-sid runs on any Windows
+          locale. syver add emits acl, not this; switching is a deliberate edit.
       filetype:
         type: string
         default: file

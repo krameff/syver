@@ -1,4 +1,4 @@
-# expect-count: 7
+# expect-count: 11
 # expect-skipped is deliberately absent: these fixtures skip a
 # different number of assertions on a real Windows host than when
 # driven from another platform. Seed it from a Windows run only.
@@ -6,9 +6,19 @@
 file:
   integration-tests\syver\testdata\static-file.txt:
     exists: true
-    # mode: "0000"  # not applicable on Windows
-    # user: ""  # not applicable on Windows
-    # group: ""  # not applicable on Windows
+    # mode: "0000"  # not applicable on Windows, permanently: a POSIX mode
+    #               # derived from a DACL would be lossy. Use acl, below.
+    # uid / gid     # not applicable on Windows: accounts are SIDs, and these
+    #               # attributes are integers. Category mismatch, not a gap.
+    #
+    # owner is asserted loosely ON PURPOSE. FEAT-016 made it real, and the thing
+    # worth pinning here is that it is no longer the unsupported sentinel -- an
+    # erroring accessor cannot satisfy any matcher. The literal value cannot be
+    # pinned: this file's owner is whoever checked the repo out, which is
+    # BUILTIN\Administrators through the go-builder bind mount and a runner
+    # account in CI.
+    owner:
+      match-regexp: '\S'
     size: 21
     filetype: file
     md5: dc9a07ca9789f866d21d544fe5651954
@@ -16,6 +26,29 @@ file:
     contents:
       - "nothing to see here"
       - "/nothing.*here/"
+
+  # FEAT-016: the ACL read, against a path whose permissions are stable across
+  # Windows builds rather than a repo file whose ACL depends on who cloned it.
+  #
+  # Both assertions use have-prefix rather than a literal ACE. The rights are
+  # not the point here -- file_acl_test.go pins every rights token from Linux,
+  # and file_acl_windows_test.go proves the two projections agree. What this
+  # fixture adds, and nothing else can, is that the syscall path works on a real
+  # host through a real gossfile. Pinning `(I)(F)` exactly would make the suite
+  # a detector for whether a runner image has touched this file's ACL.
+  C:\Windows\System32\drivers\etc\hosts:
+    exists: true
+    # The readable projection: a localised name, so this assertion is
+    # English-Windows-only by nature. Both the go-builder guest and the CI
+    # runner are English.
+    acl:
+      contain-element:
+        have-prefix: 'BUILTIN\Administrators:'
+    # The portable projection. S-1-5-18 is NT AUTHORITY\SYSTEM on every Windows
+    # in every locale, which is exactly why acl-sid exists.
+    acl-sid:
+      contain-element:
+        have-prefix: 'S-1-5-18:'
 
   # The absent-file case. `file:` is one of the few resources that works fully
   # on Windows, so this is a plain regression guard rather than anything

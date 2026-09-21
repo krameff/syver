@@ -22,6 +22,8 @@ type File struct {
 	Uid           matcher `json:"uid,omitempty" yaml:"uid,omitempty"`
 	Group         matcher `json:"group,omitempty" yaml:"group,omitempty"`
 	Gid           matcher `json:"gid,omitempty" yaml:"gid,omitempty"`
+	Acl           matcher `json:"acl,omitempty" yaml:"acl,omitempty"`
+	AclSid        matcher `json:"acl-sid,omitempty" yaml:"acl-sid,omitempty"`
 	LinkedTo      matcher `json:"linked-to,omitempty" yaml:"linked-to,omitempty"`
 	Filetype      matcher `json:"filetype,omitempty" yaml:"filetype,omitempty"`
 	Contains      matcher `json:"contains,omitempty" yaml:"contains,omitempty"`
@@ -99,6 +101,16 @@ func (f *File) Validate(ctx context.Context, sys *system.System) []TestResult {
 	}
 	if isSet(f.Gid) {
 		results = append(results, ValidateValue(f, "gid", f.Gid, sysFile.Gid, skip))
+	}
+	// acl: and acl-sid: are lists, so they use isSetWarnEmpty rather than isSet:
+	// an empty list asserts nothing and passes, and silently passing is the
+	// failure mode this attribute exists to remove. A spec that really means "no
+	// ACEs at all" says `consist-of: []`.
+	if isSetWarnEmpty(f.Acl, fmt.Sprintf("%s: file.acl", f.ID()), f.Skip) {
+		results = append(results, ValidateValue(f, "acl", f.Acl, sysFile.Acl, skip))
+	}
+	if isSetWarnEmpty(f.AclSid, fmt.Sprintf("%s: file.acl-sid", f.ID()), f.Skip) {
+		results = append(results, ValidateValue(f, "acl-sid", f.AclSid, sysFile.AclSid, skip))
 	}
 	if isSet(f.LinkedTo) {
 		results = append(results, ValidateValue(f, "linkedto", f.LinkedTo, sysFile.LinkedTo, skip))
@@ -180,6 +192,31 @@ func NewFile(sysFile system.File, config util.Config) (*File, error) {
 		}
 		if err == nil {
 			f.Group = group
+		}
+	}
+	// D7: `add` emits acl: (the DOMAIN\Name form) and NOT acl-sid:. add exists to
+	// bootstrap a readable spec from the host in front of you, and a wall of SIDs
+	// is not that. Emitting both would double every discovered file's output for
+	// a need most specs do not have. The names are LOCALISED, so making a spec
+	// portable is a deliberate edit -- switch the key to acl-sid: -- which
+	// docs/windows.md says explicitly.
+	//
+	// Guarded with err == nil like mode/filetype rather than lookupDidNotRun like
+	// owner/group: a DACL read is a single local syscall with no directory
+	// service behind it, so there is no hang case to distinguish. On any platform
+	// but Windows this returns ErrFileAclUnsupported and the key is simply
+	// omitted, which is what keeps `syver add file` working unchanged on Linux.
+	//
+	// The len check is load-bearing and is NOT belt-and-braces: these fields are
+	// `matcher`, an interface, and yaml.v2's isZero for an interface is IsNil(),
+	// which is false for an interface holding an empty or typed-nil slice. So
+	// `omitempty` does not omit it and an unguarded assignment emits `acl: []`,
+	// a line that asserts nothing and always passes.
+	// resource/generated_empty_test.go pins this for every generator and caught
+	// exactly that when this was written unguarded.
+	if !contains(config.IgnoreList, "acl") {
+		if acl, err := sysFile.Acl(); err == nil && len(acl) > 0 {
+			f.Acl = acl
 		}
 	}
 	if !contains(config.IgnoreList, "linked-to") {
