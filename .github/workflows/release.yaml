@@ -57,15 +57,23 @@ jobs:
       - name: Install golangci-lint
         run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
 
-      - name: Lint
-        run: make lint
+      # lint-cross, not lint: it runs the host pass and then windows and darwin.
+      # Both golangci-lint and govulncheck resolve per-GOOS, so a host-only gate
+      # tags a release having never linted a single *_windows.go or *_darwin.go
+      # file. Added 2026-09-21, for a release whose headline is Windows support.
+      - name: Lint (host, windows, darwin)
+        run: make lint-cross
 
       - name: Unit tests
         run: make test
 
-      - name: Security scan
+      - name: Security scan (host, windows, darwin)
         env:
           SECURITY_STRICT: "1"
+          # govulncheck's reachability analysis is per-GOOS. Scanning only the host
+          # build means the Windows and macOS code paths in a release were never
+          # analysed. See SYVER_SCAN_GOOS in ci/security-scan.sh.
+          SYVER_SCAN_GOOS: "windows darwin"
         run: ./ci/security-scan.sh
 
   build:

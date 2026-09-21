@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -260,38 +259,4 @@ func (f *DefFile) Sha256() (string, error) {
 
 func (f *DefFile) Sha512() (string, error) {
 	return f.hash(sha512Hash)
-}
-
-func getUserForUid(ctx context.Context, uid int) (string, error) {
-	if user, err := user.LookupId(strconv.Itoa(uid)); err == nil {
-		return user.Username, nil
-	}
-
-	cmd, ctxErr := runHelperCommand(ctx, "getent", "passwd", strconv.Itoa(uid))
-	if ctxErr != nil {
-		return "", ctxErr
-	}
-	if cmd.Err != nil {
-		return "", fmt.Errorf("no matching entries in passwd file. getent passwd: %w", cmd.Err)
-	}
-	userS := strings.Split(cmd.Stdout.String(), ":")[0]
-
-	return userS, nil
-}
-
-func getGroupForGid(ctx context.Context, gid int) (string, error) {
-	if group, err := user.LookupGroupId(strconv.Itoa(gid)); err == nil {
-		return group.Name, nil
-	}
-
-	cmd, ctxErr := runHelperCommand(ctx, "getent", "group", strconv.Itoa(gid))
-	if ctxErr != nil {
-		return "", ctxErr
-	}
-	if cmd.Err != nil {
-		return "", fmt.Errorf("no matching entries in group file. getent group: %w", cmd.Err)
-	}
-	groupS := strings.Split(cmd.Stdout.String(), ":")[0]
-
-	return groupS, nil
 }
