@@ -16,7 +16,7 @@ for docker_file in $INTEGRATION_TEST_DIR/Dockerfile_*; do
     md5=$(md5sum "$docker_file" | awk '{ print $1 }')
     docker build \
         --label "org.opencontainers.image.created=$LABEL_DATE" \
-        --label "org.opencontainers.image.description=Quick and Easy server testing/validation" \
+        --label "org.opencontainers.image.description=Syver - Quick and Easy server validation" \
         --label "org.opencontainers.image.licenses=Apache-2.0" \
         --label "org.opencontainers.image.revision=$LABEL_REVISION" \
         --label "org.opencontainers.image.source=$LABEL_URL" \
