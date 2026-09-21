@@ -1,4 +1,14 @@
-# expect-count: 50
+# expect-count: 54
+# This fixture AGGREGATES the others, so its count is the SUM of theirs and it
+# must be re-measured whenever any included fixture gains an assertion. Nothing in
+# the local gate can see that: the aggregate's total is only observable by running
+# the Windows suite, so a stale value here fails
+# `test-int-validate-windows-amd64` in CI and nowhere earlier -- which is exactly
+# what happened on PR #52.
+#
+# 50 -> 54 on 2026-09-21: file.goss.yaml gained 4 assertions (FEAT-016, owner and
+# ACLs). It becomes 61 when FEAT-014 lands, which adds 7 more to service.goss.yaml.
+# Measure, do not add up by hand: run this fixture and read the Count line.
 # expect-skipped is deliberately absent: these fixtures skip a
 # different number of assertions on a real Windows host than when
 # driven from another platform. Seed it from a Windows run only.
