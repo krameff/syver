@@ -89,13 +89,37 @@ if (( SYVER_TRIVY_EXIT_CODE == 1 )); then
   exit 1
 fi
 
-run_govulncheck() {
-  echo "==> govulncheck"
+govulncheck_once() {
   if command -v govulncheck >/dev/null 2>&1; then
     govulncheck ./...
   else
     go run "golang.org/x/vuln/cmd/govulncheck@${SYVER_GOVULNCHECK_VERSION}" ./...
   fi
+}
+
+# SYVER_SCAN_GOOS lists EXTRA platforms to scan, beyond the host's.
+#
+# govulncheck's reachability analysis is per-GOOS: it builds the call graph for one
+# platform, so a default run on Linux never sees system/*_windows.go or
+# *_darwin.go. Until 2026-09-21 nothing scanned them at all, which for a release
+# whose headline is Windows support is the wrong blind spot to have -- the same
+# shape as lint never running cross-platform (see the lint-cross target).
+#
+# Left EMPTY by default deliberately. Each extra platform is another full analysis,
+# and `make check` runs on every local edit; `make test-security-cross` sets it, and
+# CI applies it on pushes to devel and main and on the release gate rather than on
+# every pull request.
+run_govulncheck() {
+  echo "==> govulncheck (host: $(go env GOOS))"
+  govulncheck_once
+  for goos in ${SYVER_SCAN_GOOS:-}; do
+    if [ "${goos}" = "$(go env GOOS)" ]; then
+      echo "==> govulncheck (${goos}): already covered by the host run, skipping"
+      continue
+    fi
+    echo "==> govulncheck (GOOS=${goos})"
+    GOOS="${goos}" govulncheck_once
+  done
 }
 
 run_trivy() {

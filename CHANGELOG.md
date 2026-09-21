@@ -66,6 +66,14 @@ at tag time rather than written now.
   - all six attributes error on every other platform rather than comparing against
     an empty value, so a Windows-only attribute in a Linux spec fails loudly
 
+- what a release is verified against
+  - lint and the vulnerability scan now run for Windows and macOS as well as the
+    host. Both tools resolve per-platform, so until now neither had ever examined a
+    Windows-only or macOS-only source file, and a release whose headline is Windows
+    support had been tagged without one being linted. They run on the release gate
+    and on pushes to the integration branch; pull requests keep the faster
+    host-only checks
+
 - container image metadata
   - the published image description now matches the project's own one-line
     description everywhere it appears. The release images and the branch image

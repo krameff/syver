@@ -41,6 +41,47 @@ jobs:
           version: v2.12.2
           install-mode: goinstall
 
+  # Cross-platform lint and vulnerability scan, on PUSHES ONLY.
+  #
+  # Both golangci-lint and govulncheck resolve per-GOOS, so everything above sees
+  # the Linux build alone: no *_windows.go or *_darwin.go file had ever been linted
+  # or had its call graph analysed. `vet-cross` covered vet for those platforms and
+  # nothing covered the other two, which is how two dead functions lived in
+  # system/file.go until 2026-09-21.
+  #
+  # Gated to `push` so it runs on devel and main (this workflow's only push
+  # branches) and not on every pull request: it is three lint runs and three
+  # reachability analyses, and the release gate in release.yaml runs it too. A
+  # feature branch that breaks it therefore learns at merge, not at PR -- an
+  # accepted trade for keeping the PR loop fast.
+  cross-platform:
+    if: github.event_name == 'push'
+    name: cross-platform lint and scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+
+      # The action installs for the host platform only, so lint-cross needs the
+      # binary on PATH to invoke it under a different GOOS.
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+
+      - name: Lint (host, windows, darwin)
+        run: make lint-cross
+
+      # No Trivy here: it scans the filesystem, not a build, so it is
+      # platform-independent and the coverage job already runs it. This step is
+      # govulncheck across the three platforms, which is the part that is per-GOOS.
+      - name: Vulnerability scan (host, windows, darwin)
+        env:
+          SYVER_TRIVY_SCANNERS: vuln
+        run: SYVER_SCAN_GOOS="windows darwin" ./ci/security-scan.sh
+
   coverage:
     needs: [lint]
     name: coverage
