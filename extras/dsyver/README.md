@@ -203,7 +203,7 @@ string. (Default `''`)
 
 #### SYVER_TEMP_DIR
 
-Location of the temporary directory used by `dsyver`.
+Location of the temporary directory used by `dsyver` and by the `dgoss` shim.
 (Default `'$(mktemp -d /tmp/tmp.XXXXXXXXXX)'`)
 
 Legacy equivalent: `DGOSS_TEMP_DIR`, still honoured. Note the legacy name is

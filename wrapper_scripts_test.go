@@ -174,33 +174,30 @@ func containsLinePrefix(s, prefix string) bool {
 	return false
 }
 
-// TestDsyverSyverTempDir proves SYVER_TEMP_DIR steers where the wrapper builds
+// TestWrapperSyverTempDir proves SYVER_TEMP_DIR steers where each wrapper builds
 // its working directory. That is otherwise invisible: the directory is removed
 // on exit, and the only place it surfaces is the bind mount handed to the
 // container runtime.
 //
-// It needs its own test because DGOSS_TEMP_DIR is the one variable the pairing
-// loop in dsyver cannot fold. Its legacy name carries the SCRIPT prefix rather
+// It needs a test of its own because DGOSS_TEMP_DIR is the one variable the
+// pairing loop cannot fold. Its legacy name carries the SCRIPT prefix rather
 // than the product one, and GOSS_TEMP_DIR has never existed, so the loop would
-// look for a name nothing sets.
+// look for a name nothing sets. Both wrappers handle it separately and both are
+// covered here: dgoss already folds the other nine SYVER_* names, so omitting
+// this one would have been inconsistent inside dgoss itself, not merely against
+// dsyver.
 //
-// REVERT-PROOF: delete the SYVER_TEMP_DIR block from extras/dsyver/dsyver and
-// both "syver only" and "syver wins over dgoss" fail, because the wrapper falls
-// back to /tmp and the mount no longer sits under the test's directory.
-//
-// dgoss is deliberately not covered. It is the compatibility name, it carries
-// its own copy of the loop, and it takes DGOSS_TEMP_DIR alone.
-func TestDsyverSyverTempDir(t *testing.T) {
+// REVERT-PROOF: delete the SYVER_TEMP_DIR block from either script and that
+// script's "syver only" and "syver wins over dgoss" cases fail, because the
+// wrapper falls back to /tmp and the mount no longer sits under the test's
+// directory. "empty syver" keeps passing, which is the point of having it.
+func TestWrapperSyverTempDir(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("the wrappers are bash scripts driving a local container runtime")
 	}
 	bash, err := exec.LookPath("bash")
 	if err != nil {
 		t.Skip("bash not available")
-	}
-	scriptPath, err := filepath.Abs(filepath.Join("extras", "dsyver", "dsyver"))
-	if err != nil {
-		t.Fatal(err)
 	}
 
 	tests := []struct {
@@ -220,74 +217,80 @@ func TestDsyverSyverTempDir(t *testing.T) {
 		{name: "empty syver cannot shadow dgoss", exportEmptySyver: true, dgoss: "b", want: "b"},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			dir := t.TempDir()
-			binDir := filepath.Join(dir, "bin")
-			specDir := filepath.Join(dir, "spec")
-			for _, d := range []string{binDir, specDir, filepath.Join(dir, "a"), filepath.Join(dir, "b")} {
-				if err := os.Mkdir(d, 0o755); err != nil {
+	for _, script := range []string{"dsyver", "dgoss"} {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", "dsyver", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range tests {
+			t.Run(script+"/"+tc.name, func(t *testing.T) {
+				dir := t.TempDir()
+				binDir := filepath.Join(dir, "bin")
+				specDir := filepath.Join(dir, "spec")
+				for _, d := range []string{binDir, specDir, filepath.Join(dir, "a"), filepath.Join(dir, "b")} {
+					if err := os.Mkdir(d, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.WriteFile(filepath.Join(binDir, "podman"), []byte(fakeRuntime), 0o755); err != nil {
 					t.Fatal(err)
 				}
-			}
-			if err := os.WriteFile(filepath.Join(binDir, "podman"), []byte(fakeRuntime), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(filepath.Join(specDir, "goss.yaml"), []byte("file: {}\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			// Stands in for the syver binary: the wrapper only copies it.
-			fakeSyver := filepath.Join(dir, "syver")
-			if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
-				t.Fatal(err)
-			}
-			callLog := filepath.Join(dir, "calls.log")
-
-			cmd := exec.Command(bash, scriptPath, "run", "example/image")
-			cmd.Env = append(os.Environ(),
-				"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
-				"CONTAINER_RUNTIME=podman",
-				"GOSS_FILES_STRATEGY=mount",
-				"GOSS_FILES_PATH="+specDir,
-				"GOSS_PATH="+fakeSyver,
-				"GOSS_SLEEP=0",
-				"FAKE_RUNTIME_LOG="+callLog,
-				"FAKE_ROOTLESS=0",
-			)
-			// Set each variable only when the case asks for it, so "unset" is
-			// genuinely unset rather than set to an empty string.
-			if tc.syver != "" {
-				cmd.Env = append(cmd.Env, "SYVER_TEMP_DIR="+filepath.Join(dir, tc.syver))
-			}
-			if tc.exportEmptySyver {
-				cmd.Env = append(cmd.Env, "SYVER_TEMP_DIR=")
-			}
-			if tc.dgoss != "" {
-				cmd.Env = append(cmd.Env, "DGOSS_TEMP_DIR="+filepath.Join(dir, tc.dgoss))
-			}
-
-			var stderr bytes.Buffer
-			cmd.Stderr = &stderr
-			if err := cmd.Run(); err != nil {
-				t.Fatalf("wrapper failed: %v\nstderr:\n%s", err, stderr.String())
-			}
-
-			callBytes, _ := os.ReadFile(callLog)
-			calls := string(callBytes)
-			mount := ""
-			for line := range strings.SplitSeq(calls, "\n") {
-				if strings.HasPrefix(line, "run -d -v ") {
-					mount = line
-					break
+				if err := os.WriteFile(filepath.Join(specDir, "goss.yaml"), []byte("file: {}\n"), 0o644); err != nil {
+					t.Fatal(err)
 				}
-			}
-			if mount == "" {
-				t.Fatalf("the runtime was never asked to mount anything\ncalls:\n%s", calls)
-			}
-			wantPrefix := filepath.Join(dir, tc.want) + string(os.PathSeparator) + "tmp."
-			if !strings.Contains(mount, wantPrefix) {
-				t.Errorf("mount does not sit under %s\n  mount: %s\n  calls:\n%s", wantPrefix, mount, calls)
-			}
-		})
+				// Stands in for the syver binary: the wrapper only copies it.
+				fakeSyver := filepath.Join(dir, "syver")
+				if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				callLog := filepath.Join(dir, "calls.log")
+
+				cmd := exec.Command(bash, scriptPath, "run", "example/image")
+				cmd.Env = append(os.Environ(),
+					"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"CONTAINER_RUNTIME=podman",
+					"GOSS_FILES_STRATEGY=mount",
+					"GOSS_FILES_PATH="+specDir,
+					"GOSS_PATH="+fakeSyver,
+					"GOSS_SLEEP=0",
+					"FAKE_RUNTIME_LOG="+callLog,
+					"FAKE_ROOTLESS=0",
+				)
+				// Each variable is set only when the case asks for it, so
+				// "unset" is genuinely unset rather than an empty string.
+				if tc.syver != "" {
+					cmd.Env = append(cmd.Env, "SYVER_TEMP_DIR="+filepath.Join(dir, tc.syver))
+				}
+				if tc.exportEmptySyver {
+					cmd.Env = append(cmd.Env, "SYVER_TEMP_DIR=")
+				}
+				if tc.dgoss != "" {
+					cmd.Env = append(cmd.Env, "DGOSS_TEMP_DIR="+filepath.Join(dir, tc.dgoss))
+				}
+
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				if err := cmd.Run(); err != nil {
+					t.Fatalf("wrapper failed: %v\nstderr:\n%s", err, stderr.String())
+				}
+
+				callBytes, _ := os.ReadFile(callLog)
+				calls := string(callBytes)
+				mount := ""
+				for line := range strings.SplitSeq(calls, "\n") {
+					if strings.HasPrefix(line, "run -d -v ") {
+						mount = line
+						break
+					}
+				}
+				if mount == "" {
+					t.Fatalf("the runtime was never asked to mount anything\ncalls:\n%s", calls)
+				}
+				wantPrefix := filepath.Join(dir, tc.want) + string(os.PathSeparator) + "tmp."
+				if !strings.Contains(mount, wantPrefix) {
+					t.Errorf("mount does not sit under %s\n  mount: %s\n  calls:\n%s", wantPrefix, mount, calls)
+				}
+			})
+		}
 	}
 }

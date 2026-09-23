@@ -1,14 +1,19 @@
 # Changelog
 
-## 0.13.1 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrapper
+## 0.13.1 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrappers
 
-- the Docker wrapper
-  - `dsyver` gains `SYVER_TEMP_DIR`, so every variable it reads now has a
-    syver-named form. It pairs with `DGOSS_TEMP_DIR` rather than a `GOSS_*` name,
-    because that variable is named after the script rather than the product and
-    `GOSS_TEMP_DIR` has never existed. `DGOSS_TEMP_DIR` is still honoured, a
-    non-empty `SYVER_TEMP_DIR` wins, and an exported-but-empty one cannot shadow
-    it -- the same contract as every other pair
+- the Docker wrappers
+  - `dsyver` and the `dgoss` shim beside it gain `SYVER_TEMP_DIR`, so every
+    variable they read now has a syver-named form. It pairs with `DGOSS_TEMP_DIR`
+    rather than a `GOSS_*` name, because that variable is named after the script
+    rather than the product and `GOSS_TEMP_DIR` has never existed.
+    `DGOSS_TEMP_DIR` is still honoured, a non-empty `SYVER_TEMP_DIR` wins, and an
+    exported-but-empty one cannot shadow it -- the same contract as every other
+    pair
+  - this fixes the macOS workflow the wrapper README already documented, which
+    exports `SYVER_TEMP_DIR` and then runs `dgoss`. `dgoss` ignored the variable
+    and fell back to `/tmp`, which is the private directory that example exists
+    to work around
   - the wrapper's documentation now leads with the syver-named variables and spec
     filenames throughout. Every `GOSS_*` equivalent still works and `goss.yaml`
     is still read, so no existing setup needs changing

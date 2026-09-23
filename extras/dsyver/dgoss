@@ -18,6 +18,18 @@ for _syver_var in FILES_PATH FILE VARS OPTS WAIT_OPTS SLEEP PATH FILES_STRATEGY 
     fi
 done
 unset _syver_var _syver_src
+
+# DGOSS_TEMP_DIR is folded separately because it does not fit the loop above,
+# which pairs SYVER_<X> with GOSS_<X>. This one's legacy name carries the script
+# prefix, not the product prefix -- there has never been a GOSS_TEMP_DIR -- so
+# the loop would have looked for a name that does not exist.
+#
+# Same contract as every other pair: a non-empty SYVER_TEMP_DIR wins, an
+# exported-but-empty one is treated as unset and cannot shadow a real
+# DGOSS_TEMP_DIR, and the assignment is not an export.
+if [[ -n "${SYVER_TEMP_DIR:-}" ]]; then
+    DGOSS_TEMP_DIR="${SYVER_TEMP_DIR}"
+fi
 # --------------------------------------------------------------------------
 
 USAGE="USAGE: $(basename "$0") [run|edit] <docker_run_params>"
