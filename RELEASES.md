@@ -83,9 +83,10 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## v0.13.0 - File owners and services on Windows
 
-**NOT RELEASED. Assembled on four branches, nothing merged to `devel` and nothing
-tagged.** This entry exists so the work is traceable before it ships; replace the
-pending fields at tag time rather than writing them now.
+**NOT RELEASED. All five branches are merged to `devel` at `68f4da4` and CI is
+green there; nothing is merged to `main` and nothing is tagged.** This entry exists
+so the work is traceable before it ships; replace the pending fields at tag time
+rather than writing them now.
 
 | Field | Value |
 | --- | --- |
@@ -93,7 +94,7 @@ pending fields at tag time rather than writing them now.
 | Tag | pending |
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | pending. FOUR branches to reach `devel`, and **three of them are STACKED**: `feature/windows-file-owner-acl` (FEAT-016) -> `feature/windows-service-scm` (FEAT-014, and it carries the aggregate-fixture count fix) -> `feature/cross-platform-gate`, so merging the last brings all three in order. `fix/one-image-description` is independent and can merge either side of them |
+| Integration branch | `devel`, from five branches merged 2026-09-21 in this order: `fix/one-image-description` (PR #51), `feature/windows-file-owner-acl` (PR #52, FEAT-016), `feature/windows-service-scm` (PR #53, FEAT-014, carrying the aggregate-fixture count fix), `feature/cross-platform-gate` (PR #54) and `fix/govulncheck-cross-goos` (PR #55). The middle three were stacked, so they had to merge in that order. Not yet merged to `main` |
 | Scope | measure at tag time: `git log --oneline --no-merges v0.12.2..v0.13.0` and `git diff --shortstat v0.12.2 v0.13.0` |
 | Changelog | [0.13.0](CHANGELOG.md#0130-based-on-krameffgoss-v060---file-owners-and-permissions-on-windows) |
 
@@ -140,10 +141,18 @@ Windows and macOS as well as the host, on the release gate and on pushes to
 file had ever been linted or had its call graph analysed -- which is how two dead
 functions sat in `system/file.go` from 0.11.0 until now.
 
-**Outstanding before the tag:** nothing has been pushed, so CI has not run. The
-`windows-latest` job is the first place the new fixtures meet a different machine,
-and the `file:` fixture asserts `BUILTIN\Administrators` and `S-1-5-18` on the
-hosts file -- expected to hold, verified only on the guest.
+**CI has now run and `devel` is green at `68f4da4`**, including the two jobs that
+could only be proved there. `windows-latest` passes with the new `file:` and
+`service:` fixtures, so the ACL assertions on the hosts file
+(`BUILTIN\Administrators`, `S-1-5-18`) and the six SCM attributes hold on a machine
+that is not the guest; `macos-latest` passes too, which matters because the
+`Service` interface gained six methods that every backend picks up. The
+cross-platform lint and scan job passes as well, after one failure of its own:
+`ci/security-scan.sh` cross-compiled govulncheck itself when given a target GOOS,
+fixed in PR #55.
+
+**Outstanding before the tag:** the `devel` -> `main` merge, the tag itself, and
+`/release-gate` including its after-tag section.
 
 ---
 
