@@ -61,7 +61,6 @@ artifacts and signatures always correspond to the tag as it now stands.
 ## Contents
 
 * [v0.13.0 - File owners and services on Windows](#v0130---file-owners-and-services-on-windows)
-  -- **assembled, not released**
 * [v0.12.2 - Mount support on Windows](#v0122---mount-support-on-windows)
 * [v0.12.1 - Quieter serve logs and nerdctl support](#v0121---quieter-serve-logs-and-nerdctl-support)
 * [v0.12.0 - Windows registry grammar and process trees](#v0120---windows-registry-grammar-and-process-trees)
@@ -83,20 +82,35 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## v0.13.0 - File owners and services on Windows
 
-**NOT RELEASED. All five branches are merged to `devel` at `68f4da4` and CI is
-green there; nothing is merged to `main` and nothing is tagged.** This entry exists
-so the work is traceable before it ships; replace the pending fields at tag time
-rather than writing them now.
-
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | pending |
-| Commit | pending |
+| Released | 2026-09-23 |
+| Tag | `v0.13.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092`; the two are different and using the artifact key on a tag reports "no public key", which reads as a bad signature and is not |
+| Commit | `720973e`, the `devel` -> `main` merge commit from PR #56 |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, from five branches merged 2026-09-21 in this order: `fix/one-image-description` (PR #51), `feature/windows-file-owner-acl` (PR #52, FEAT-016), `feature/windows-service-scm` (PR #53, FEAT-014, carrying the aggregate-fixture count fix), `feature/cross-platform-gate` (PR #54) and `fix/govulncheck-cross-goos` (PR #55). The middle three were stacked, so they had to merge in that order. Not yet merged to `main` |
-| Scope | measure at tag time: `git log --oneline --no-merges v0.12.2..v0.13.0` and `git diff --shortstat v0.12.2 v0.13.0` |
+| Integration branch | `devel`, from five branches merged 2026-09-21 in this order: `fix/one-image-description` (PR #51), `feature/windows-file-owner-acl` (PR #52, FEAT-016), `feature/windows-service-scm` (PR #53, FEAT-014, carrying the aggregate-fixture count fix), `feature/cross-platform-gate` (PR #54) and `fix/govulncheck-cross-goos` (PR #55). The middle three were stacked, so they had to merge in that order. Merged to `main` through PR #56 |
+| Scope | 10 commits, 39 files changed, 2245 insertions, 418 deletions against v0.12.2 |
 | Changelog | [0.13.0](CHANGELOG.md#0130-based-on-krameffgoss-v060---file-owners-and-permissions-on-windows) |
+
+**Verified after the push**, against the published release rather than the build
+log. The release carries 39 assets. `syver_0.13.0_SHA256SUMS` and the SPDX SBOMs
+verify against the project key, the checksum for `syver-linux-amd64` matches and
+that binary reports `syver version 0.13.0`. `ghcr.io/krameff/syver:v0.13.0` and
+`:latest` resolve to the same manifest. Read the Docs built `latest` and `stable`
+from `720973e` and both serve the new Windows attributes.
+
+**One trap for the next release, because it looks exactly like a failed
+publish.** For roughly the first twenty minutes after goreleaser finished, the
+GitHub API served the release object with an EMPTY `assets` array while
+`/releases/<id>/assets` returned all 39. In that window `gh release download`
+exits with "no assets to download" and the release page looks bare. It resolved
+on its own. Confirm with the assets endpoint or the release page before
+concluding a release shipped nothing:
+
+```sh
+gh api repos/krameff/syver/releases/tags/vX.Y.Z --jq '.id' \
+  | xargs -I{} gh api 'repos/krameff/syver/releases/{}/assets?per_page=100' --jq 'length'
+```
 
 **A MINOR, and `docs/schema.yaml` DID change** -- unlike 0.12.2, which was a patch
 precisely because it added no attributes. This release adds eight: `acl` and
