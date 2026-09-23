@@ -83,7 +83,7 @@ func TestNoGeneratorEmitsAnEmptyList(t *testing.T) {
 		make func() (any, error)
 		keys []string
 	}{
-		{"file", func() (any, error) { return NewFile(conformanceFile{}, util.Config{}) }, []string{"contents:"}},
+		{"file", func() (any, error) { return NewFile(conformanceFile{}, util.Config{}) }, []string{"contents:", "acl:", "acl-sid:"}},
 		{"port", func() (any, error) {
 			return NewPort(&fakeSysPort{port: "tcp:22", listening: true}, util.Config{})
 		}, []string{"ip:", "pid:"}},
@@ -94,6 +94,12 @@ func TestNoGeneratorEmitsAnEmptyList(t *testing.T) {
 		{"user", func() (any, error) { return NewUser(emptyUser{}, util.Config{}) }, []string{"groups:"}},
 		{"mount", func() (any, error) { return NewMount(emptyMount{}, util.Config{}) }, []string{"opts:", "vfs-opts:"}},
 		{"package", func() (any, error) { return NewPackage(emptyPackage{}, util.Config{}) }, []string{"versions:"}},
+		// FEAT-014. The fake reports the six Windows attributes as unsupported, so
+		// none of them may appear -- and `pid:` must not appear even on Windows,
+		// where it IS reportable: a generated spec pinning a pid fails at the next
+		// restart. See NewService.
+		{"service", func() (any, error) { return NewService(conformanceService{}, util.Config{}) },
+			[]string{"dependencies:", "start-type:", "delayed-start:", "run-as:", "display-name:", "pid:"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			res, err := tc.make()

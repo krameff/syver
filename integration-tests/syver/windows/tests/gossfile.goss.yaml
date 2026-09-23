@@ -1,4 +1,9 @@
-# expect-count: 50
+# expect-count: 61
+# This fixture AGGREGATES the others, so its count is the sum of theirs and it
+# must be updated whenever any included fixture grows. It went 54 -> 61 on
+# 2026-09-21: file.goss.yaml gained 4 assertions (FEAT-016, owner and ACLs) and
+# service.goss.yaml gained 7 (FEAT-014, the SCM attributes). Measured, not added
+# up by hand: run this fixture and read the Count line.
 # expect-skipped is deliberately absent: these fixtures skip a
 # different number of assertions on a real Windows host than when
 # driven from another platform. Seed it from a Windows run only.

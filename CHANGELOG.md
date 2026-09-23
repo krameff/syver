@@ -1,5 +1,85 @@
 # Changelog
 
+## 0.13.0 based on krameff/goss v0.6.0 - file owners and permissions on Windows
+
+**NOT RELEASED.** Assembled on a branch; the fields in `RELEASES.md` are filled
+at tag time rather than written now.
+
+- file owners and permissions on Windows
+  - `file:` reports a real `owner` and `group` on Windows. Both previously
+    errored as unsupported, and before that they wrote a fabricated `"-1"`, so a
+    generated spec asserted an owner nobody had checked
+  - two new attributes report the file's permissions: `acl` lists the DACL one
+    entry per ACE with principals as `DOMAIN\Name`, and `acl-sid` lists exactly
+    the same entries with principals as SIDs. Each entry is spelled the way
+    `icacls` prints it, so a failing assertion can be compared against
+    `icacls <path>` without translating anything
+  - **prefer `acl-sid` for a spec that runs on more than one Windows locale.**
+    `BUILTIN\Administrators` is a localised name and a German host calls the same
+    account something else, whereas `S-1-5-32-544` is the same everywhere.
+    `syver add file` writes `acl`, the readable form; switching is a key rename
+  - both are ordinary lists, so the existing array matchers do the work: a bare
+    list means those entries are present, `consist-of` means these and no others,
+    which is what a hardening control usually intends. The same principal can
+    appear twice, which is normal -- on `C:\Windows`, `BUILTIN\Administrators`
+    holds `(M)` on the directory and `(OI)(CI)(IO)(F)` for what is inside it
+  - `mode`, `uid` and `gid` remain unsupported on Windows and now say why in the
+    documentation. `uid` and `gid` are a category mismatch, since Windows
+    identifies accounts by SID and those attributes are integers. `mode` is a
+    decision: a POSIX mode could only be derived from an ACL lossily, and a
+    plausible `0644` computed from a DACL would let a cross-platform spec pass on
+    Windows for the wrong reason. `acl` answers what `mode` asks
+  - off Windows both attributes error rather than reporting an empty list, so a
+    cross-platform spec fails loudly instead of quietly agreeing with itself
+  - `docs/windows.md` gains a section on privileges, which it never had: syver on
+    Windows is run as an administrator, and the page now says which checks depend
+    on that and which deliberately do not
+
+- Windows services read the Service Control Manager
+  - `service:` no longer shells out to PowerShell. It reads the SCM directly,
+    which removes a subprocess per attribute and fixes a service name containing
+    a space -- that never worked through the old command line
+  - **`enabled: true` now holds for a service whose start type is `boot` or
+    `system`.** Both previously reported as not enabled, because the old
+    implementation matched the word "Automatic" and neither of those contains it.
+    Every kernel driver and much of the early boot chain is in that category, so a
+    spec asserting `enabled: false` against one was passing on a wrong answer
+  - six new attributes: `start-type` (`boot`, `system`, `automatic`, `manual`,
+    `disabled`), `delayed-start`, `run-as`, `dependencies`, `display-name` and
+    `pid`
+  - `run-as` is the account as the SCM stores it and is not normalised: Windows
+    itself reports `LocalSystem`, `localSystem` and `NT AUTHORITY\LocalService`
+    in different places, and syver reports what the machine says. `display-name`
+    is localised, so assert the service key name in a spec that must run on more
+    than one Windows language
+  - `pid` is 0 when the service is not running, and `syver add service` does not
+    emit it: a pid changes at every restart, so a generated spec pinning one would
+    fail at the next reboot. Assert a range such as `gt: 0`
+  - `syver add service` now also writes `start-type`, `delayed-start`, `run-as`,
+    `display-name` and, where the service has any, `dependencies`
+  - **the check still works without administrator rights**, and is verified that
+    way rather than assumed. The service control manager is opened with
+    `SC_MANAGER_CONNECT` alone and each service with
+    `SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS`. The obvious library for this asks
+    for all-access on both, which requires elevation, so a read-only check would
+    have started demanding it
+  - all six attributes error on every other platform rather than comparing against
+    an empty value, so a Windows-only attribute in a Linux spec fails loudly
+
+- what a release is verified against
+  - lint and the vulnerability scan now run for Windows and macOS as well as the
+    host. Both tools resolve per-platform, so until now neither had ever examined a
+    Windows-only or macOS-only source file, and a release whose headline is Windows
+    support had been tagged without one being linted. They run on the release gate
+    and on pushes to the integration branch; pull requests keep the faster
+    host-only checks
+
+- container image metadata
+  - the published image description now matches the project's own one-line
+    description everywhere it appears. The release images and the branch image
+    previously carried different text, because one is baked into the release
+    configuration and the other is taken from the repository description
+
 ## 0.12.2 based on krameff/goss v0.6.0 - mount support on Windows
 
 - version reporting

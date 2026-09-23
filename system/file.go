@@ -12,7 +12,6 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
-	"strconv"
 	"strings"
 	"unicode/utf8"
 
@@ -26,6 +25,19 @@ import (
 // comparable error rather than a fabricated zero value with a nil error.
 var ErrFileOwnershipUnsupported = errors.New("file mode/owner/group is not supported on this platform")
 
+// ErrFileAclUnsupported is returned by Acl and AclSid off Windows. FEAT-016.
+//
+// The message says "on Windows only" rather than "not supported on this
+// platform": POSIX ACLs do exist, and a reader who is told otherwise will go
+// looking for a bug instead of a feature request. Reporting them is simply not
+// in FEAT-016's scope, whose whole subject is the Windows DACL.
+//
+// Returning this rather than an empty list is the point. An empty list asserts
+// nothing and passes, which is the fabricated-answer failure FEAT-010 existed to
+// remove; a cross-platform gossfile carrying acl: must fail loudly on Linux
+// rather than quietly agree with itself.
+var ErrFileAclUnsupported = errors.New("file ACL reporting is implemented on Windows only")
+
 type File interface {
 	Path() string
 	Exists() (bool, error)
@@ -37,6 +49,8 @@ type File interface {
 	Uid() (int, error)
 	Group() (string, error)
 	Gid() (int, error)
+	Acl() ([]string, error)
+	AclSid() ([]string, error)
 	LinkedTo() (string, error)
 	Md5() (string, error)
 	Sha256() (string, error)
@@ -245,38 +259,4 @@ func (f *DefFile) Sha256() (string, error) {
 
 func (f *DefFile) Sha512() (string, error) {
 	return f.hash(sha512Hash)
-}
-
-func getUserForUid(ctx context.Context, uid int) (string, error) {
-	if user, err := user.LookupId(strconv.Itoa(uid)); err == nil {
-		return user.Username, nil
-	}
-
-	cmd, ctxErr := runHelperCommand(ctx, "getent", "passwd", strconv.Itoa(uid))
-	if ctxErr != nil {
-		return "", ctxErr
-	}
-	if cmd.Err != nil {
-		return "", fmt.Errorf("no matching entries in passwd file. getent passwd: %w", cmd.Err)
-	}
-	userS := strings.Split(cmd.Stdout.String(), ":")[0]
-
-	return userS, nil
-}
-
-func getGroupForGid(ctx context.Context, gid int) (string, error) {
-	if group, err := user.LookupGroupId(strconv.Itoa(gid)); err == nil {
-		return group.Name, nil
-	}
-
-	cmd, ctxErr := runHelperCommand(ctx, "getent", "group", strconv.Itoa(gid))
-	if ctxErr != nil {
-		return "", ctxErr
-	}
-	if cmd.Err != nil {
-		return "", fmt.Errorf("no matching entries in group file. getent group: %w", cmd.Err)
-	}
-	groupS := strings.Split(cmd.Stdout.String(), ":")[0]
-
-	return groupS, nil
 }

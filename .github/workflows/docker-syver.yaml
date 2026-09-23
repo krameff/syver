@@ -88,6 +88,12 @@ jobs:
           # index, so the default publishes a package page with no description.
           # See the matching annotations block in .goreleaser.yaml, which covers
           # the release images the same way.
+          #
+          # This step does NOT set the description: metadata-action derives
+          # org.opencontainers.image.description from the GitHub REPOSITORY
+          # description, which is why the :main image and the release images can
+          # disagree. Both must read the README H1, "Syver - Quick and Easy
+          # server validation". Settled 2026-09-19.
           DOCKER_METADATA_ANNOTATIONS_LEVELS: index,manifest
 
       - name: Build syver binaries

@@ -43,6 +43,28 @@ lint:
 	$(info INFO: Starting build $@)
 	golangci-lint run --timeout 5m $(pkgs)
 
+# lint-cross lints the platforms the host build never compiles.
+#
+# golangci-lint resolves per-GOOS, exactly as go vet does, so a plain `make lint`
+# on Linux has never looked at a *_windows.go or *_darwin.go file. vet-cross
+# covered vet for those platforms; nothing covered LINT. Two dead functions sat in
+# system/file.go for that reason until 2026-09-21 -- unreachable from Windows and
+# invisible to every gate.
+#
+# Kept as its own target rather than folded into `lint`: it is three full runs, and
+# CI applies it on pushes to devel and main and on the release gate rather than on
+# every pull request.
+lint-cross: lint
+	$(info INFO: Starting build $@)
+	GOOS=windows GOARCH=amd64 golangci-lint run --timeout 5m $(pkgs)
+	GOOS=darwin GOARCH=amd64 golangci-lint run --timeout 5m $(pkgs)
+
+# test-security-cross adds the same platforms to the vulnerability scan. See
+# SYVER_SCAN_GOOS in ci/security-scan.sh for why it is opt-in.
+test-security-cross:
+	$(info INFO: Starting $@)
+	SYVER_SCAN_GOOS="windows darwin" ./ci/security-scan.sh
+
 vet:
 	$(info INFO: Starting build $@)
 	go vet $(pkgs)
@@ -190,6 +212,8 @@ test-dcsyver-e2e:
 test-security:
 	$(info INFO: Starting $@)
 	./ci/security-scan.sh
+
+.PHONY: lint-cross test-security-cross
 
 .PHONY: check
 check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security vet-cross

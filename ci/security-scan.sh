@@ -89,13 +89,61 @@ if (( SYVER_TRIVY_EXIT_CODE == 1 )); then
   exit 1
 fi
 
-run_govulncheck() {
-  echo "==> govulncheck"
+# govulncheck_once runs the scanner for whatever GOOS is set in the environment.
+#
+# THE GOOS MUST REACH THE ANALYSIS, NEVER THE TOOL'S OWN BUILD. The fallback here
+# used to be a bare `go run ...govulncheck@version`, and with GOOS=windows set for
+# a cross-platform scan that cross-compiles THE SCANNER, producing a
+# govulncheck.exe the Linux runner cannot execute:
+#
+#   fork/exec /tmp/go-build.../exe/govulncheck.exe: exec format error
+#
+# It passed locally and failed in CI for a reason worth remembering: `command -v`
+# found an installed native binary on the dev machine, so the fallback never ran
+# there. The runner had no govulncheck, took the fallback, and broke. A path that
+# only executes on the machine you are not testing on is the one to check twice.
+#
+# So the build of the tool is pinned to the HOST by clearing GOOS/GOARCH for that
+# step alone, in a subshell so the caller's values survive for the analysis.
+govulncheck_once() {
   if command -v govulncheck >/dev/null 2>&1; then
     govulncheck ./...
-  else
-    go run "golang.org/x/vuln/cmd/govulncheck@${SYVER_GOVULNCHECK_VERSION}" ./...
+    return
   fi
+  local bin="${TMPDIR:-/tmp}/syver-govulncheck-$$"
+  if [ ! -x "${bin}" ]; then
+    # GOBIN forces the output location; GOOS/GOARCH cleared so this compiles for
+    # the machine that has to run it.
+    ( unset GOOS GOARCH
+      GOBIN="$(dirname "${bin}")" go install "golang.org/x/vuln/cmd/govulncheck@${SYVER_GOVULNCHECK_VERSION}" ) || return 1
+    mv "$(dirname "${bin}")/govulncheck" "${bin}" 2>/dev/null || true
+  fi
+  "${bin}" ./...
+}
+
+# SYVER_SCAN_GOOS lists EXTRA platforms to scan, beyond the host's.
+#
+# govulncheck's reachability analysis is per-GOOS: it builds the call graph for one
+# platform, so a default run on Linux never sees system/*_windows.go or
+# *_darwin.go. Until 2026-09-21 nothing scanned them at all, which for a release
+# whose headline is Windows support is the wrong blind spot to have -- the same
+# shape as lint never running cross-platform (see the lint-cross target).
+#
+# Left EMPTY by default deliberately. Each extra platform is another full analysis,
+# and `make check` runs on every local edit; `make test-security-cross` sets it, and
+# CI applies it on pushes to devel and main and on the release gate rather than on
+# every pull request.
+run_govulncheck() {
+  echo "==> govulncheck (host: $(go env GOOS))"
+  govulncheck_once
+  for goos in ${SYVER_SCAN_GOOS:-}; do
+    if [ "${goos}" = "$(go env GOOS)" ]; then
+      echo "==> govulncheck (${goos}): already covered by the host run, skipping"
+      continue
+    fi
+    echo "==> govulncheck (GOOS=${goos})"
+    GOOS="${goos}" govulncheck_once
+  done
 }
 
 run_trivy() {

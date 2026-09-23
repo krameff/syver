@@ -140,6 +140,27 @@ definitions:
         default: root
       gid:
         type: integer
+      acl:
+        type:
+          - array
+          - "null"
+        description: >-
+          Windows only. The file's DACL, one element per ACE, spelled as icacls
+          prints it: PRINCIPAL:(I)(DENY)(OI)(CI)(IO)(NP)(RIGHTS), with each
+          parenthesised group present only when it applies. Principals are
+          DOMAIN\Name, which is LOCALISED -- use acl-sid for a spec that must run
+          on a non-English Windows. A bare list asserts the ACEs are present;
+          consist-of asserts these and no others. Errors on every other platform
+          rather than reporting an empty list.
+      acl-sid:
+        type:
+          - array
+          - "null"
+        description: >-
+          Windows only. Exactly the ACEs acl reports, in the same order, with
+          principals as SID strings (S-1-5-32-544) instead of localised names.
+          The portable form: a spec written with acl-sid runs on any Windows
+          locale. syver add emits acl, not this; switching is a deliberate edit.
       filetype:
         type: string
         default: file
@@ -528,6 +549,50 @@ definitions:
       running:
         type: boolean
         default: true
+      start-type:
+        type: string
+        description: >-
+          Windows only. How the service starts, as the Service Control Manager
+          records it. 'enabled' above is derived from this field and is true for
+          boot, system and automatic.
+        enum:
+          - boot
+          - system
+          - automatic
+          - manual
+          - disabled
+      delayed-start:
+        type: boolean
+        description: >-
+          Windows only. A separate configuration flag, not a sixth start type:
+          the Services UI's "Automatic (Delayed Start)" is start-type automatic
+          plus this. Only meaningful alongside an automatic start type.
+      run-as:
+        type: string
+        description: >-
+          Windows only. The account the service runs under, exactly as the SCM
+          stores it and NOT normalised -- 'LocalSystem', 'localSystem' and
+          'NT AUTHORITY\\LocalService' are all forms Windows itself reports.
+      dependencies:
+        type:
+          - array
+          - "null"
+        description: >-
+          Windows only. Services and load-order groups that must start first,
+          verbatim from the SCM. A name beginning with '+' is a load-order group
+          rather than a service, which is how Windows spells it.
+      display-name:
+        type: string
+        description: >-
+          Windows only. The friendly name, as distinct from the service key name.
+          LOCALISED: a spec that must run on more than one Windows language should
+          assert the key name instead.
+      pid:
+        type: integer
+        description: >-
+          Windows only. The process the service runs in, 0 when it is not running.
+          'syver add service' does not emit it, because a pid changes at every
+          restart; assert a range such as 'gt: 0' rather than a value.
       skip:
         type: boolean
         default: false

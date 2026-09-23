@@ -1,112 +1,93 @@
 package system
 
 import (
-	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/token"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// These tests exist because the previous construction was exploitable and
-// looked hardened. service_windows.go built its PowerShell probes with
+// This file used to test psSingleQuote, the PowerShell escaper. FEAT-014 deleted
+// that escaper along with the subprocess it protected: `service:` now reads the
+// Service Control Manager through golang.org/x/sys/windows, passing the service
+// name as a UTF-16 string argument. There is no command line, so there is nothing
+// to quote and no injection surface.
+//
+// THE TESTS WERE NOT SIMPLY DELETED WITH IT. The vulnerability is worth
+// remembering because the construction that carried it looked hardened:
+// service_windows.go built its probes with
 // fmt.Sprintf("... -Name %q ...", s.service), and %q is GO escaping, not
-// PowerShell escaping. PowerShell DOUBLE-quoted strings interpolate $(...),
-// executing it, and %q does not touch `$`. A gossfile service name of
-// `$(calc.exe)` therefore executed, with no quote-breaking required.
+// PowerShell escaping. PowerShell double-quoted strings interpolate $(...) and
+// execute it, and %q does not touch `$` -- so a gossfile service name of
+// `$(calc.exe)` ran calc.exe with no quote-breaking required. The service name is
+// the literal YAML key under `service:`, nothing validates it, and the built
+// string reached CreateProcess verbatim through SysProcAttr.CmdLine, so Go's own
+// argv escaping never applied.
 //
-// The service name is the literal YAML key under `service:` in a gossfile, and
-// nothing validates it: invalidService() blocks only '/' and is never called
-// from the Windows path anyway. The built string reaches CreateProcess verbatim
-// through SysProcAttr.CmdLine, so Go's argv escaping never applies.
+// So the value-level tests are replaced by a SOURCE-level invariant, the same
+// technique as windows_unsupported_guard_test.go and waitdelay_guard_test.go: it
+// is checked from Linux, it needs no Windows host, and unlike the old tests it
+// cannot be satisfied by a reimplementation that happens to quote correctly while
+// reintroducing the surface.
 //
-// Every payload below was chosen because it defeats the OLD construction.
+// It also pins a FEAT-014 acceptance criterion directly: "No PowerShell
+// subprocess remains in the `service:` path."
+//
+// If a PowerShell probe is ever genuinely needed again, this test failing is the
+// intended outcome, not an obstacle: read the paragraph above, restore an escaper
+// with single-quoted semantics (single quotes interpolate nothing; the only
+// metacharacter is ' itself, doubled), and pin it with value-level tests as well
+// as this one.
+func TestNoPowershellSubprocessInTheServicePath(t *testing.T) {
+	// Read the directory and parse file by file rather than with parser.ParseDir,
+	// for the reason the other guards in this package record: per-GOOS resolution
+	// would hide every *_windows.go file from a Linux run and defeat the check.
+	entries, err := os.ReadDir(".")
+	if err != nil {
+		t.Fatalf("reading package directory: %v", err)
+	}
 
-var injectionPayloads = []struct {
-	name    string
-	service string
-}{
-	{"subexpression", `$(calc.exe)`},
-	{"subexpression in the middle", `Spooler$(calc.exe)`},
-	{"variable expansion", `$env:USERNAME`},
-	{"quote break", `Spooler"; Start-Process calc.exe; "`},
-	{"backtick escape", "Spooler`nStart-Process calc.exe"},
-	{"statement separator", `Spooler; Start-Process calc.exe`},
-	{"single quote", `it's-a-service`},
-	{"only quotes", `'''`},
-	{"backslash", `C:\Windows\System32`},
-	{"benign", `Spooler`},
-}
+	var scanned int
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(name)
+		if err != nil {
+			t.Fatalf("reading %s: %v", name, err)
+		}
+		file, err := parser.ParseFile(token.NewFileSet(), name, src, parser.SkipObjectResolution)
+		if err != nil {
+			t.Fatalf("parsing %s: %v", name, err)
+		}
+		scanned++
 
-// TestPsSingleQuoteNeutralisesPayloads pins the property the fix depends on:
-// the result is a PowerShell single-quoted literal, and single-quoted strings
-// interpolate nothing at all. The only metacharacter is ' itself, doubled.
-func TestPsSingleQuoteNeutralisesPayloads(t *testing.T) {
-	for _, tc := range injectionPayloads {
-		t.Run(tc.name, func(t *testing.T) {
-			got := psSingleQuote(tc.service)
-
-			if !strings.HasPrefix(got, "'") || !strings.HasSuffix(got, "'") {
-				t.Fatalf("result must be a single-quoted literal, got %s", got)
+		ast.Inspect(file, func(n ast.Node) bool {
+			sel, ok := n.(*ast.SelectorExpr)
+			if !ok {
+				return true
 			}
-
-			// The body must contain no lone ' -- every one is doubled. Strip the
-			// outer pair, then every remaining quote must come in pairs.
-			body := got[1 : len(got)-1]
-			for i := 0; i < len(body); i++ {
-				if body[i] != '\'' {
-					continue
-				}
-				if i+1 >= len(body) || body[i+1] != '\'' {
-					t.Fatalf("lone %q at offset %d in %s -- this terminates the "+
-						"literal and lets the rest run as code", "'", i, got)
-				}
-				i++ // skip the pair
+			// util.NewCommandForWindowsPowershell / ...Context. The constructor is
+			// still exported from util -- removing an exported symbol would be a
+			// public API break in a minor release -- so the invariant is that
+			// nothing in system/ CALLS it, not that it does not exist.
+			if strings.HasPrefix(sel.Sel.Name, "NewCommandForWindowsPowershell") {
+				t.Errorf("%s calls %s: the service path must not shell out to PowerShell. "+
+					"Read this file's header before adding one back.",
+					filepath.Base(name), sel.Sel.Name)
 			}
-
-			// Round-trip: undoubling the body returns the original exactly, so
-			// the quoting is lossless as well as safe.
-			if undone := strings.ReplaceAll(body, "''", "'"); undone != tc.service {
-				t.Errorf("not lossless: got %q back, want %q", undone, tc.service)
-			}
+			return true
 		})
 	}
-}
 
-// TestServiceProbesQuoteTheServiceName builds the command strings exactly as
-// the three probes in service_windows.go do and asserts the payload is inside
-// a single-quoted literal. Kept here rather than in service_windows.go so it
-// runs on Linux -- the defect is in string construction, which is not
-// platform-specific even though only the Windows path reaches it.
-func TestServiceProbesQuoteTheServiceName(t *testing.T) {
-	probes := []struct {
-		name   string
-		format string
-	}{
-		{"Exists", "if (Get-Service -Name %s -ErrorAction SilentlyContinue) { 'True' } else { 'False' }"},
-		{"Enabled", "$s = Get-Service -Name %s -ErrorAction SilentlyContinue; if ($s) { 'EXISTS|' + $s.StartType } else { 'ABSENT' }"},
-		{"Running", "$s = Get-Service -Name %s -ErrorAction SilentlyContinue; if ($s) { 'EXISTS|' + $s.Status } else { 'ABSENT' }"},
-	}
-
-	for _, p := range probes {
-		for _, tc := range injectionPayloads {
-			t.Run(p.name+"/"+tc.name, func(t *testing.T) {
-				cmdLine := fmt.Sprintf(p.format, psSingleQuote(tc.service))
-
-				want := "-Name " + psSingleQuote(tc.service)
-				if !strings.Contains(cmdLine, want) {
-					t.Fatalf("service name is not single-quoted in the command line.\n got: %s\nwant substring: %s", cmdLine, want)
-				}
-
-				// A raw $( in the command line is only safe inside single
-				// quotes. If the payload contributed one that is NOT inside the
-				// quoted literal, the probe is injectable again.
-				if strings.Contains(tc.service, "$(") {
-					quoted := psSingleQuote(tc.service)
-					outside := strings.ReplaceAll(cmdLine, quoted, "")
-					if strings.Contains(outside, "$(") {
-						t.Errorf("payload's $( escaped the quoted literal: %s", cmdLine)
-					}
-				}
-			})
-		}
+	// A guard that scans nothing passes vacuously. This package has dozens of
+	// non-test files; if the count collapses, the walk is broken, not the code.
+	if scanned < 10 {
+		t.Errorf("scanned only %d non-test files in system/, which suggests this guard "+
+			"has lost its reach rather than the package having shrunk", scanned)
 	}
 }

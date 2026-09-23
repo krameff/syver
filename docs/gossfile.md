@@ -393,6 +393,66 @@ file:
 
 `contents` can be a string or a [pattern](#matchers)
 
+#### `acl` and `acl-sid` (Windows only)
+
+`acl` reports the file's DACL, one list element per ACE, spelled the way `icacls`
+prints it -- so a failing assertion can be compared against `icacls <path>` with
+no translation step:
+
+```yaml
+file:
+  C:\Windows\System32\drivers\etc\hosts:
+    exists: true
+    # every ACE must be present; others may exist
+    acl:
+    - 'NT AUTHORITY\SYSTEM:(I)(F)'
+    - 'BUILTIN\Administrators:(I)(F)'
+    - 'BUILTIN\Users:(I)(RX)'
+  C:\ProgramData\app\secrets.dat:
+    exists: true
+    # these ACEs and NO others -- the form a hardening control wants
+    acl:
+      consist-of:
+      - 'NT AUTHORITY\SYSTEM:(F)'
+      - 'BUILTIN\Administrators:(F)'
+    # and nothing may be inherited from the parent
+    acl-sid:
+      not:
+        contain-element:
+          contain-substring: '(I)'
+```
+
+An element is `PRINCIPAL:(I)(DENY)(OI)(CI)(IO)(NP)(RIGHTS)`, with each
+parenthesised group present only when it applies, in that order. `(I)` marks an
+inherited ACE, `(DENY)` a deny ACE, the rest are inheritance propagation flags,
+and `RIGHTS` is a simple-rights letter (`F`, `M`, `RX`, `R`, `W`, `D`, `N`) or a
+comma-joined list of specific tokens (`GR,GE`, `RD,WD,X`, ...), exactly as
+`icacls /?` documents them.
+
+Because it is an ordinary list, every [array matcher](#matchers) applies: a bare
+list means "at least these", `consist-of` means "these and no others", and
+`contain-element` with a string matcher tests one ACE. The same principal can
+appear more than once, which is normal rather than exotic -- on `C:\Windows`,
+`BUILTIN\Administrators` holds `(M)` on the directory itself and
+`(OI)(CI)(IO)(F)` for the things inside it.
+
+`acl-sid` is the same ACEs in the same order with principals as SID strings.
+**Prefer it for any spec that must run on more than one Windows locale**:
+`BUILTIN\Administrators` is a localised name and a spec written on English
+Windows will not match a German host, whereas `S-1-5-32-544` is the same
+everywhere. `syver add` writes `acl`, because it exists to give you something
+readable to start from; switching the key is a deliberate edit.
+
+Both attributes report the DACL as it stands. Neither computes *effective*
+access for a principal, which would fold in group membership and deny
+precedence and could no longer be compared against `icacls`. Audit entries (the
+SACL) are not read at all: that needs a privilege beyond what reading
+permissions requires.
+
+On any platform other than Windows both attributes **error** rather than
+reporting an empty list, so a cross-platform gossfile fails loudly instead of
+quietly agreeing with itself.
+
 ### gossfile
 
 Import other gossfiles from this one. This is the best way to maintain a large number of tests, and/or create profiles.
@@ -807,6 +867,46 @@ service:
 ```
 
 `runlevels` is only supported on Alpine init, sysv init, and upstart
+
+#### Windows-only service attributes
+
+On Windows, `service:` reads the Service Control Manager directly and six further
+attributes are available:
+
+```yaml
+service:
+  EventLog:
+    enabled: true
+    running: true
+    start-type: automatic     # boot, system, automatic, manual, disabled
+    delayed-start: false
+    run-as: 'NT AUTHORITY\LocalService'
+    display-name: Windows Event Log
+    pid:
+      gt: 0                   # a range, not a value -- see below
+  Dnscache:
+    dependencies:
+      contain-element: nsi
+```
+
+* `start-type` is what `enabled` is derived from. `enabled` is true for `boot`,
+  `system` and `automatic`.
+* `delayed-start` is a separate flag rather than a sixth start type: the Services
+  UI's "Automatic (Delayed Start)" is `start-type: automatic` plus
+  `delayed-start: true`.
+* `run-as` is the account as the SCM stores it, **not normalised**. Windows itself
+  reports `LocalSystem`, `localSystem` and `NT AUTHORITY\LocalService` in
+  different places, and syver reports what the machine says.
+* `dependencies` lists services and load-order groups that must start first,
+  verbatim. A name beginning with `+` is a load-order group, not a service.
+* `display-name` is **localised**. Assert the service key name instead in a spec
+  that has to run on more than one Windows language.
+* `pid` is 0 when the service is not running, and `syver add service` does not
+  emit it: a pid changes at every restart, so a generated spec pinning one would
+  fail at the next reboot. Assert a range.
+
+All six error on every other platform, so a spec that sets one on Linux fails
+rather than quietly comparing against an empty value.
 
 !!! note
     This will **not** automatically check if the process is alive, it will check the status from `systemd`/`upstart`/`init`.

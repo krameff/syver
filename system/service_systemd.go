@@ -9,6 +9,7 @@ import (
 )
 
 type ServiceSystemd struct {
+	windowsOnlyServiceAttrs // FEAT-014: the six Windows-only attributes, as errors
 	// ctx is the Validate context this service was constructed for. It is held
 	// rather than passed per call because the Service interface's methods take
 	// no arguments, and it is what bounds and cancels the systemctl subprocesses

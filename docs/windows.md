@@ -17,6 +17,37 @@ syver --use-alpha=1 validate
 Without it the binary exits with an error pointing here. `GOSS_USE_ALPHA=1` is
 still honoured.
 
+## Privileges: run syver as an administrator
+
+**The supported configuration on Windows is an elevated session.** Hardening
+content reaches places an ordinary account cannot read -- protected registry
+hives, audit policy, user-rights assignment -- so a spec that checks anything
+substantial needs it, and syver does not try to hide a permission failure behind
+a plausible-looking answer.
+
+That is a statement about the supported configuration, not a claim that nothing
+works without it. Measured on Windows Server 2025: every fixture in syver's own
+Windows suite produces identical results run elevated and run as a standard user.
+So unelevated runs are not *broken*; they are simply not what syver is tested and
+supported for, and a check whose target the account cannot read errors rather
+than passing.
+
+One check is deliberately kept working without elevation. `service:` opens the
+service control manager with `SC_MANAGER_CONNECT` alone, and each service with
+`SERVICE_QUERY_CONFIG|SERVICE_QUERY_STATUS` -- the minimum that answers the
+question -- because a read-only check demanding administrator would regress
+exactly the locked-down hosts syver exists to validate.
+
+Verified as a standard user rather than assumed, and that mattered: asking the
+SCM for one right more than it needs is refused outright on a network logon.
+Authenticated Users are granted `SC_MANAGER_CONNECT` and nothing else; the right
+to enumerate services goes to *interactive* users. So neither CI, which runs as
+an administrator, nor an interactive test could have found it.
+
+`file:` `acl` needs `READ_CONTROL` on the file, which an ordinary account
+normally holds on anything it can read. Audit entries (the SACL) need a further
+privilege and are not read at all.
+
 ## Quoting: `cmd.exe` and PowerShell do not agree
 
 **`cmd.exe` does not treat `'` as a quote character.** A single-quoted argument
@@ -60,11 +91,45 @@ The legacy `GOSS_*` names are still honoured, and an exported-but-empty
 
 ## What works
 
-`file:` (existence, contents, size), `command:`, `http:`, `dns:`, `addr:`,
-`process:` (`running` and `user`, but not `status`), `service:`, `registry:`,
-and `exists` on `user:`, `group:` and `interface:`.
+`file:` (existence, contents, size, `owner`, `group`, `acl`, `acl-sid`),
+`command:`, `http:`, `dns:`, `addr:`, `process:` (`running` and `user`, but not
+`status`), `service:`, `registry:`, `mount:` (drive letters), and `exists` on
+`user:`, `group:` and `interface:`.
+
+**`file:` reports permissions through `acl` and `acl-sid`, not `mode`.** Each
+element is one ACE spelled as `icacls` prints it, so a failure can be compared
+against `icacls <path>` directly:
+
+```yaml
+file:
+  C:\Windows\System32\drivers\etc\hosts:
+    exists: true
+    owner: 'NT SERVICE\TrustedInstaller'
+    acl:
+    - 'NT AUTHORITY\SYSTEM:(I)(F)'
+    - 'BUILTIN\Administrators:(I)(F)'
+    - 'BUILTIN\Users:(I)(RX)'
+```
+
+**Write `acl-sid` instead if the spec has to run on more than one Windows
+locale.** `BUILTIN\Administrators` is a *localised* name -- a German host calls
+the same account `VORDEFINIERT\Administratoren` -- whereas `S-1-5-32-544` is the
+same everywhere. `acl-sid` reports exactly the same ACEs in the same order with
+SID principals, so converting a spec is a key rename. `syver add file` writes
+`acl`, the readable form; making it portable is a deliberate edit.
+
+A bare list asserts those ACEs are present. `consist-of` asserts these and no
+others, which is what a hardening control usually means. See
+[gossfile](gossfile.md#acl-and-acl-sid-windows-only) for the element grammar and
+the matchers.
 
 `registry:` is Windows-only, and is the resource most worth using here.
+
+**`service:` reads the Service Control Manager directly** and reports six further
+attributes: `start-type`, `delayed-start`, `run-as`, `dependencies`,
+`display-name` and `pid`. It no longer shells out to PowerShell at all, which also
+fixes a service name containing a space -- that never worked through the old
+command line. See [gossfile](gossfile.md#windows-only-service-attributes).
 
 `command:` timeouts are also **stronger** here than on Linux and macOS. A
 timed-out command's whole process tree is terminated through a Job Object, which
@@ -115,6 +180,16 @@ attempting a fix that cannot work.
 SID (`S-1-5-21-...`). syver parses these attributes as integers, so there is no
 value an implementation could return. This is a category mismatch, not missing
 work.
+
+**`file:` `uid` / `gid`.** The same category mismatch: a file's owner is a SID,
+and these attributes are integers. Use `owner:`, or `acl:` for permissions.
+
+**`file:` `mode`.** This one is a *decision*, not a limitation. A POSIX mode has
+no faithful Windows equivalent, and deriving one from the ACL could only be
+lossy -- a plausible `0644` computed from a DACL is the kind of confident wrong
+answer that makes a cross-platform gossfile pass on Windows for the wrong
+reason. `acl:` answers the question `mode:` is asking. It reports the
+unsupported error permanently rather than guessing.
 
 **`kernel-param:`.** There is no Windows equivalent of `/proc/sys`.
 
@@ -184,10 +259,10 @@ that three fixtures assert nothing at all.
 
 | Fixture | Live entries | Assertions | Notes |
 | --- | --- | --- | --- |
-| `gossfile` | 13 of 13 | 50 | aggregate of the others |
+| `gossfile` | 13 of 13 | 61 | aggregate of the others, so its count is the sum of theirs |
 | `command` | 6 of 6 | 18 | |
 | `registry` | 12 of 15 | 20 | 3 skipped: one GPO-delivered, two Defender view-difference |
-| `file` | 2 of 2 | 7 | includes an absent-file case |
+| `file` | 3 of 3 | 11 | includes an absent-file case, and owner plus `acl`/`acl-sid` on a system path |
 | `http` | 1 of 1 | 3 | |
 | `group` | 3 of 3 | 3 | includes an absent-account case |
 | `addr` | 2 of 2 | 2 | |
@@ -195,7 +270,7 @@ that three fixtures assert nothing at all.
 | `interface` | 2 of 2 | 2 | includes an absent-adapter case |
 | `process` | 2 of 2 | 2 | |
 | `mount` | 1 of 1 | 3 | drive letter `c:` |
-| `service` | 1 of 1 | 2 | |
+| `service` | 2 of 2 | 9 | the six SCM attributes, and a real MULTI_SZ dependency list |
 | `user` | 2 of 2 | 2 | includes an absent-account case |
 | `add`, `help`, `validate` | 1 of 1 each | 2 each | CLI command fixtures |
 | `autoadd` | **0 of 1** | 2 | asserts nothing |
@@ -257,8 +332,20 @@ being checked.
   Windows output.
 * `syver add service <name>` fails for a service that does not exist, rather
   than writing a plausible `enabled: false` block.
-* `syver add file <path>` omits `mode`, `owner` and `group` rather than writing
-  a fabricated `"-1"`. It still exits 0.
+* `service: <name>: {enabled: true}` now **passes** for a service whose start type
+  is `boot` or `system`, where it used to report `enabled: false`. Every kernel
+  driver and much of the early boot chain is in that category, so a spec that
+  asserted `enabled: false` against one was passing on a wrong answer. The old
+  implementation substring-matched the word "Automatic" and those two start types
+  do not contain it.
+* `syver add service <name>` now also writes `start-type`, `delayed-start`,
+  `run-as`, `display-name` and, where the service has any, `dependencies`. It does
+  not write `pid`: a pid changes at every restart.
+* `syver add file <path>` now writes a real `owner`, `group` and `acl`, read from
+  the file's security descriptor. It previously omitted all three rather than
+  writing a fabricated `"-1"`, and before that it wrote the fabrication. `mode`,
+  `uid` and `gid` are still omitted, permanently -- see "Cannot work, ever". It
+  still exits 0 on a platform that cannot report ACLs at all.
 * `user:`, `group:` and `interface:` now distinguish "the lookup ran and found
   nothing" from "the lookup could not run". The first is unchanged; the second
   now errors. On a domain-joined host, an unreachable domain controller is the

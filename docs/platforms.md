@@ -105,8 +105,10 @@ This matrix attempts to track parity across platforms.
 |                     | exists              | {{ fully_supported }}   | {{ work_partially }}   | {{community_supported}} |
 |                     | mode                | {{ fully_supported }}   | {{ work_partially }}   | {{ not_implemented }}   |
 |                     | size                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-|                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ not_implemented }}   |
-|                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ not_implemented }}   |
+|                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ work_partially }}    |
+|                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ work_partially }}    |
+|                     | acl                 | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | acl-sid             | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | filetype            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | contains            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | md5                 | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
@@ -158,6 +160,12 @@ This matrix attempts to track parity across platforms.
 |                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | runlevels           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | start-type          | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | delayed-start       | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | run-as              | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | dependencies        | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | display-name        | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
+|                     | pid                 | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 | **user**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | uid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
@@ -210,9 +218,15 @@ explicit error instead:
   to explicitly set it`. `syver add package` **hard-fails** the same way
   (this differs from `file`, below, which only omits keys -- there is no
   honest "installed: unknown" to write for a package).
-* `syver add file <path>` -- `mode`, `owner` and `group` are simply
-  **omitted** from the generated spec rather than written as a fabricated
-  `"-1"`. `syver add` still exits 0.
+* `syver add file <path>` -- `owner`, `group` and `acl` are now **written from
+  the file's security descriptor**. `mode`, `uid` and `gid` remain **omitted**
+  rather than written as a fabricated `"-1"`: the first by decision (a POSIX mode
+  derived from a DACL would be lossy and would let a cross-platform spec pass for
+  the wrong reason) and the other two as a category mismatch, since Windows
+  identifies accounts by SID. `syver add` still exits 0.
+  `acl-sid` is deliberately not emitted -- it is the locale-proof form and
+  switching to it is an explicit edit. See
+  [windows](windows.md#what-works).
 * `registry: <key>: {exists: false}` -- a key that exists but could not be
   read (e.g. `ERROR_ACCESS_DENIED`) now errors, instead of being reported as
   absent. A genuinely absent key still reports `exists: false` as before.
@@ -223,6 +237,12 @@ explicit error instead:
   exist, rather than writing a plausible `enabled: false` block for a name
   that was never there. This is the same shape as `package` above, and the
   opposite of `file`, which only omits keys.
+* `service:` on Windows reads the Service Control Manager rather than shelling
+  out to PowerShell, and adds `start-type`, `delayed-start`, `run-as`,
+  `dependencies`, `display-name` and `pid`. `enabled: true` now holds for a
+  service whose start type is `boot` or `system`; it previously reported false for
+  both. The SCM is opened with read-only access rights so the check still works
+  for a non-administrator.
 * `user: <name>: {exists: false}`, `group:` and `interface:` -- these now
   distinguish "the lookup ran and found nothing" from "the lookup could not
   run". The first still reports `exists: false` exactly as before; the second
