@@ -2,9 +2,6 @@
 
 ## 0.13.0 based on krameff/goss v0.6.0 - file owners and permissions on Windows
 
-**NOT RELEASED.** Assembled on a branch; the fields in `RELEASES.md` are filled
-at tag time rather than written now.
-
 - file owners and permissions on Windows
   - `file:` reports a real `owner` and `group` on Windows. Both previously
     errored as unsupported, and before that they wrote a fabricated `"-1"`, so a
