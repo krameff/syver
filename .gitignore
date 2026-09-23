@@ -37,6 +37,13 @@ tmp/
 /extras/dcsyver/dcsyver.sha256
 /extras/ksyver/ksyver.sha256
 
+# Rendered terminal recordings. The tape and the cards are the source; the
+# video is a build output, published as a release asset and never committed.
+# The .png cards are NOT ignored -- they are small, stable and committed.
+/development/demo/*.mp4
+/development/demo/*.gif
+/development/demo/*.webm
+
 # AI
 IMPROVEMENTS_PLAN.md
 .claude/
