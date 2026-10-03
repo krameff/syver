@@ -294,3 +294,174 @@ func TestWrapperSyverTempDir(t *testing.T) {
 		}
 	}
 }
+
+// stagingRuntime stands in for docker, podman or kubectl and snapshots whatever
+// the wrapper hands the container: the source of a `-v SRC:...` bind mount, or
+// the local source of a `cp SRC/. ...`. The staging directory itself is removed
+// when the wrapper exits, so this copy is the only way to see what it staged.
+const stagingRuntime = `#!/bin/bash
+echo "$*" >> "$FAKE_RUNTIME_LOG"
+prev=
+for a in "$@"; do
+  if [ "$prev" = "-v" ]; then cp -r "${a%%:*}/." "$FAKE_STAGE/"; fi
+  prev=$a
+done
+if [ "$1" = cp ] && [ "${2%/.}" != "$2" ]; then cp -r "$2" "$FAKE_STAGE/"; fi
+case "$1" in
+  run|create) echo fakecontainerid0 ;;
+  inspect) echo true ;;
+esac
+exit 0
+`
+
+// TestWrapperSpecDiscovery proves every wrapper, the syver-named ones and the
+// goss-named shims alike, finds a spec under the same names the binary does:
+// syver.yaml, syver.yml, goss.yaml, goss.yml, in that order, and the same for
+// the wait file. `syver add` writes syver.yaml by default, so a wrapper that
+// only looks for goss.yaml stages no spec at all for a project made with the
+// current CLI, and the run then fails inside the container.
+//
+// REVERT-PROOF: restoring the goss.yaml-only copy in any script fails that
+// script's "syver.yaml only", "syver.yaml wins" and "syver_wait.yaml" cases.
+func TestWrapperSpecDiscovery(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the wrappers are bash scripts driving a local container runtime")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+
+	type wrapper struct {
+		dir, script, runtime string
+		args                 []string
+		// fileKeepsName is true where an explicit GOSS_FILE is staged under its
+		// own basename rather than as goss.yaml.
+		fileKeepsName bool
+		// noGossFile marks the Kubernetes pair, which has never read GOSS_FILE.
+		noGossFile bool
+	}
+	wrappers := []wrapper{
+		{dir: "dsyver", script: "dsyver", runtime: "podman", args: []string{"run", "example/image"}},
+		{dir: "dsyver", script: "dgoss", runtime: "podman", args: []string{"run", "example/image"}},
+		{dir: "dcsyver", script: "dcsyver", runtime: "docker", args: []string{"run", "svc"}, fileKeepsName: true},
+		{dir: "dcsyver", script: "dcgoss", runtime: "docker", args: []string{"run", "svc"}, fileKeepsName: true},
+		{dir: "ksyver", script: "ksyver", runtime: "kubectl", args: []string{"run", "-i", "example/image"}, noGossFile: true},
+		{dir: "ksyver", script: "kgoss", runtime: "kubectl", args: []string{"run", "-i", "example/image"}, noGossFile: true},
+	}
+
+	tests := []struct {
+		name     string
+		files    []string // spec files to create, each containing its own name
+		gossFile string   // GOSS_FILE, or "" for unset
+		want     string   // which file's content must be staged as the spec
+		wantWait string   // which file's content must be staged as the wait file
+	}{
+		{name: "syver.yaml only", files: []string{"syver.yaml"}, want: "syver.yaml"},
+		{name: "syver.yml only", files: []string{"syver.yml"}, want: "syver.yml"},
+		{name: "goss.yml only", files: []string{"goss.yml"}, want: "goss.yml"},
+		{name: "syver.yaml wins over goss.yaml", files: []string{"goss.yaml", "syver.yaml"}, want: "syver.yaml"},
+		{name: "explicit GOSS_FILE wins", files: []string{"syver.yaml", "custom.yaml"}, gossFile: "custom.yaml", want: "custom.yaml"},
+		{
+			name: "syver_wait.yaml is staged and waited on", files: []string{"goss.yaml", "syver_wait.yaml"},
+			want: "goss.yaml", wantWait: "syver_wait.yaml",
+		},
+	}
+
+	for _, w := range wrappers {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", w.dir, w.script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range tests {
+			t.Run(w.script+"/"+tc.name, func(t *testing.T) {
+				if tc.gossFile != "" && w.noGossFile {
+					t.Skip("this wrapper does not read GOSS_FILE")
+				}
+				dir := t.TempDir()
+				binDir := filepath.Join(dir, "bin")
+				specDir := filepath.Join(dir, "spec")
+				stage := filepath.Join(dir, "stage")
+				for _, d := range []string{binDir, specDir, stage} {
+					if err := os.Mkdir(d, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				fake := filepath.Join(binDir, w.runtime)
+				if err := os.WriteFile(fake, []byte(stagingRuntime), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				for _, f := range tc.files {
+					if err := os.WriteFile(filepath.Join(specDir, f), []byte(f+"\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				// The compose wrappers refuse to start without a compose file.
+				if err := os.WriteFile(filepath.Join(specDir, "compose.yaml"), []byte("services: {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				fakeSyver := filepath.Join(dir, "syver")
+				if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				callLog := filepath.Join(dir, "calls.log")
+
+				cmd := exec.Command(bash, append([]string{scriptPath}, w.args...)...)
+				cmd.Dir = specDir
+				cmd.Env = append(os.Environ(),
+					"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"CONTAINER_RUNTIME="+w.runtime,
+					"COMPOSE_BIN=docker compose",
+					"GOSS_KUBECTL_BIN="+fake,
+					"GOSS_FILES_PATH="+specDir,
+					"GOSS_PATH="+fakeSyver,
+					"GOSS_SLEEP=0",
+					"DGOSS_TEMP_DIR="+dir,
+					"FAKE_RUNTIME_LOG="+callLog,
+					"FAKE_STAGE="+stage,
+				)
+				if tc.gossFile != "" {
+					cmd.Env = append(cmd.Env, "GOSS_FILE="+tc.gossFile)
+				}
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				runErr := cmd.Run()
+				callBytes, _ := os.ReadFile(callLog)
+				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + string(callBytes)
+				if runErr != nil {
+					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
+				}
+
+				staged := "goss.yaml"
+				if tc.gossFile != "" && w.fileKeepsName {
+					staged = tc.gossFile
+				}
+				got, err := os.ReadFile(filepath.Join(stage, staged))
+				if err != nil {
+					t.Fatalf("no spec staged as %s: %v\n%s", staged, err, detail)
+				}
+				if strings.TrimSpace(string(got)) != tc.want {
+					t.Errorf("staged spec is %q, want the content of %s\n%s", got, tc.want, detail)
+				}
+
+				waited := strings.Contains(string(callBytes), "goss_wait.yaml")
+				if tc.wantWait == "" {
+					if waited {
+						t.Errorf("waited on a wait file that does not exist\n%s", detail)
+					}
+					return
+				}
+				got, err = os.ReadFile(filepath.Join(stage, "goss_wait.yaml"))
+				if err != nil {
+					t.Fatalf("no wait file staged: %v\n%s", err, detail)
+				}
+				if strings.TrimSpace(string(got)) != tc.wantWait {
+					t.Errorf("staged wait file is %q, want the content of %s\n%s", got, tc.wantWait, detail)
+				}
+				if !waited {
+					t.Errorf("the wait file was staged but never run\n%s", detail)
+				}
+			})
+		}
+	}
+}

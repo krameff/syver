@@ -52,12 +52,40 @@ cleanup() {
     fi
 }
 
+# Echoes the first of the given basenames that exists under GOSS_FILES_PATH,
+# or nothing. Mirrors resolveSpecPath() in cmd/syver/syver.go: syver-named
+# files win over goss-named ones. Needed because `syver add` now defaults to
+# writing ./syver.yaml, so gating the copy on goss.yaml alone would silently
+# stage no spec at all for a project created with the current CLI.
+first_existing(){
+    local f
+    for f in "$@"; do
+        if [[ -e "${GOSS_FILES_PATH}/${f}" ]]; then
+            printf '%s\n' "${GOSS_FILES_PATH}/${f}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 run(){
     # Copy in goss
     cp "${GOSS_PATH}" "$tmp_dir/goss"
     chmod 755 "$tmp_dir/goss"
-    [[ -e "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}" ]] && install -m ugo+rw "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}" "$tmp_dir"
-    [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]] && install -m ugo+rw "${GOSS_FILES_PATH}/goss_wait.yaml" "$tmp_dir"
+    # When GOSS_FILE is set it stays staged under its own basename, because the
+    # exec below reads /goss/${GOSS_FILE} -- changing that would break the
+    # explicit-override path. Only the unset case gains the syver.yaml probe,
+    # and it stages as goss.yaml to match the exec's ${GOSS_FILE:-goss.yaml} default.
+    local spec_src wait_src
+    if [[ -n "${GOSS_FILE}" ]]; then
+        spec_src="$(first_existing "${GOSS_FILE}")" || spec_src=""
+        [[ -n "$spec_src" ]] && install -m ugo+rw "$spec_src" "$tmp_dir"
+    else
+        spec_src="$(first_existing syver.yaml syver.yml goss.yaml goss.yml)" || spec_src=""
+        [[ -n "$spec_src" ]] && install -m ugo+rw "$spec_src" "$tmp_dir/goss.yaml"
+    fi
+    wait_src="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)" || wait_src=""
+    [[ -n "$wait_src" ]] && install -m ugo+rw "$wait_src" "$tmp_dir/goss_wait.yaml"
     [[ -n "${GOSS_VARS}" ]] && [[ -e "${GOSS_FILES_PATH}/${GOSS_VARS}" ]] && install -m ugo+rw "${GOSS_FILES_PATH}/${GOSS_VARS}" "$tmp_dir"
 
     # Switch between mount or cp files strategy
@@ -165,8 +193,10 @@ case "$1" in
     run)
         run "$@"
         [[ "$GOSS_SLEEP" ]] && { info "Sleeping for $GOSS_SLEEP"; sleep "$GOSS_SLEEP"; }
-        if [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]]; then
-            info "Found goss_wait.yaml, waiting for it to pass before running tests"
+        # Gate on the same candidate set the copy step used, not on goss_wait.yaml
+        # alone -- otherwise a staged syver_wait.yaml would never be waited on.
+        if wait_found="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)"; then
+            info "Found $(basename "$wait_found"), waiting for it to pass before running tests"
             if [[ -z "${GOSS_VARS}" ]]; then
                 if ! $CONTAINER_RUNTIME exec "$service" sh -c "/goss/goss -g /goss/goss_wait.yaml render | /goss/goss -g - validate $GOSS_WAIT_OPTS"; then
                     error "goss_wait.yaml never passed"
