@@ -18,7 +18,7 @@ require (
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/common v0.72.0
 	github.com/samber/lo v1.53.0
-	github.com/shirou/gopsutil/v4 v4.26.8
+	github.com/shirou/gopsutil/v4 v4.26.9
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.19.0
 	github.com/urfave/cli/v3 v3.13.0
@@ -32,7 +32,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.5.0 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
-	github.com/ebitengine/purego v0.10.2 // indirect
+	github.com/ebitengine/purego v0.11.1 // indirect
 	github.com/go-ole/go-ole v1.3.0 // indirect
 	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
