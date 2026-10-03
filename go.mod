@@ -2,7 +2,7 @@ module github.com/krameff/syver
 
 go 1.26.0
 
-toolchain go1.26.6
+toolchain go1.26.8
 
 require (
 	dario.cat/mergo v1.0.2

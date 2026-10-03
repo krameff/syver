@@ -1,6 +1,12 @@
 # Changelog
 
-## 0.13.1 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrappers
+## 0.14.0 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrappers
+
+- documentation
+  - a new step-by-step guide to testing a container image with `dsyver`, in
+    `docs/containers/testing-images.md`: write a spec for an image, run it,
+    read a failure, and put it in CI so it runs on every image build. The
+    container image page now points to it
 
 - the Docker wrappers
   - `dsyver` and the `dgoss` shim beside it gain `SYVER_TEMP_DIR`, so every
@@ -17,6 +23,18 @@
   - the wrapper's documentation now leads with the syver-named variables and spec
     filenames throughout. Every `GOSS_*` equivalent still works and `goss.yaml`
     is still read, so no existing setup needs changing
+
+- dependencies
+  - routine updates with no change to any check, flag or rendered output.
+    `urfave/cli`, the command line framework, moves to 3.13.0; `gopsutil`,
+    which reads process and system information, to 4.26.9; `prometheus/common`,
+    behind the `prometheus` output and `/metrics`, to 0.72.0; and `gomega`, the
+    matcher library behind every assertion, to 1.44.0
+  - `sprout`, the template function library, moves to 1.1.2. Templated specs
+    render as before
+  - built with Go 1.26.8, up from 1.26.6, which brings the upstream fixes to
+    `net/http`, behind `serve` and the `http:` check, and to the runtime and
+    compiler
 
 ## 0.13.0 based on krameff/goss v0.6.0 - file owners and permissions on Windows
 
