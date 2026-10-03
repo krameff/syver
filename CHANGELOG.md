@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.14.1 based on krameff/goss v0.6.0 - the goss-named wrappers find syver.yaml
+
+- the container wrappers
+  - `dgoss`, `dcgoss` and `kgoss` now find a spec the same way `dsyver`,
+    `dcsyver` and `ksyver` do: the first of `syver.yaml`, `syver.yml`,
+    `goss.yaml` and `goss.yml`, and the same for the wait file. They only ever
+    looked for `goss.yaml`, so on a spec written by `syver add`, which creates
+    `syver.yaml`, they staged nothing and the run failed inside the container
+    with `open /goss/goss.yaml: no such file or directory`. A directory holding
+    only `goss.yaml` behaves exactly as before
+  - a `syver_wait.yaml` is now waited on by the goss-named wrappers too, where
+    before it was silently skipped
+  - the wrapper READMEs called the goss-named scripts forwarding shims that
+    behave identically. They are separate copies that differ inside the
+    container, where they use `/goss` and a binary named `goss`, and the READMEs
+    now say so
+
 ## 0.14.0 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrappers
 
 - documentation

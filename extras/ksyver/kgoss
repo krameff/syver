@@ -209,12 +209,31 @@ parse_internal() {
   info "going to execute (may be blank): ${to_exec}"
 }
 
+# Echoes the first of the given basenames that exists under GOSS_FILES_PATH,
+# or nothing.
+first_existing(){
+    local f
+    for f in "$@"; do
+        if [[ -e "${GOSS_FILES_PATH}/${f}" ]]; then
+            printf '%s\n' "${GOSS_FILES_PATH}/${f}"
+            return 0
+        fi
+    done
+    return 1
+}
+
 # initialize starts the pod to be tested and copies goss files into it
 initialize () {
     info "Preparing files to copy into container"
     cp "${GOSS_PATH}" "$tmp_dir/goss" && chmod 0775 "$tmp_dir/goss"
-    [[ -e "${GOSS_FILES_PATH}/goss.yaml" ]] && cp "${GOSS_FILES_PATH}/goss.yaml" "$tmp_dir"
-    [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]] && cp "${GOSS_FILES_PATH}/goss_wait.yaml" "$tmp_dir"
+    # Probe syver-named files before goss-named ones, mirroring resolveSpecPath()
+    # in cmd/syver/syver.go -- `syver add` now defaults to writing ./syver.yaml,
+    # so gating on goss.yaml alone would stage no spec at all. Both are staged
+    # under the goss-named in-container filename the exec below expects.
+    spec_src="$(first_existing syver.yaml syver.yml goss.yaml goss.yml)" || spec_src=""
+    [[ -n "$spec_src" ]] && cp "$spec_src" "$tmp_dir/goss.yaml"
+    wait_src="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)" || wait_src=""
+    [[ -n "$wait_src" ]] && cp "$wait_src" "$tmp_dir/goss_wait.yaml"
     [[ ! -z "${GOSS_VARS}" ]] && [[ -e "${GOSS_FILES_PATH}/${GOSS_VARS}" ]] && cp "${GOSS_FILES_PATH}/${GOSS_VARS}" "$tmp_dir"
     if [[ ${include_goss_files_dir} == 1 ]]; then cp -r ${GOSS_FILES_PATH}/* "${tmp_dir}"; fi
     for dir in "${dirs_array[@]}"; do
@@ -282,9 +301,11 @@ main() {
     # execute
     case $kgoss_cmd in
         run)
-            # wait for goss_wait.yaml if present
-            if [[ -e "${GOSS_FILES_PATH}/goss_wait.yaml" ]]; then
-                info "Found goss_wait.yaml, waiting for it to pass before running tests"
+            # wait for goss_wait.yaml if present. Gate on the same candidate set
+            # the copy step used, not on goss_wait.yaml alone -- otherwise a
+            # staged syver_wait.yaml would never be waited on.
+            if wait_found="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)"; then
+                info "Found $(basename "$wait_found"), waiting for it to pass before running tests"
                 if [[ -z "${GOSS_VARS}" ]]; then
                     if !  ${k} exec ${GOSS_KUBECTL_OPTS} "$id" -- sh -c "${GOSS_CONTAINER_PATH}/goss -g ${GOSS_CONTAINER_PATH}/goss_wait.yaml validate $GOSS_WAIT_OPTS" ; then
                         error "goss_wait.yaml never passed"
