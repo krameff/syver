@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.14.0 - Syver-named variables in the Docker wrappers](#v0140---syver-named-variables-in-the-docker-wrappers)
 * [v0.13.0 - File owners and services on Windows](#v0130---file-owners-and-services-on-windows)
 * [v0.12.2 - Mount support on Windows](#v0122---mount-support-on-windows)
 * [v0.12.1 - Quieter serve logs and nerdctl support](#v0121---quieter-serve-logs-and-nerdctl-support)
@@ -77,6 +78,41 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.14.0 - Syver-named variables in the Docker wrappers
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | `v0.14.0`, annotated and signed with the maintainer key |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: `docs/0.13.0-shipped` (PR #58), `docs/dsyver-walkthrough` (PR #59), `feat/wrapper-syver-temp-dir` (PR #62), six dependency bumps (PRs #63, #64, #65, #67, #66, #68), then `go_update` for the Go 1.26.8 toolchain and this record |
+| Scope | 11 commits (excluding merges), 19 files, +1065 / -87, measured at `2eb0474` on `go_update` against `v0.13.0`. Re-measure at the tag |
+| Changelog | [0.14.0](CHANGELOG.md#0140-based-on-krameffgoss-v060---syver-named-variables-in-the-docker-wrappers) |
+
+A minor because the Docker wrappers gain a variable, `SYVER_TEMP_DIR`. No
+resource attribute changed, so `docs/schema.yaml` is unchanged. Beyond that it
+carries a new guide to testing container images with `dsyver`, six dependency
+updates and the Go toolchain moving from 1.26.6 to 1.26.8.
+
+**Suites run on 2026-10-03.** At `841d8b5`, the `devel` head before the
+toolchain bump: Linux unit under `-race`, `make check`, `make lint` and 202/202
+goldens; the Docker suite on the remote builder (rockylinux9 126, almalinux10
+126, jammy 126, alpine3 127, arch 106, all `Failed: 0`, serve 8/8); and on the
+Windows Server 2025 guest the unit tests under `-race`, the validate suite (19
+fixtures, 150 assertions, 13 skipped, unchanged from 0.13.0) and serve 8/8.
+The guest builds with its own Go 1.27.0, not the pinned toolchain.
+
+After moving to Go 1.26.8 the local gate and the Docker suite were re-run, with
+the same results and counts. The guest was not re-run, since it can only check
+out committed work; the `windows-latest` CI job on this PR is the first Windows
+run on 1.26.8.
+
+**Outstanding before the tag:** CI green on the PR, the `devel` -> `main`
+merge, the tag itself, and `/release-gate` including its after-tag section.
 
 ---
 
