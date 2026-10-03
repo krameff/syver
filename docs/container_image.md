@@ -1,5 +1,10 @@
 # Syver container image
 
+This page is about the image syver **publishes**, for running syver inside your
+own image. To TEST an image you have built, see
+[testing container images](containers/testing-images.md), which walks through
+`dsyver`.
+
 ## Dockerfiles
 
 * [latest](https://github.com/krameff/syver/blob/main/Dockerfile)
