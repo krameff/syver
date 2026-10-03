@@ -85,12 +85,12 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | `v0.14.0`, annotated and signed with the maintainer key |
-| Commit | pending |
+| Released | 2026-10-03 |
+| Tag | `v0.14.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `3e62a95`, the `devel` -> `main` merge commit from PR #70 |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: `docs/0.13.0-shipped` (PR #58), `docs/dsyver-walkthrough` (PR #59), `feat/wrapper-syver-temp-dir` (PR #62), six dependency bumps (PRs #63, #64, #65, #67, #66, #68), then `go_update` for the Go 1.26.8 toolchain and this record |
-| Scope | 11 commits (excluding merges), 19 files, +1065 / -87, measured at `2eb0474` on `go_update` against `v0.13.0`. Re-measure at the tag |
+| Integration branch | `devel`, in this merge order: `docs/0.13.0-shipped` (PR #58), `docs/dsyver-walkthrough` (PR #59), `feat/wrapper-syver-temp-dir` (PR #62), six dependency bumps (PRs #63, #64, #65, #67, #66, #68), then `go_update` (PR #69) for the Go 1.26.8 toolchain and this record. Merged to `main` through PR #70 |
+| Scope | 12 commits (excluding merges), 19 files, +1100 / -86, measured at `v0.14.0` against `v0.13.0` |
 | Changelog | [0.14.0](CHANGELOG.md#0140-based-on-krameffgoss-v060---syver-named-variables-in-the-docker-wrappers) |
 
 A minor because the Docker wrappers gain a variable, `SYVER_TEMP_DIR`. No
@@ -111,8 +111,17 @@ the same results and counts. The guest was not re-run, since it can only check
 out committed work; the `windows-latest` CI job on this PR is the first Windows
 run on 1.26.8.
 
-**Outstanding before the tag:** CI green on the PR, the `devel` -> `main`
-merge, the tag itself, and `/release-gate` including its after-tag section.
+CI was green on PR #69, on `devel` after it merged (including the
+cross-platform lint and scan, which only runs on push), and on PR #70,
+including `windows-latest` and `macos-latest`.
+
+**Verified after the push**, against the published release rather than the build
+log. The tag is an annotated tag object with a good signature from the
+maintainer key. The release carries 39 assets. `syver_0.14.0_SHA256SUMS` and all
+eight SPDX SBOMs verify against the project key, the checksum for
+`syver-linux-amd64` matches, and that binary reports `syver version 0.14.0` and
+was built with go1.26.8. `ghcr.io/krameff/syver:v0.14.0` and `:latest` resolve to
+the same index, annotated with revision `3e62a95` and version `0.14.0`.
 
 ---
 
