@@ -38,7 +38,7 @@ jobs:
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9.3.0
         with:
-          version: v2.12.2
+          version: v2.14.0
           install-mode: goinstall
 
   # Cross-platform lint and vulnerability scan, on PUSHES ONLY.
@@ -69,7 +69,7 @@ jobs:
       # The action installs for the host platform only, so lint-cross needs the
       # binary on PATH to invoke it under a different GOOS.
       - name: Install golangci-lint
-        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.12.2
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
 
       - name: Lint (host, windows, darwin)
         run: make lint-cross
