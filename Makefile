@@ -72,9 +72,8 @@ vet:
 # vet-cross catches build-tag-gated signature drift that host-only `vet`
 # cannot see -- e.g. system/file_windows.go, system/registry_windows.go,
 # system/service_windows.go. windows/amd64 is the only Windows target syver
-# actually ships (.goreleaser.yaml ignores windows/386, windows/arm,
-# windows/arm64 and windows/s390x), so one Windows GOARCH is the right
-# coverage, not four. Both GOOS values already vet clean at zero cost --
+# actually ships (.goreleaser.yaml ignores windows/arm64 and windows/s390x),
+# so one Windows GOARCH is the right coverage, not three. Both GOOS values already vet clean at zero cost --
 # this is regression insurance, not new work. See FEAT-010 Task 8.
 .PHONY: vet-cross
 vet-cross:
@@ -105,7 +104,7 @@ release:
 	$(MAKE) clean
 	$(MAKE) build
 
-build: release/syver-darwin-amd64 release/syver-darwin-arm64 release/syver-linux-amd64 release/syver-linux-arm release/syver-linux-arm64 release/syver-linux-s390x release/syver-linux-ppc64le release/syver-windows-amd64
+build: release/syver-darwin-amd64 release/syver-darwin-arm64 release/syver-linux-amd64 release/syver-linux-arm64 release/syver-linux-s390x release/syver-linux-ppc64le release/syver-windows-amd64
 
 # c.out is the coverage profile written by ci/go-test.sh (via `make test`) and by
 # the cov/funcov/htmlcov targets. c.out.tmp is that script's sed intermediate,

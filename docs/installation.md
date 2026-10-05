@@ -63,8 +63,10 @@ sudo mv /tmp/syver /usr/local/bin/syver
 chmod +rx /usr/local/bin/syver
 ```
 
-Adjust the version, OS, and architecture in the filename as needed (`amd64`,
-`arm64`, `arm`, `s390x`, `386`, etc.).
+Adjust the version, OS, and architecture in the filename as needed. Release
+binaries are 64-bit only: `linux` has `amd64`, `arm64` and `s390x`, `darwin`
+has `amd64` and `arm64`, and `windows` has `amd64`. On a 32-bit system,
+[build from source](#build-from-source).
 
 When release artifacts are published for this fork, download the matching archive
 from the repository **Releases** page. Until then, use [build from source](#build-from-source) above.

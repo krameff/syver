@@ -19,26 +19,16 @@ builds:
       - darwin
       - windows
     goarch:
-      - "386"
       - amd64
-      - arm
       - arm64
       - s390x
     ignore:
       - goos: windows
         goarch: s390x
       - goos: windows
-        goarch: "386"
-      - goos: windows
-        goarch: arm
-      - goos: windows
         goarch: arm64
       - goos: darwin
         goarch: s390x
-      - goos: darwin
-        goarch: "386"
-      - goos: darwin
-        goarch: arm
     main: ./cmd/syver
     flags:
       - -trimpath

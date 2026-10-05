@@ -11,6 +11,13 @@
     the same from `util.WithMaxConcurrency`, and a run always starts at least
     one worker even when `MaxConcurrent` is set directly
 
+- release binaries
+  - 32-bit binaries (`syver-linux-386`, `syver-linux-armv6`) are no longer
+    published. Nothing tested them, and `install.sh` could not install the ARM
+    one. Release binaries are now 64-bit only, and `install.sh` refuses a 32-bit
+    machine with an error instead of downloading the wrong file. 32-bit systems
+    can still build from source
+
 ## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
 
 - documentation

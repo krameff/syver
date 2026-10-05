@@ -40,19 +40,14 @@ case "$(uname -m)" in
     x86_64)
         arch="amd64"
         ;;
-    aarch32|arm)
-        arch="arm"
-        ;;
     aarch64|arm64)
         arch="arm64"
         ;;
     s390x)
         arch="s390x"
         ;;
-    i?86)
-        arch="386"
-        ;;
     *)
+        # Release binaries are 64-bit only; 32-bit systems can build from source.
         echo "error: unknown/unsupported architecture: $(uname -m)" >&2
         exit 1
         ;;
