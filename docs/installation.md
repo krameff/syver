@@ -38,6 +38,7 @@ The binary is written under `dist/`, in a directory named for the build id in
 * [dgoss](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) — run goss against Docker/Podman containers
 * [kgoss](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md) — Kubernetes wrapper
 * [dcgoss](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md) — Docker Compose wrapper
+* [sbxsyver](https://github.com/krameff/syver/blob/main/extras/sbxsyver/README.md) — Docker Sandboxes (`sbx`) wrapper
 
 ## Release binaries
 

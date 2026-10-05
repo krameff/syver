@@ -11,7 +11,7 @@ DOCS_DEPS := $(VENV)/.docs.dependencies
 
 .PHONY: all build install test release bench fmt lint vet test-int-all
 
-all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256
+all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256 sbxsyver-sha256
 
 test-short-all: fmt lint vet test
 
@@ -179,6 +179,9 @@ dcsyver-sha256:
 
 ksyver-sha256:
 	cd extras/ksyver/ && sha256sum ksyver > ksyver.sha256
+
+sbxsyver-sha256:
+	cd extras/sbxsyver/ && sha256sum sbxsyver > sbxsyver.sha256
 
 .PHONY: lint-yaml
 lint-yaml:

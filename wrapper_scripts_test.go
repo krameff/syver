@@ -465,3 +465,180 @@ func TestWrapperSpecDiscovery(t *testing.T) {
 		}
 	}
 }
+
+// fakeSbx stands in for the sbx CLI. It records every invocation, answers the
+// wrapper's `mktemp -d` with a fixed directory, snapshots whatever `sbx cp`
+// copies in, and exits FAKE_VALIDATE_RC from the main validate run so a failing
+// check can be simulated.
+const fakeSbx = `#!/bin/bash
+echo "$*" >> "$FAKE_RUNTIME_LOG"
+case "$1" in
+  exec)
+    cmd="${@: -1}"
+    case "$cmd" in
+      "mktemp -d") echo /tmp/fake.remote ;;
+      */goss.yaml\ *) exit "${FAKE_VALIDATE_RC:-0}" ;;
+    esac ;;
+  cp) cp -r "$2/." "$FAKE_STAGE/" ;;
+esac
+exit 0
+`
+
+// TestSbxsyver drives sbxsyver against a fake sbx on PATH: what it stages, how
+// it builds the sbx exec calls, that the exit status is syver's, and that it
+// cleans up inside the sandbox even when a check fails.
+//
+// REVERT-PROOF: dropping the `rm -rf` from cleanup() fails "failing check" and
+// "passing run"; moving "${exec_flags[@]}" after the sandbox name fails "exec
+// flags"; removing the uname guard fails "non-Linux host"; staging goss.yaml
+// before syver.yaml fails "passing run".
+func TestSbxsyver(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("sbxsyver is a bash script driving the sbx CLI")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+	scriptPath, err := filepath.Abs(filepath.Join("extras", "sbxsyver", "sbxsyver"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name       string
+		args       []string
+		files      []string // spec files to create, each containing its own name
+		vars       bool     // set SYVER_VARS=vars.yaml and create it
+		uname      string   // "" leaves the real uname alone
+		noPath     bool     // leave SYVER_PATH unset
+		validateRC string
+		wantRC     int
+		wantErr    string
+		wantSpec   string   // which file's content must be staged as goss.yaml
+		wantCalls  []string // line prefixes that must appear in the sbx call log
+	}{
+		{
+			name: "passing run", args: []string{"run", "box"},
+			files: []string{"goss.yaml", "syver.yaml"}, vars: true, wantSpec: "syver.yaml",
+			wantCalls: []string{
+				"exec box sh -c mktemp -d",
+				"cp ",
+				"exec box sh -c /tmp/fake.remote/syver/syver -g /tmp/fake.remote/syver/goss.yaml --vars='/tmp/fake.remote/syver/vars.yaml' validate",
+				"exec box rm -rf /tmp/fake.remote",
+			},
+		},
+		{
+			name: "exec flags", args: []string{"run", "box", "-u", "root"},
+			files: []string{"syver.yaml"}, wantSpec: "syver.yaml",
+			wantCalls: []string{"exec -u root box sh -c /tmp/fake.remote/syver/syver"},
+		},
+		{
+			name: "failing check", args: []string{"run", "box"}, files: []string{"syver.yaml"},
+			validateRC: "1", wantRC: 1,
+			wantCalls: []string{"exec box rm -rf /tmp/fake.remote"},
+		},
+		{
+			name: "no spec", args: []string{"run", "box"},
+			wantRC: 1, wantErr: "no spec found",
+		},
+		{
+			name: "no sandbox", args: []string{"run"}, files: []string{"syver.yaml"},
+			wantRC: 1, wantErr: "USAGE",
+		},
+		{
+			name: "non-Linux host", args: []string{"run", "box"}, files: []string{"syver.yaml"},
+			uname: "Darwin", noPath: true, wantRC: 1, wantErr: "linux syver binary",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			binDir := filepath.Join(dir, "bin")
+			specDir := filepath.Join(dir, "spec")
+			stage := filepath.Join(dir, "stage")
+			for _, d := range []string{binDir, specDir, stage} {
+				if err := os.Mkdir(d, 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if err := os.WriteFile(filepath.Join(binDir, "sbx"), []byte(fakeSbx), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if tc.uname != "" {
+				if err := os.WriteFile(filepath.Join(binDir, "uname"), []byte("#!/bin/sh\necho "+tc.uname+"\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+			}
+			for _, f := range tc.files {
+				if err := os.WriteFile(filepath.Join(specDir, f), []byte(f+"\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			fakeSyver := filepath.Join(dir, "syver")
+			if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			callLog := filepath.Join(dir, "calls.log")
+
+			cmd := exec.Command(bash, append([]string{scriptPath}, tc.args...)...)
+			cmd.Env = append(os.Environ(),
+				"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+				"SYVER_FILES_PATH="+specDir,
+				"SYVER_TEMP_DIR="+dir,
+				"FAKE_RUNTIME_LOG="+callLog,
+				"FAKE_STAGE="+stage,
+				"FAKE_VALIDATE_RC="+tc.validateRC,
+			)
+			if !tc.noPath {
+				cmd.Env = append(cmd.Env, "SYVER_PATH="+fakeSyver)
+			}
+			if tc.vars {
+				if err := os.WriteFile(filepath.Join(specDir, "vars.yaml"), []byte("vars.yaml\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				cmd.Env = append(cmd.Env, "SYVER_VARS=vars.yaml")
+			}
+			var stderr bytes.Buffer
+			cmd.Stderr = &stderr
+			runErr := cmd.Run()
+
+			callBytes, _ := os.ReadFile(callLog)
+			calls := string(callBytes)
+			detail := "stderr:\n" + stderr.String() + "\nsbx calls:\n" + calls
+
+			rc := 0
+			if exitErr, ok := runErr.(*exec.ExitError); ok {
+				rc = exitErr.ExitCode()
+			} else if runErr != nil {
+				t.Fatalf("could not run the wrapper: %v", runErr)
+			}
+			if rc != tc.wantRC {
+				t.Fatalf("exit status %d, want %d\n%s", rc, tc.wantRC, detail)
+			}
+			if tc.wantErr != "" && !strings.Contains(stderr.String(), tc.wantErr) {
+				t.Fatalf("stderr does not contain %q\n%s", tc.wantErr, detail)
+			}
+			for _, c := range tc.wantCalls {
+				if !containsLinePrefix(calls, c) {
+					t.Errorf("sbx was never called with %q\n%s", c, detail)
+				}
+			}
+			if tc.wantSpec != "" {
+				got, err := os.ReadFile(filepath.Join(stage, "goss.yaml"))
+				if err != nil {
+					t.Fatalf("no spec was staged: %v\n%s", err, detail)
+				}
+				if string(got) != tc.wantSpec+"\n" {
+					t.Errorf("staged spec is %q, want the content of %s\n%s", got, tc.wantSpec, detail)
+				}
+			}
+			if tc.vars {
+				if _, err := os.Stat(filepath.Join(stage, "vars.yaml")); err != nil {
+					t.Errorf("vars file was not staged\n%s", detail)
+				}
+			}
+		})
+	}
+}
