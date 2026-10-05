@@ -1,0 +1,31 @@
+# Values for syver.yaml. Edit these to match your sandbox; the spec itself
+# should not need changing.
+
+# The agent's home directory and the workspace it edits.
+home: /home/agent
+workspace: /workspace
+
+# Commands the agent needs, with a check that each one runs.
+tools:
+  git: git --version
+  curl: curl --version
+
+# Hosts the agent must be able to reach, as host:port.
+egress_allow:
+  - api.anthropic.com:443
+  - github.com:443
+
+# Hosts it must NOT be able to reach. The cloud metadata address is the one
+# that matters most: on a cloud host it hands out the host's credentials.
+egress_deny:
+  - 169.254.169.254:80
+  - example.com:443
+
+# Environment variables that must not be set inside the sandbox. Only the
+# NAME is written here, never a value.
+absent_env:
+  - SSH_AUTH_SOCK
+  - AWS_ACCESS_KEY_ID
+  - AWS_SECRET_ACCESS_KEY
+  - GITHUB_TOKEN
+  - GH_TOKEN
