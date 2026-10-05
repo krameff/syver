@@ -18,6 +18,7 @@ ignore:
   - examples/07-templates/syver.yaml
   - examples/08-http/templated.yaml
   - examples/09-compliance-audit/syver.yaml
+  - examples/agent-sandbox/syver.yaml
   - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.1.1.yml
   - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.1.2.yml
   - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.2.1.yml
