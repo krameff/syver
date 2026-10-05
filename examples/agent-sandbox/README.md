@@ -19,3 +19,6 @@ SYVER_VARS=vars.yaml dsyver run \
 
 The walkthrough, including what each section catches and what it cannot see, is
 in [docs/containers/agent-sandboxes.md](../../docs/containers/agent-sandboxes.md).
+
+For a Docker Sandboxes (`sbx`) microVM rather than a plain container, use the
+profile in [`examples/agent-sandbox-sbx/`](https://github.com/krameff/syver/tree/main/examples/agent-sandbox-sbx) with `sbxsyver`.

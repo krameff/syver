@@ -12,6 +12,13 @@ Syver can check all of it before the agent starts, using
 lives in the repository under
 [`examples/agent-sandbox/`](https://github.com/krameff/syver/tree/main/examples/agent-sandbox).
 
+This page is for an ordinary container started with `docker run`. If your agent
+runs in a Docker Sandboxes (`sbx`) microVM instead, use `sbxsyver` and its own
+profile, described in
+[the sbxsyver reference](https://syver.readthedocs.io/en/latest/containers/docker-sandboxes/): an sbx
+sandbox gives the agent sudo and its own Docker daemon by design, so several
+checks here would fail on a correctly configured one.
+
 ## What the profile checks
 
 | Section | Asserts | Catches |
