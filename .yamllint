@@ -2,6 +2,10 @@
 extends: default
 
 ignore:
+  # local build output, never present in CI: the docs virtualenv and the
+  # mkdocs site directory
+  - .venv/
+  - site/
   # uses go templates (these are invalid yaml files)
   - integration-tests/syver/goss-service.yaml
   - integration-tests/syver/goss-shared.yaml
@@ -18,6 +22,7 @@ ignore:
   - examples/07-templates/syver.yaml
   - examples/08-http/templated.yaml
   - examples/09-compliance-audit/syver.yaml
+  - examples/agent-sandbox-sbx/syver.yaml
   - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.1.1.yml
   - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.1.2.yml
   - examples/09-compliance-audit/section_1/bench_1.1.x/bench_1.1.2.1.yml
