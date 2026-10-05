@@ -6,6 +6,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -832,5 +833,89 @@ echo edited > syver.yaml`
 				}
 			})
 		}
+	}
+}
+
+// gossShimNotice is the compatibility notice each goss-named script prints. The
+// parity test removes it, after checking it names the script's syver twin.
+var gossShimNotice = regexp.MustCompile(`(?s)\n[ \t]*# The compatibility notice:.*?is maintained for compatibility but gets no new features; use (\w+)"\n\n`)
+
+// gossShimNames maps a syver script onto its goss-named shim. The identity
+// pairs protect text the two scripts share, repository paths and the syver
+// filenames they both probe, from the mappings after them. strings.Replacer
+// takes the match that starts earliest, so each protected string wins over
+// the mapping it contains.
+var gossShimNames = strings.NewReplacer(
+	"cmd/syver/", "cmd/syver/",
+	"syver.go", "syver.go",
+	"extras/dsyver/dsyver", "extras/dsyver/dsyver",
+	"extras/dcsyver/dcsyver", "extras/dcsyver/dcsyver",
+	"extras/ksyver/ksyver", "extras/ksyver/ksyver",
+	"${HOME}/syver", "${HOME}/syver",
+	"${HOME}/bin/syver", "${HOME}/bin/syver",
+	"`syver add` now defaults", "`syver add` now defaults",
+	"./syver.yaml", "./syver.yaml",
+	// The intended differences: script names, the in-container directory
+	// and binary, and the command named in prompts and comments.
+	"dcsyver", "dcgoss",
+	"dsyver", "dgoss",
+	"ksyver", "kgoss",
+	"/syver", "/goss",
+	"syver add", "goss add",
+	"Copy in syver", "Copy in goss",
+	"executes syver", "executes goss",
+)
+
+// TestGossShimParity holds dgoss, dcgoss and kgoss to their syver twins. The
+// shims are maintained copies, and they have drifted before: dgoss looked only
+// for goss.yaml long after dsyver learned syver.yaml. Each pair must be
+// identical once the intended differences are mapped and the shim's
+// compatibility notice is removed, so a fix applied to one script and not the
+// other fails here. The syver filenames are deliberately not mapped, which is
+// what catches a shim that stops probing them.
+//
+// REVERT-PROOF: dropping syver.yaml from the probe list in any one shim, or
+// deleting its compatibility notice, fails that pair.
+func TestGossShimParity(t *testing.T) {
+	for _, p := range []struct{ dir, syver, goss string }{
+		{"dsyver", "dsyver", "dgoss"},
+		{"dcsyver", "dcsyver", "dcgoss"},
+		{"ksyver", "ksyver", "kgoss"},
+	} {
+		t.Run(p.goss, func(t *testing.T) {
+			read := func(name string) string {
+				t.Helper()
+				b, err := os.ReadFile(filepath.Join("extras", p.dir, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				return string(b)
+			}
+			shim := read(p.goss)
+			m := gossShimNotice.FindAllStringSubmatchIndex(shim, -1)
+			if len(m) != 1 {
+				t.Fatalf("%s has %d compatibility notices, want 1", p.goss, len(m))
+			}
+			if named := shim[m[0][2]:m[0][3]]; named != p.syver {
+				t.Errorf("%s's notice points at %s, want %s", p.goss, named, p.syver)
+			}
+			shim = shim[:m[0][0]] + "\n" + shim[m[0][1]:]
+
+			want := strings.Split(gossShimNames.Replace(read(p.syver)), "\n")
+			got := strings.Split(shim, "\n")
+			for i := range max(len(want), len(got)) {
+				var w, g string
+				if i < len(want) {
+					w = want[i]
+				}
+				if i < len(got) {
+					g = got[i]
+				}
+				if w != g {
+					t.Fatalf("%s drifts from %s at line %d of the normalised scripts:\n  %s: %q\n  %s: %q",
+						p.goss, p.syver, i+1, p.syver, w, p.goss, g)
+				}
+			}
+		})
 	}
 }

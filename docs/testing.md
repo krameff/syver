@@ -91,15 +91,15 @@ make test-discovery-e2e
 
 Steps performed:
 
-1. `goss validate -g discovery.yaml --format discovery` → JSON with `Discovered` key
-2. `goss validate -g goss.yml --discover discovery.yaml --format documentation` → `Failed: 0`
-3. `goss validate -g goss-inline.yml --format documentation` → inline `discovery:` → `Failed: 0`
-4. `goss validate -g goss-with-deps.yml --discover discovery.yaml` → `Failed: 1`, `Skipped: 1`
+1. `syver validate -g discovery.yaml --format discovery` → JSON with `Discovered` key
+2. `syver validate -g goss.yml --discover discovery.yaml --format documentation` → `Failed: 0`
+3. `syver validate -g goss-inline.yml --format documentation` → inline `discovery:` → `Failed: 0`
+4. `syver validate -g goss-with-deps.yml --discover discovery.yaml` → `Failed: 1`, `Skipped: 1`
 
 Manual equivalent:
 
 ```bash
-goss validate -g integration-tests/syver/examples/discovery/goss.yml \
+syver validate -g integration-tests/syver/examples/discovery/goss.yml \
   --discover integration-tests/syver/examples/discovery/discovery.yaml \
   --format documentation
 ```
@@ -107,9 +107,9 @@ goss validate -g integration-tests/syver/examples/discovery/goss.yml \
 Export-only (unchanged):
 
 ```bash
-goss validate -g integration-tests/syver/examples/discovery/discovery.yaml --format discovery \
+syver validate -g integration-tests/syver/examples/discovery/discovery.yaml --format discovery \
   > /tmp/discovered.json
-goss --vars /tmp/discovered.json \
+syver --vars /tmp/discovered.json \
   validate -g integration-tests/syver/examples/discovery/goss.yml --format documentation
 ```
 
@@ -297,7 +297,10 @@ which green they are looking at.
 
 ### Package `cmd/syver`
 
-No Go tests — behaviour covered by root package API tests and integration tests.
+Tests in `cmd/syver/*_test.go` cover the CLI layer: spec path resolution across
+the four probed filenames, `SYVER_*` / `GOSS_*` environment variable precedence,
+the goss-named flag and subcommand aliases, `--vars-inline` parsing, and flag
+validation such as `--max-concurrent`.
 
 ## Docker integration tests
 
@@ -309,7 +312,7 @@ make test-int-all   # full matrix (slow)
 ```
 
 Non-amd64 / darwin / windows via [`integration-tests/run-validate-tests.sh`](https://github.com/krameff/syver/blob/main/integration-tests/run-validate-tests.sh)
-(find `*.goss.yaml` under platform dirs and run `goss validate`).
+(find `*.goss.yaml` under platform dirs and run `syver validate`).
 
 ## Markdown lint
 
@@ -375,7 +378,7 @@ and
 
 Workflow: [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml)
 
-Runs on pull requests and pushes to `devel`, plus a weekly schedule.
+Runs on pull requests and pushes to `devel` and `main`, plus a weekly schedule.
 Uses GitHub's advanced CodeQL setup for Go and Actions with category
 `/language:<language>` so PRs can be compared against the base branch.
 

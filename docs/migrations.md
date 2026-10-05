@@ -68,9 +68,11 @@ sudo ln -s "$(command -v syver)" /usr/local/bin/goss
 `gossfile:` is still the canonical import key, `goss.yaml` / `goss.yml` are
 still accepted filenames, all 16 `GOSS_*` environment variables still work,
 `--gossfile` / `-g` still work, and `dgoss` / `dcgoss` / `kgoss` still ship and
-run. The JUnit suite name, the Nagios prefix, the `goss_tests_*` metrics, the
-`application/vnd.goss-*` media types and the `goss-<os>-<arch>` release
-archives are all unchanged.
+run. The JUnit suite name, the Nagios prefix, the `goss_tests_*` metrics and the
+`application/vnd.goss-*` media types are all unchanged. See the
+[compatibility policy](goss-vs-syver.md#compatibility-policy) for how long the
+goss names are kept. Release binaries are syver-named only: the goss-named
+binaries were last published with v0.9.1.
 
 See [goss vs Syver](goss-vs-syver.md) for the complete side-by-side.
 
@@ -85,77 +87,3 @@ The key for 0.7.0 onward is `krameff-syver-key.asc`, fingerprint
 `krameff-goss-key.asc` from a 0.6.0 release, import the new one as well: the
 old key will not verify 0.7.0 artifacts. See
 [Verifying release signatures](installation.md#verifying-release-signatures).
-
-## v4 migration
-
-Three breaking changes when moving from v0.3.x to v0.4.x. Check whether any apply
-before reading the detail below.
-
-| Change | Affects you if |
-| --- | --- |
-| Array matchers reject duplicates | You repeat the same value in an array, e.g. `user.groups` |
-| `rpm` reports the full EVR version | You pin exact rpm version strings |
-| `file.contains` renamed to `file.contents` | You use `file.contains` |
-
-### Array matchers (e.g. user.groups) no longer allows duplicates
-
-Goss v0.3.X allowed:
-
-```yaml
-user:
-  root:
-    exists: true
-    groups:
-      - root
-      - root
-      - root
-```
-
-Goss v0.4.x, will fail with the above as group "root" is only in the slice once. However, with goss v0.4.x the array may
-contain matchers. The test below is valid for v0.4.x but not valid for v0.3.x
-
-```yaml
-user:
-  root:
-    exists: true
-    groups:
-      - have-prefix: r
-```
-
-## rpm now contains the full EVR version
-
-To enable the ability to compare RPM versions in the future, The version matching of rpm has changed
-
-from:
-
-```console
-rpm -q --nosignature --nohdrchk --nodigest --qf '%{VERSION}\n' package_name
-```
-
-to:
-
-```console
-rpm -q --nosignature --nohdrchk --nodigest --qf '%|EPOCH?{%{EPOCH}:}:{}|%{VERSION}-%{RELEASE}\n' package_name
-```
-
-## `file.contains` -> `file.contents`
-
-File contains attribute has been renamed to file.contents
-
-from:
-
-```yaml
-file:
-  /tmp/foo:
-    exists: true
-    contains: []
-```
-
-to:
-
-```yaml
-file:
-  /tmp/foo:
-    exists: true
-    contents: []
-```

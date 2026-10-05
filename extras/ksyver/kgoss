@@ -28,6 +28,10 @@ error() {
     exit 1
 }
 
+# The compatibility notice: this script is maintained but gets no new features.
+# See the compatibility policy in docs/goss-vs-syver.md.
+info "kgoss is maintained for compatibility but gets no new features; use ksyver"
+
 usage() {
 >&2 cat <<-'EOF'
 Usage: $(basename $0) [command] [options]
@@ -57,7 +61,7 @@ If -p, -c and -a are not specified, container will run its ENTRYPOINT.
 
 GOSS_KUBECTL_BIN="$(which kubectl)": location of kubectl-compatible binary
 GOSS_KUBECTL_OPTS="": hook to inject more options such as "--namespace=default"
-GOSS_PATH="$(which goss)": location of goss binary
+GOSS_PATH="$(which syver)": location of syver (or legacy goss) binary
 GOSS_FILES_PATH=".": location of goss.yaml and other configuration files
 GOSS_VARS="": path to a goss.vars file
 GOSS_OPTS="--color --format documentation": options passed to goss
@@ -320,9 +324,10 @@ main() {
     # execute
     case $kgoss_cmd in
         run)
-            # wait for goss_wait.yaml if present. Gate on the same candidate set
-            # the copy step used, not on goss_wait.yaml alone -- otherwise a
-            # staged syver_wait.yaml would never be waited on.
+            # wait for goss_wait.yaml if present
+            # Gate on the same candidate set the copy step used, not on
+            # goss_wait.yaml alone -- otherwise a staged syver_wait.yaml would
+            # never be waited on.
             if wait_found="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)"; then
                 info "Found $(basename "$wait_found"), waiting for it to pass before running tests"
                 if [[ -z "${GOSS_VARS}" ]]; then

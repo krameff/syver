@@ -144,6 +144,10 @@ copy_back(){
     return 0
 }
 
+# The compatibility notice: this script is maintained but gets no new features.
+# See the compatibility policy in docs/goss-vs-syver.md.
+info "dcgoss is maintained for compatibility but gets no new features; use dcsyver"
+
 # Main
 # mktemp -d creates the directory 0700, and that is exactly what is wanted on
 # the outer directory: it is what stops other local users reaching the contents.

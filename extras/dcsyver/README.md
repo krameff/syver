@@ -3,8 +3,9 @@
 dcsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to compose-managed
 containers. It is based on `dsyver`.
 
-`dcgoss` is the previous name of this script and is kept for one major version
-as a compatibility copy. It takes the same commands, variables and spec files as
+`dcgoss` is the previous name of this script and is kept as a compatibility copy,
+under the [compatibility policy](https://syver.readthedocs.io/en/latest/goss-vs-syver/#compatibility-policy):
+maintained, but new features arrive in `dcsyver` only. It takes the same commands, variables and spec files as
 `dcsyver`; the difference is inside the container, where it stages files under
 `/goss` rather than `/syver` and names the copied binary `goss`. New scripts and
 documentation should use `dcsyver`.
@@ -44,8 +45,10 @@ binary explicitly)
 * Start the container as defined in the Compose file
 * Stream the containers log output into the container as `/syver/docker_output.log`
     * This allows writing tests or waits against the docker output
-* (optional) Run `goss` with `$GOSS_WAIT_OPTS` if `./goss_wait.yaml` file exists in the current dir
-* Run `goss` with `$GOSS_OPTS` using `./goss.yaml`
+* (optional) Run syver with `$GOSS_WAIT_OPTS` if a wait file exists in `GOSS_FILES_PATH`: the first of
+  `syver_wait.yaml`, `syver_wait.yml`, `goss_wait.yaml` and `goss_wait.yml`
+* Run syver with `$GOSS_OPTS` using the spec in `GOSS_FILES_PATH`: the first of `syver.yaml`,
+  `syver.yml`, `goss.yaml` and `goss.yml`
 
 ### Edit
 

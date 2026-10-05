@@ -22,6 +22,38 @@
   - `dcsyver edit` and `ksyver edit` (and `dcgoss`, `kgoss`) exited 1 after a
     successful edit unless `GOSS_VARS` was set. They now exit 0
 
+- goss compatibility
+  - the goss names are now covered by a written policy, in
+    `docs/goss-vs-syver.md`: there are no current plans to remove them, they
+    are maintained but get no new features, and any removal will be announced
+    in the changelog at least one minor release beforehand. This replaces
+    "kept for one major version" in some pages and "permanent" in others
+  - `dgoss`, `dcgoss` and `kgoss` print a one-line INFO notice saying so and
+    naming the syver script to use. The syver binary prints nothing. A new
+    test holds each goss-named script identical to its syver twin apart from
+    the intended differences, and it found `kgoss`'s usage text still saying it
+    looks for a `goss` binary first, which it has not done since the rename
+
+- documentation
+  - removed the claim that goss-named release binaries are still published;
+    they were last published with v0.9.1
+  - the `ksyver` install instructions downloaded an archive no release has ever
+    had; they now download the Linux release binary
+  - `docs/schema.yaml`: `group` no longer lists `uid` and `groups`, which the
+    code does not have, `service` no longer requires `enabled` and `running`,
+    and `http.request-query-params`, `mount.vfs-opts` and `service.runlevels`
+    are added
+  - `docs/platforms.md` now agrees with `docs/windows.md` that Windows
+    `process: status` errors rather than passing
+  - the install page's `sha256sum -c` example now passes `--ignore-missing`,
+    without which checking one downloaded binary reports every other asset
+    as missing
+  - the help text for `--log-level` no longer says "Goss"
+  - smaller fixes: `goss` commands in `testing.md` and the examples now run
+    `syver`, the run steps in the wrapper READMEs name all four spec files,
+    "this release" now names the release, and the goss v0.3 to v0.4 migration
+    section is gone
+
 - CI
   - the Linux unit test run now uses the race detector, as the macOS, Windows
     and release runs already did. It ran `make cov`, which has no `-race`, so no

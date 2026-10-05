@@ -195,18 +195,16 @@ this platform` error rather than silently answering `false`. Use `registry:`
 instead: most tunables `kernel-param:` would address on Linux have a
 `HKLM\SYSTEM\CurrentControlSet\...` equivalent.
 
-**`process: status` on Windows is `{{ broken }}`, not merely unimplemented.**
-It silently returns an empty result -- gopsutil has no Windows implementation
-for this field, and syver's own aggregation currently swallows that
-per-process rather than surfacing it, so `status: []` passes even for a
-running process. Tracked for a real fix in the Windows depth roadmap; do not
-rely on this assertion on Windows in the meantime.
+**`process: status` on Windows errors.** gopsutil has no Windows implementation
+for this field, so every assertion fails with an error rather than passing on
+an empty result, which it did before 0.12.0. See
+[windows](windows.md#broken-with-a-known-cause).
 
 On Windows, `process:` names must include the `.exe` suffix (e.g.
 `process: httpd.exe:`, not `process: httpd:`) -- Windows process names as
 reported by the OS always carry it, unlike Linux/macOS.
 
-### Windows: behaviour changed in this release
+### Windows: behaviour changes since 0.11.0
 
 The following used to silently pass, or silently write a placeholder value
 into a `syver add`-generated spec, on Windows. Each of these now returns an
@@ -267,7 +265,7 @@ passed before may now fail where it was never actually being checked.
 | `validate` | {{ fully_supported }} | {{ work_partially }}    | {{ work_partially }}    |
 
 `command:` `timeout` on **Windows** moved from *not automated* to *partially
-tested* in this release: `util/procgroup_windows_test.go` asserts both that a
+tested* in 0.12.0: `util/procgroup_windows_test.go` asserts both that a
 timed-out command's grandchild is terminated and that a succeeding command's
 background child is not, and the `windows-latest` leg of `golangci.yaml` runs
 `make test`, which passes no `-short`, so both execute in CI. The macOS cell is

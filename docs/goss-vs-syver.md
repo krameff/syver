@@ -33,8 +33,9 @@ which changed to carry a `context.Context` (last two rows).
 | `Resource` interface | `Validate(sys)` | `Validate(ctx, sys)` | You implement your own resource type against the library |
 | Library entry points | `Validate(c)`, `ValidateResults(c)`, `ValidateConfig(c, cfg)`, `Serve(c)` | same, each taking `ctx` first | You call these directly instead of using the CLI |
 
-The release archives themselves are still published under **both** names, so a
-`goss-<os>-<arch>` download URL keeps resolving. Only the checksum file is single-named.
+Release binaries are published under the syver name only. The goss-named
+binaries were last published with v0.9.1, so a `goss-<os>-<arch>` download URL
+does not exist for any later release.
 
 For the binary-name break specifically, the fix is one line:
 
@@ -48,21 +49,34 @@ See [migrations](migrations.md#upgrading-from-krameffgoss-v060) for the full upg
 
 ## Nothing to change
 
-These are the compatibility guarantees. If your setup relies on any of them, it keeps working.
+These are the compatibility guarantees. If your setup relies on any of them, it
+keeps working. How long they last is set out in the
+[compatibility policy](#compatibility-policy) below.
 
 | What | Still true in Syver | Notes |
 | --- | --- | --- |
 | Config file key | `gossfile:` | Still canonical, still what gets written |
 | `goss.yaml` / `goss.yml` filenames | Accepted | Probed alongside the syver names |
-| `GOSS_*` environment variables | All 16 still honoured | Permanent, not deprecated |
+| `GOSS_*` environment variables | All 16 still honoured | New variables get a `SYVER_*` name only |
 | `--gossfile` / `-g` flag | Still accepted | Demoted to an alias, not removed |
-| `dgoss` / `dcgoss` / `kgoss` wrappers | Still shipped and working | Kept for one major version |
+| `dgoss` / `dcgoss` / `kgoss` wrappers | Still shipped and working | Print a one-line notice naming the syver script |
 | JUnit suite name | `goss` | Deliberately unchanged |
 | Nagios output prefix | `GOSS OK` / `GOSS CRITICAL` | Deliberately unchanged |
 | `goss_tests_*` Prometheus metrics | Still emitted | Syver metrics emit alongside, not instead |
 | `application/vnd.goss-*` Accept headers | Still accepted | No vendor header still yields `vnd.goss-` |
-| `goss-<os>-<arch>` release artifact | Still published | Legacy archive kept for one major version |
 | gossfile syntax, resource types, matchers | Unchanged | No spec rewrite needed |
+
+### Compatibility policy
+
+Syver keeps the goss names working, and there are no current plans to remove
+them: the `gossfile:` key, `goss.yaml` files, the `GOSS_*` environment
+variables, `--gossfile`, the `goss_tests_*` metrics, the `vnd.goss-` media types
+and the `dgoss`, `dcgoss` and `kgoss` scripts.
+
+They are maintained for compatibility but no longer extended. New features
+arrive under the syver names only: for example, `SYVER_TEMP_DIR` has no `GOSS_*`
+equivalent, and `sbxsyver` has no goss-named copy. If removal is ever planned,
+it will be announced in the changelog at least one minor release beforehand.
 
 ---
 
@@ -100,7 +114,7 @@ under goss may turn out to have been ignored the whole time.
 | Go module path | `github.com/krameff/goss` | `github.com/krameff/syver` |
 | Repository | `github.com/krameff/goss` | `github.com/krameff/syver` |
 | Container image | `ghcr.io/krameff/goss` | `ghcr.io/krameff/syver` |
-| Release artifacts | `goss-<os>-<arch>` | `syver-<os>-<arch>`, legacy name also published |
+| Release artifacts | `goss-<os>-<arch>` | `syver-<os>-<arch>`; the goss names were last published with v0.9.1 |
 | Checksum file | `goss_<ver>_SHA256SUMS` | `syver_<ver>_SHA256SUMS`, no legacy twin |
 | Container volume | `/goss` | `/syver`, and `/goss` is still declared |
 
@@ -176,7 +190,8 @@ never shadows a real `GOSS_*`.
 | Distro | goss | Syver |
 | --- | --- | --- |
 | CentOS 7 | Present | Removed, EOL and its systemd never activates services in a container |
-| almalinux10, alpine3, arch, bullseye, jammy, rockylinux9 | Present | Unchanged |
+| bullseye | Present | Removed, Debian 11 is EOL |
+| almalinux10, alpine3, arch, jammy, rockylinux9 | Present | Unchanged |
 
 ---
 

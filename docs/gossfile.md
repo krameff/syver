@@ -1211,8 +1211,6 @@ These matchers don't really fall into any of the above categories, or span multi
 !!! note
     When system returns a string it is converted into a one element array and matched
 
-See the following for examples: [link..]fixme
-
 ##### semver-constraint
 
 Checks that all versions match semver constraint or range syntax.

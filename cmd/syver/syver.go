@@ -188,7 +188,7 @@ func newApp() *cli.Command {
 				Name:    "log-level",
 				Aliases: []string{"loglevel", "L", "l"},
 				Value:   "INFO",
-				Usage:   "Goss log verbosity level",
+				Usage:   "Log verbosity level",
 				Sources: nonEmptyEnvVars("SYVER_LOGLEVEL", "GOSS_LOGLEVEL"),
 			},
 			&cli.StringFlag{
