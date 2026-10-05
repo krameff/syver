@@ -12,6 +12,12 @@ A ready-made profile for checking that a sandbox is what an agent should be
 given lives in the repository under
 [`examples/agent-sandbox-sbx/`](https://github.com/krameff/syver/tree/main/examples/agent-sandbox-sbx).
 
+If your agent runs in an ordinary container started with `docker run` rather
+than in an sbx sandbox, use `dsyver` and the plain-container profile instead:
+[checking an agent sandbox](https://syver.readthedocs.io/en/latest/containers/agent-sandboxes/).
+The two profiles check different things, because an sbx sandbox gives the
+agent sudo and its own Docker daemon by design.
+
 ## Install
 
 Copy `sbxsyver` to a directory on your `PATH`:
