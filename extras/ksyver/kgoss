@@ -263,13 +263,32 @@ initialize () {
     info "Using pod/container: ${id}"
 }
 
-# get_pod_file copies the specified file from the pod to a local path
+# get_pod_file NAME [DEST] copies NAME from the pod's GOSS_CONTAINER_PATH to
+# DEST, by default the same name under GOSS_FILES_PATH. It returns 1 when NAME
+# does not exist in the pod.
 get_pod_file() {
+    local dst="${2:-${GOSS_FILES_PATH}/$1}"
     if  ${k} exec ${GOSS_KUBECTL_OPTS} "$id" -- sh -c "test -e ${GOSS_CONTAINER_PATH}/$1" &> /dev/null; then
         mkdir -p "${GOSS_FILES_PATH}"
-        info "Copied '$1' from pod/container to '${GOSS_FILES_PATH}'"
-        ${k} cp ${GOSS_KUBECTL_OPTS} "${id}:${GOSS_CONTAINER_PATH}/$1" "${GOSS_FILES_PATH}/$1"
+        info "Copied '$1' from pod/container to '$dst'"
+        ${k} cp ${GOSS_KUBECTL_OPTS} "${id}:${GOSS_CONTAINER_PATH}/$1" "$dst"
+        return 0
     fi
+    return 1
+}
+
+# copy_back DEST NAME... copies the first NAME that exists in the pod back to
+# DEST, or to its own name under GOSS_FILES_PATH when DEST is empty. The names
+# are given in resolveSpecPath() order, so the file picked is the one
+# `goss add` wrote: the staged goss.yaml, or a syver.yaml it created because
+# nothing was staged.
+copy_back() {
+    local dst=$1 f
+    shift
+    for f in "$@"; do
+        get_pod_file "$f" "$dst" && return 0
+    done
+    return 0
 }
 
 main() {
@@ -328,10 +347,12 @@ main() {
         edit)
             info "When prompt appears you can run \`goss add\` to add resources"
             ${prefix}  ${k} exec ${GOSS_KUBECTL_OPTS} -it "$id" -- sh -c "cd ${GOSS_CONTAINER_PATH}; PATH=\"${GOSS_CONTAINER_PATH}:$PATH\" exec sh" || true
-            echo "Copying goss.yaml and goss_wait.yaml files back to local dir"
-            get_pod_file "goss.yaml"
-            get_pod_file "goss_wait.yaml"
-            [[ ! -z "${GOSS_VARS}" ]] && get_pod_file "${GOSS_VARS}"
+            echo "Copying the spec and wait files back to local dir"
+            # Back to the host file each was staged from, so a syver.yaml is not
+            # shadowed by a new goss.yaml holding the edits.
+            copy_back "$spec_src" syver.yaml syver.yml goss.yaml goss.yml
+            copy_back "$wait_src" syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml
+            [[ ! -z "${GOSS_VARS}" ]] && get_pod_file "${GOSS_VARS}" || true
             ;;
         *)
             echo "invalid kgoss command, valid commands are 'run' and 'edit'"

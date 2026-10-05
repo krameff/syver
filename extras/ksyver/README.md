@@ -131,10 +131,12 @@ until a certain port is open before executing the tests.
 ### Edit
 
 Edit will launch a container, install goss, and drop the user into an
-interactive shell. Once the user quits the interactive shell, any `goss.yaml`
-or `goss_wait.yaml` are copied out into the current directory. This allows the
-user to leverage the `goss add|autoadd` commands to write tests as they would
-on a regular machine.
+interactive shell. Once the user quits the interactive shell, the spec and wait
+file are copied back to the files they were read from, so edits to a
+`syver.yaml` land in `syver.yaml`. On a new project, the `syver.yaml` that
+`syver add` creates is copied out under that name, into `GOSS_FILES_PATH`. This
+allows the user to leverage the `goss add|autoadd` commands to write tests as
+they would on a regular machine.
 
 **Example:**
 

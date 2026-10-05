@@ -2,6 +2,7 @@ package syver
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -640,5 +641,196 @@ func TestSbxsyver(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// editRuntime stands in for docker, podman or kubectl with a fake container
+// filesystem, FAKE_CTR. Staging (a `-v SRC:...` mount or a `cp SRC/. ...`)
+// copies into it, the interactive `exec -it` shell runs FAKE_EDIT inside it to
+// play the user's `syver add`, `test -e` answers from it, and `cp CTR:PATH DST`
+// copies out of it.
+const editRuntime = `#!/bin/bash
+echo "$*" >> "$FAKE_RUNTIME_LOG"
+prev=
+for a in "$@"; do
+  if [ "$prev" = "-v" ]; then cp -r "${a%%:*}/." "$FAKE_CTR/"; fi
+  prev=$a
+done
+last="${@: -1}"
+case "$1" in
+  run|create) echo fakecontainerid0 ;;
+  inspect) echo true ;;
+  cp)
+    if [ "${2%/.}" != "$2" ]; then cp -r "$2" "$FAKE_CTR/"
+    elif [ "${2#*:}" != "$2" ]; then cp "$FAKE_CTR/$(basename "${2#*:}")" "$3"
+    fi ;;
+  exec)
+    case " $* " in
+      *" -it "*) (cd "$FAKE_CTR" && eval "$FAKE_EDIT") ;;
+      *) case "$last" in
+           "test -e "*) test -e "$FAKE_CTR/$(basename "${last#test -e }")"; exit $? ;;
+         esac ;;
+    esac ;;
+esac
+exit 0
+`
+
+// TestWrapperEditCopyBack proves every wrapper's `edit` puts the spec it hands
+// out back where it came from. Each stages the spec into the container as
+// goss.yaml, so `syver add` writes to goss.yaml, and the wrappers used to copy
+// that to the host as goss.yaml: a syver.yaml never received the edits and
+// still won on the next run. On an empty project `syver add` writes syver.yaml,
+// which was never copied out at all. The run must also exit 0: dcsyver and
+// ksyver ended `edit` on `[[ -n "${GOSS_VARS}" ]] && ...`, so without
+// GOSS_VARS they exited 1 after copying back.
+//
+// REVERT-PROOF: restoring the goss.yaml-only copy-back in any script fails its
+// "syver.yaml", "new project" and "syver_wait.yaml" cases. Dropping the
+// `|| true` after the GOSS_VARS copy-back fails every dcsyver and ksyver case,
+// including "goss.yaml", the one that copied back correctly before the fix.
+func TestWrapperEditCopyBack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the wrappers are bash scripts driving a local container runtime")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+
+	wrappers := []struct {
+		dir, script, runtime string
+		args                 []string
+		noGossFile           bool // the Kubernetes pair has never read GOSS_FILE
+	}{
+		{dir: "dsyver", script: "dsyver", runtime: "podman", args: []string{"edit", "example/image"}},
+		{dir: "dsyver", script: "dgoss", runtime: "podman", args: []string{"edit", "example/image"}},
+		{dir: "dcsyver", script: "dcsyver", runtime: "docker", args: []string{"edit", "svc"}},
+		{dir: "dcsyver", script: "dcgoss", runtime: "docker", args: []string{"edit", "svc"}},
+		{dir: "ksyver", script: "ksyver", runtime: "kubectl", args: []string{"edit", "-i", "example/image"}, noGossFile: true},
+		{dir: "ksyver", script: "kgoss", runtime: "kubectl", args: []string{"edit", "-i", "example/image"}, noGossFile: true},
+	}
+
+	// edit writes "edited" into the first file that exists, the way `syver add`
+	// writes to the spec it resolved, or creates syver.yaml when there is none.
+	const addToSpec = `for f in custom.yaml syver.yaml syver.yml goss.yaml goss.yml; do
+  [ -e "$f" ] && { echo edited > "$f"; exit 0; }
+done
+echo edited > syver.yaml`
+
+	tests := []struct {
+		name     string
+		files    []string // host files before, each containing its own name
+		gossFile string
+		edit     string
+		want     map[string]string // every spec-like host file after, and its content
+	}{
+		{
+			name: "syver.yaml", files: []string{"syver.yaml"}, edit: addToSpec,
+			want: map[string]string{"syver.yaml": "edited"},
+		},
+		{
+			name: "goss.yaml", files: []string{"goss.yaml"}, edit: addToSpec,
+			want: map[string]string{"goss.yaml": "edited"},
+		},
+		{
+			name: "new project", edit: addToSpec,
+			want: map[string]string{"syver.yaml": "edited"},
+		},
+		{
+			name: "syver_wait.yaml", files: []string{"syver.yaml", "syver_wait.yaml"},
+			edit: "echo edited-wait > goss_wait.yaml",
+			want: map[string]string{"syver.yaml": "syver.yaml", "syver_wait.yaml": "edited-wait"},
+		},
+		{
+			name: "explicit GOSS_FILE", files: []string{"syver.yaml", "custom.yaml"}, gossFile: "custom.yaml",
+			edit: addToSpec,
+			want: map[string]string{"syver.yaml": "syver.yaml", "custom.yaml": "edited"},
+		},
+	}
+
+	for _, w := range wrappers {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", w.dir, w.script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range tests {
+			t.Run(w.script+"/"+tc.name, func(t *testing.T) {
+				if tc.gossFile != "" && w.noGossFile {
+					t.Skip("this wrapper does not read GOSS_FILE")
+				}
+				dir := t.TempDir()
+				binDir := filepath.Join(dir, "bin")
+				specDir := filepath.Join(dir, "spec")
+				ctr := filepath.Join(dir, "ctr")
+				for _, d := range []string{binDir, specDir, ctr} {
+					if err := os.Mkdir(d, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				fake := filepath.Join(binDir, w.runtime)
+				if err := os.WriteFile(fake, []byte(editRuntime), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				for _, f := range tc.files {
+					if err := os.WriteFile(filepath.Join(specDir, f), []byte(f+"\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				// The compose wrappers refuse to start without a compose file.
+				if err := os.WriteFile(filepath.Join(specDir, "compose.yaml"), []byte("services: {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				fakeSyver := filepath.Join(dir, "syver")
+				if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				callLog := filepath.Join(dir, "calls.log")
+
+				cmd := exec.Command(bash, append([]string{scriptPath}, w.args...)...)
+				cmd.Dir = specDir
+				cmd.Env = append(os.Environ(),
+					"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"CONTAINER_RUNTIME="+w.runtime,
+					"COMPOSE_BIN=docker compose",
+					"GOSS_KUBECTL_BIN="+fake,
+					"GOSS_FILES_PATH="+specDir,
+					"GOSS_PATH="+fakeSyver,
+					"DGOSS_TEMP_DIR="+dir,
+					"FAKE_RUNTIME_LOG="+callLog,
+					"FAKE_CTR="+ctr,
+					"FAKE_EDIT="+tc.edit,
+				)
+				if tc.gossFile != "" {
+					cmd.Env = append(cmd.Env, "GOSS_FILE="+tc.gossFile)
+				}
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				runErr := cmd.Run()
+				callBytes, _ := os.ReadFile(callLog)
+				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + string(callBytes)
+				if runErr != nil {
+					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
+				}
+
+				got := map[string]string{}
+				entries, err := os.ReadDir(specDir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, e := range entries {
+					if e.Name() == "compose.yaml" {
+						continue
+					}
+					b, err := os.ReadFile(filepath.Join(specDir, e.Name()))
+					if err != nil {
+						t.Fatal(err)
+					}
+					got[e.Name()] = strings.TrimSpace(string(b))
+				}
+				if !maps.Equal(got, tc.want) {
+					t.Errorf("host files after edit = %v, want %v\n%s", got, tc.want, detail)
+				}
+			})
+		}
 	}
 }

@@ -11,6 +11,17 @@
     the same from `util.WithMaxConcurrency`, and a run always starts at least
     one worker even when `MaxConcurrent` is set directly
 
+- the container wrappers
+  - `edit` now copies the spec back to the file it was read from. Every wrapper
+    hands the spec to the container as `goss.yaml`, so `syver add` writes there,
+    and `edit` used to copy that out as `goss.yaml`: edits to a `syver.yaml`
+    landed in a new `goss.yaml`, and the unchanged `syver.yaml` still won on the
+    next run. On a new project, the `syver.yaml` that `syver add` creates was
+    never copied out at all. Wait files follow the same rule. Applies to
+    `dsyver`, `dcsyver`, `ksyver` and their goss-named shims
+  - `dcsyver edit` and `ksyver edit` (and `dcgoss`, `kgoss`) exited 1 after a
+    successful edit unless `GOSS_VARS` was set. They now exit 0
+
 - release binaries
   - 32-bit binaries (`syver-linux-386`, `syver-linux-armv6`) are no longer
     published. Nothing tested them, and `install.sh` could not install the ARM

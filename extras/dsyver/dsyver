@@ -89,7 +89,7 @@ run(){
     chmod 755 "$tmp_dir/syver"
     # GOSS_FILE, when set, is an explicit user choice and is the only candidate --
     # matching resolveSpecPath()'s `c.IsSet("syverfile")` short-circuit.
-    local spec_src wait_src
+    # spec_src and wait_src are global: `edit` copies back to them.
     if [[ -n "${GOSS_FILE}" ]]; then
         spec_src="$(first_existing "${GOSS_FILE}")" || spec_src=""
     else
@@ -159,6 +159,22 @@ get_docker_file() {
     fi
 }
 
+# copy_back DEST NAME... copies the first NAME that exists in the container's
+# /syver back to DEST, or to its own name under GOSS_FILES_PATH when DEST is
+# empty. The names are given in resolveSpecPath() order, so the file picked is
+# the one `syver add` wrote: the staged goss.yaml, or a syver.yaml it created
+# because nothing was staged.
+copy_back(){
+    local dst=$1 f
+    shift
+    for f in "$@"; do
+        if $CONTAINER_RUNTIME exec "$id" sh -c "test -e /syver/${f}" > /dev/null 2>&1; then
+            get_docker_file "$id" "/syver/${f}" "${dst:-${GOSS_FILES_PATH}/${f}}"
+            return 0
+        fi
+    done
+}
+
 # Main
 # mktemp -d creates the directory 0700, and that is exactly what is wanted on
 # the outer directory: it is what stops other local users reaching the contents.
@@ -224,8 +240,12 @@ case "$1" in
         run "$@"
         info "Run syver add/autoadd to add resources"
         $CONTAINER_RUNTIME exec -it "$id" sh -c 'cd /syver; PATH="/syver:$PATH" exec sh'
-        get_docker_file "$id" "/syver/goss.yaml" "${GOSS_FILES_PATH}/${GOSS_FILE:-goss.yaml}"
-        get_docker_file "$id" "/syver/goss_wait.yaml" "${GOSS_FILES_PATH}/goss_wait.yaml"
+        # Back to the host file the spec was staged from, so a syver.yaml is not
+        # shadowed by a new goss.yaml holding the edits.
+        spec_dst="$spec_src"
+        [[ -z "$spec_dst" && -n "${GOSS_FILE}" ]] && spec_dst="${GOSS_FILES_PATH}/${GOSS_FILE}"
+        copy_back "$spec_dst" syver.yaml syver.yml goss.yaml goss.yml
+        copy_back "$wait_src" syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml
         if [[ -n "${GOSS_VARS}" ]]; then
             get_docker_file "$id" "/syver/${GOSS_VARS}" "${GOSS_FILES_PATH}/${GOSS_VARS}"
         fi

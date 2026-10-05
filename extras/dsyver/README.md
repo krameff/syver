@@ -100,9 +100,10 @@ for the dgoss command, for example:
 ### Edit
 
 Edit will launch a container, install syver, and drop the user into an interactive shell.
-Once the user quits the interactive shell, any `syver.yaml` or `syver_wait.yaml`
-are copied out into the current directory. The goss-named equivalents are picked
-up too.
+Once the user quits the interactive shell, the spec and wait file are copied
+back to the files they were read from, so edits to a `syver.yaml` land in
+`syver.yaml`. On a new project, the `syver.yaml` that `syver add` creates is
+copied out under that name, into `GOSS_FILES_PATH`.
 This allows the user to leverage the `syver add|autoadd` commands to write tests as they would on a regular machine.
 
 **Example:**

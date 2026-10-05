@@ -76,7 +76,7 @@ run(){
     # exec below reads /goss/${GOSS_FILE} -- changing that would break the
     # explicit-override path. Only the unset case gains the syver.yaml probe,
     # and it stages as goss.yaml to match the exec's ${GOSS_FILE:-goss.yaml} default.
-    local spec_src wait_src
+    # spec_src and wait_src are global: `edit` copies back to them.
     if [[ -n "${GOSS_FILE}" ]]; then
         spec_src="$(first_existing "${GOSS_FILE}")" || spec_src=""
         [[ -n "$spec_src" ]] && install -m ugo+rw "$spec_src" "$tmp_dir"
@@ -115,14 +115,33 @@ run(){
     info "Container name: $service"
 }
 
+# get_docker_file SRC [DEST] copies SRC out of the container to DEST, by
+# default GOSS_FILES_PATH. It returns 1 when SRC does not exist.
 get_docker_file() {
+    local dst="${2:-${GOSS_FILES_PATH}}" rc=1
     set +e
-    if $CONTAINER_RUNTIME exec "$service" sh -c "test -e $1" > /dev/null; then
+    if $CONTAINER_RUNTIME exec "$service" sh -c "test -e $1" > /dev/null 2>&1; then
         mkdir -p "${GOSS_FILES_PATH}"
-        info "Copied '$1' from container to '${GOSS_FILES_PATH}'"
-        $CONTAINER_RUNTIME cp "$service:$1" "${GOSS_FILES_PATH}"
+        info "Copied '$1' from container to '$dst'"
+        $CONTAINER_RUNTIME cp "$service:$1" "$dst"
+        rc=0
     fi
     set -e
+    return $rc
+}
+
+# copy_back DEST NAME... copies the first NAME that exists in the container's
+# /goss back to DEST, or to its own name under GOSS_FILES_PATH when DEST is
+# empty. The names are given in resolveSpecPath() order, so the file picked is
+# the one `goss add` wrote: the staged goss.yaml, or a syver.yaml it created
+# because nothing was staged.
+copy_back(){
+    local dst=$1 f
+    shift
+    for f in "$@"; do
+        get_docker_file "/goss/${f}" "${dst:-${GOSS_FILES_PATH}/${f}}" && return 0
+    done
+    return 0
 }
 
 # Main
@@ -222,10 +241,16 @@ case "$1" in
         run "$@"
         info "Run goss add/autoadd to add resources"
         $CONTAINER_RUNTIME exec -it "$service" sh -c 'cd /goss; PATH="/goss:$PATH" exec sh'
-        [[ -n "${GOSS_FILE}" ]] && get_docker_file "/goss/${GOSS_FILE}"
-        get_docker_file "/goss/goss.yaml"
-        get_docker_file "/goss/goss_wait.yaml"
-        [[ -n "${GOSS_VARS}" ]] && get_docker_file "/goss/${GOSS_VARS}"
+        # An explicit GOSS_FILE is staged under its own name, so it comes back
+        # under it. Otherwise the spec goes back to the host file it was staged
+        # from, so a syver.yaml is not shadowed by a new goss.yaml holding the edits.
+        if [[ -n "${GOSS_FILE}" ]]; then
+            get_docker_file "/goss/${GOSS_FILE}" "${spec_src:-${GOSS_FILES_PATH}/${GOSS_FILE}}" || true
+        else
+            copy_back "$spec_src" syver.yaml syver.yml goss.yaml goss.yml
+        fi
+        copy_back "$wait_src" syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml
+        [[ -n "${GOSS_VARS}" ]] && get_docker_file "/goss/${GOSS_VARS}" || true
         ;;
     *)
         error "$USAGE"
