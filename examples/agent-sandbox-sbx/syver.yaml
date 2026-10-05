@@ -1,0 +1,97 @@
+# A reference profile for a Docker Sandboxes (sbx) sandbox that a coding agent
+# runs in. Run it against the sandbox by name:
+#
+#   SYVER_VARS=vars.yaml sbxsyver run <sandbox>
+#
+# Every value that varies between sandboxes is in vars.yaml. The sections are
+# independent: delete any that do not apply to yours.
+#
+# This is NOT the plain-container profile in examples/agent-sandbox/. An sbx
+# sandbox is a microVM: the agent has sudo and its own Docker daemon by design,
+# and sbx sets credential variables to placeholders. Checks for a non-root
+# user, an absent Docker socket or absent credential variables would fail on
+# every correctly configured sbx sandbox, so this profile checks what sbx
+# promises instead.
+
+command:
+  # --- Sandbox: these checks are running inside sbx, not somewhere else ------
+  inside a Docker sandbox:
+    exec: test -n "$SANDBOX_ID"
+    exit-status: 0
+
+  # --- Toolchain: what the agent needs is present and runs -------------------
+{{- range $name, $check := .Vars.tools }}
+  tool {{ $name }}:
+    exec: {{ $check }}
+    exit-status: 0
+{{- end }}
+
+  # --- Workspace: mounted and writable -------------------------------------
+  # sbx mounts the workspace at the same absolute path as on the host and
+  # exports that path as WORKSPACE_DIR.
+  workspace is writable:
+    exec: test -d "$WORKSPACE_DIR" && test -w "$WORKSPACE_DIR"
+    exit-status: 0
+
+  # --- Docker: the daemon is the sandbox's own, not the host's --------------
+  # The private daemon names itself after the sandbox VM.
+  docker daemon is private:
+    exec: 'docker info 2>/dev/null | grep -qx " Name: $SANDBOX_VM_ID"'
+    exit-status: 0
+
+  # --- Credentials: proxied variables hold the placeholder, never a key -----
+  # sbx keeps real credentials on the host and swaps them in at its proxy. A
+  # real value here means a key was passed into the sandbox directly. The
+  # check prints nothing, so a leaked value is not echoed into the output.
+{{- range .Vars.proxied_env }}
+  env {{ . }} is unset or the sbx placeholder:
+    exec: 'case "${{ . }}" in ""|proxy-managed|gho_sbxproxymanaged*) exit 0 ;; *) exit 1 ;; esac'
+    exit-status: 0
+{{- end }}
+{{- range .Vars.absent_env }}
+  env {{ . }} is not set:
+    exec: env | grep -q '^{{ . }}='
+    exit-status: 1
+{{- end }}
+
+# --- Network: the policy allows what is needed and denies the rest ----------
+# A host the policy denies is refused at connect, so `reachable: false` is a
+# real test of the policy rather than of the remote host.
+addr:
+{{- range .Vars.egress_allow }}
+  tcp://{{ . }}:
+    reachable: true
+    timeout: 5000
+{{- end }}
+{{- range .Vars.egress_deny }}
+  tcp://{{ . }}:
+    reachable: false
+    timeout: 5000
+{{- end }}
+
+file:
+  # --- Credentials: no credential files in the agent's home -----------------
+  /home/agent/.ssh/id_rsa:
+    exists: false
+  /home/agent/.ssh/id_ed25519:
+    exists: false
+  /home/agent/.aws/credentials:
+    exists: false
+  /home/agent/.config/gh/hosts.yml:
+    exists: false
+  /home/agent/.git-credentials:
+    exists: false
+  /home/agent/.netrc:
+    exists: false
+
+  # --- Credentials: no host credential directory mounted as a workspace -----
+  # `sbx create AGENT PATH...` mounts every extra PATH at its host path, so a
+  # mounted ~/.ssh or ~/.aws appears under host_home.
+  {{ .Vars.host_home }}/.ssh:
+    exists: false
+  {{ .Vars.host_home }}/.aws:
+    exists: false
+  {{ .Vars.host_home }}/.config/gh:
+    exists: false
+  {{ .Vars.host_home }}/.kube:
+    exists: false

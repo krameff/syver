@@ -1,0 +1,43 @@
+# Values for syver.yaml. Edit these to match your sandbox; the spec itself
+# should not need changing.
+
+# The home directory of the user you run sbx as, ON THE HOST. A host path
+# passed to `sbx create` as an extra workspace appears inside the sandbox at
+# the same path, so this is where a mounted credential directory would show up.
+host_home: /home/you
+
+# Commands the agent needs, with a check that each one runs.
+tools:
+  git: git --version
+  curl: curl --version
+
+# Hosts the agent must be able to reach, as host:port. These two are allowed by
+# the "balanced" network policy.
+egress_allow:
+  - api.anthropic.com:443
+  - github.com:443
+
+# Hosts it must NOT be able to reach. The cloud metadata address is the one
+# that matters most: on a cloud host it hands out the host's credentials.
+egress_deny:
+  - 169.254.169.254:80
+  - example.com:443
+
+# Variables sbx sets to a placeholder that its host-side proxy swaps for the
+# real credential. Each must be unset or hold the placeholder, never a real
+# key. Only the NAME is written here, never a value.
+proxied_env:
+  - ANTHROPIC_API_KEY
+  - OPENAI_API_KEY
+  - GOOGLE_API_KEY
+  - MISTRAL_API_KEY
+  - OPENROUTER_API_KEY
+  - XAI_API_KEY
+  - NEBIUS_API_KEY
+  - GH_TOKEN
+
+# Variables sbx does not manage, which must not be set at all.
+absent_env:
+  - GITHUB_TOKEN
+  - AWS_ACCESS_KEY_ID
+  - AWS_SECRET_ACCESS_KEY

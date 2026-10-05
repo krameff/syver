@@ -201,6 +201,7 @@ release:
     - glob: ./extras/dsyver/dsyver*
     - glob: ./extras/dcsyver/dcsyver*
     - glob: ./extras/ksyver/ksyver*
+    - glob: ./extras/sbxsyver/sbxsyver*
     - glob: ./krameff-syver-key.asc
 
 snapshot:

@@ -25,6 +25,15 @@
     behave identically. They are separate copies that differ inside the
     container, where they use `/goss` and a binary named `goss`, and the READMEs
     now say so
+  - new `sbxsyver` runs syver inside a Docker Sandboxes sandbox, the `sbx`
+    microVMs coding agents run in. It copies syver and the spec in with
+    `sbx cp`, runs them with `sbx exec` and removes them again, leaving the
+    workspace untouched. A reference profile under
+    `examples/agent-sandbox-sbx/` checks that a sandbox is fit to hand to an
+    agent: its tools and workspace work, its credential variables hold the sbx
+    placeholder rather than a real key, no credential directory is mounted
+    in, and its network policy allows and denies what you expect. Released
+    alongside the other wrappers
 
 - toolchain
   - built with Go 1.27.1, up from 1.26.8, and `go.mod` now declares `go 1.27.0`,
