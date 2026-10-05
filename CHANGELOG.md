@@ -1,5 +1,46 @@
 # Changelog
 
+## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
+
+- documentation
+  - a reference profile for checking the Docker container a coding agent runs
+    in, under `examples/agent-sandbox/`, with a guide in
+    `docs/containers/agent-sandboxes.md`. Run with `dsyver`, it checks that the
+    agent has its tools and workspace and does not run as root, and that the
+    operator's credential files and variables, the Docker socket and unfiltered
+    egress are NOT in reach, along with the usual hardening flags. It needs
+    nothing new in syver
+
+- the container wrappers
+  - `dgoss`, `dcgoss` and `kgoss` now find a spec the same way `dsyver`,
+    `dcsyver` and `ksyver` do: the first of `syver.yaml`, `syver.yml`,
+    `goss.yaml` and `goss.yml`, and the same for the wait file. They only ever
+    looked for `goss.yaml`, so on a spec written by `syver add`, which creates
+    `syver.yaml`, they staged nothing and the run failed inside the container
+    with `open /goss/goss.yaml: no such file or directory`. A directory holding
+    only `goss.yaml` behaves exactly as before
+  - a `syver_wait.yaml` is now waited on by the goss-named wrappers too, where
+    before it was silently skipped
+  - the wrapper READMEs called the goss-named scripts forwarding shims that
+    behave identically. They are separate copies that differ inside the
+    container, where they use `/goss` and a binary named `goss`, and the READMEs
+    now say so
+  - new `sbxsyver` runs syver inside a Docker Sandboxes sandbox, the `sbx`
+    microVMs coding agents run in. It copies syver and the spec in with
+    `sbx cp`, runs them with `sbx exec` and removes them again, leaving the
+    workspace untouched. A reference profile under
+    `examples/agent-sandbox-sbx/` checks that a sandbox is fit to hand to an
+    agent: its tools and workspace work, its credential variables hold the sbx
+    placeholder rather than a real key, no credential directory is mounted
+    in, and its network policy allows and denies what you expect. Released
+    alongside the other wrappers
+
+- toolchain
+  - built with Go 1.27.1, up from 1.26.8, and `go.mod` now declares `go 1.27.0`,
+    so building syver from source needs Go 1.27 or later. Released binaries and
+    the container image need nothing new. No check, flag or rendered output
+    changes
+
 ## 0.14.0 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrappers
 
 - documentation

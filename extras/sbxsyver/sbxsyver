@@ -1,0 +1,118 @@
+#!/bin/bash
+
+set -e
+[ "$DEBUG" ] && set -x
+
+# --- SYVER_*/GOSS_* env pairing -------------------------------------------
+# Same contract as dsyver: a SYVER_* value wins only when it is set AND
+# non-empty, so an exported-but-empty SYVER_X can never shadow a real GOSS_X.
+# Only the names this script reads are folded.
+for _syver_var in FILES_PATH FILE VARS OPTS WAIT_OPTS PATH; do
+    _syver_src="SYVER_${_syver_var}"
+    if [[ -n "${!_syver_src:-}" ]]; then
+        printf -v "GOSS_${_syver_var}" '%s' "${!_syver_src}"
+    fi
+done
+unset _syver_var _syver_src
+# --------------------------------------------------------------------------
+
+USAGE="USAGE: $(basename "$0") run <sandbox> [sbx exec flags]"
+GOSS_FILES_PATH="${GOSS_FILES_PATH:-.}"
+SBX_BIN="${SBX_BIN:-sbx}"
+
+info() {
+    echo -e "INFO: $*" >&2;
+}
+error() {
+    echo -e "ERROR: $*" >&2;
+    exit 1;
+}
+
+# Echoes the first of the given basenames that exists under GOSS_FILES_PATH,
+# or nothing. Same order as resolveSpecPath() in cmd/syver/syver.go and the
+# other wrappers: syver-named files win over goss-named ones.
+first_existing(){
+    local f
+    for f in "$@"; do
+        if [[ -e "${GOSS_FILES_PATH}/${f}" ]]; then
+            printf '%s\n' "${GOSS_FILES_PATH}/${f}"
+            return 0
+        fi
+    done
+    return 1
+}
+
+cleanup() {
+    set +e
+    if [[ -n "$remote_dir" ]]; then
+        info "Removing $remote_dir from the sandbox"
+        "$SBX_BIN" exec "$sandbox" rm -rf "$remote_dir" > /dev/null 2>&1
+    fi
+    [ "$DEBUG" ] || rm -rf "$tmp_parent"
+}
+
+# Runs syver inside the sandbox against a staged spec. Everything after the
+# sandbox name is passed to `sbx exec` as flags, e.g. `-u root`.
+in_sandbox(){
+    "$SBX_BIN" exec "${exec_flags[@]}" "$sandbox" sh -c "$1"
+}
+
+[[ "$1" == "run" ]] || error "$USAGE"
+sandbox="$2"
+[[ -n "$sandbox" ]] || error "$USAGE"
+exec_flags=("${@:3}")
+
+# The binary runs INSIDE the sandbox, which is always a Linux VM, so it must be
+# a Linux build for the host's architecture. On macOS or Windows the syver on
+# PATH is the wrong platform, so it is never auto-discovered there.
+if [[ -z "$GOSS_PATH" ]]; then
+    [[ "$(uname -s)" == "Linux" ]] || error "set SYVER_PATH to a linux syver binary: the sandbox runs Linux, and the syver on this host's PATH does not"
+    GOSS_PATH="$(which syver 2> /dev/null || true)"
+fi
+[[ $GOSS_PATH ]] || error "Couldn't find a syver installation, please set SYVER_PATH to it"
+[[ ${GOSS_OPTS+x} ]] || GOSS_OPTS="--color --format documentation"
+[[ ${GOSS_WAIT_OPTS+x} ]] || GOSS_WAIT_OPTS="-r 30s -s 1s > /dev/null"
+
+# Stage locally under a private (0700) parent, as dsyver does, then copy the
+# whole directory into the sandbox in one `sbx cp`.
+tmp_parent=$(mktemp -d "${SYVER_TEMP_DIR:-/tmp}"/tmp.XXXXXXXXXX)
+tmp_dir="$tmp_parent/syver"
+mkdir "$tmp_dir"
+remote_dir=""
+trap 'ret=$?;cleanup;exit $ret' EXIT
+
+cp "${GOSS_PATH}" "$tmp_dir/syver"
+chmod 755 "$tmp_dir/syver"
+if [[ -n "${GOSS_FILE}" ]]; then
+    spec_src="$(first_existing "${GOSS_FILE}")" || spec_src=""
+else
+    spec_src="$(first_existing syver.yaml syver.yml goss.yaml goss.yml)" || spec_src=""
+fi
+[[ -n "$spec_src" ]] || error "no spec found in ${GOSS_FILES_PATH}: looked for syver.yaml, syver.yml, goss.yaml, goss.yml"
+cp "$spec_src" "$tmp_dir/goss.yaml"
+wait_src="$(first_existing syver_wait.yaml syver_wait.yml goss_wait.yaml goss_wait.yml)" || wait_src=""
+if [[ -n "$wait_src" ]]; then
+    cp "$wait_src" "$tmp_dir/goss_wait.yaml"
+fi
+vars_arg=""
+if [[ -n "${GOSS_VARS}" ]]; then
+    [[ -e "${GOSS_FILES_PATH}/${GOSS_VARS}" ]] || error "vars file ${GOSS_FILES_PATH}/${GOSS_VARS} not found"
+    cp "${GOSS_FILES_PATH}/${GOSS_VARS}" "$tmp_dir/vars.yaml"
+fi
+chmod 644 "$tmp_dir"/*.yaml
+
+# A fresh directory per run, created by the sandbox's own mktemp so it is
+# private to the user the checks run as.
+remote_dir="$(in_sandbox 'mktemp -d')" || error "could not create a directory in sandbox ${sandbox}; is it running?"
+[[ -n "$remote_dir" ]] || error "sandbox ${sandbox} returned no temporary directory"
+info "Copying syver into ${sandbox}:${remote_dir}"
+"$SBX_BIN" cp "$tmp_dir" "${sandbox}:${remote_dir}"
+r="${remote_dir}/syver"
+[[ -n "${GOSS_VARS}" ]] && vars_arg="--vars='$r/vars.yaml'"
+
+if [[ -n "$wait_src" ]]; then
+    info "Found $(basename "$wait_src"), waiting for it to pass before running tests"
+    in_sandbox "$r/syver -g $r/goss_wait.yaml $vars_arg validate $GOSS_WAIT_OPTS" || error "$(basename "$wait_src") never passed"
+fi
+info "Running Tests"
+in_sandbox "$r/syver -g $r/goss.yaml $vars_arg validate $GOSS_OPTS"

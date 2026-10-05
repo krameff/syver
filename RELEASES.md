@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.15.0 - Agent sandbox profiles and sbxsyver](#v0150---agent-sandbox-profiles-and-sbxsyver)
 * [v0.14.0 - Syver-named variables in the Docker wrappers](#v0140---syver-named-variables-in-the-docker-wrappers)
 * [v0.13.0 - File owners and services on Windows](#v0130---file-owners-and-services-on-windows)
 * [v0.12.2 - Mount support on Windows](#v0122---mount-support-on-windows)
@@ -81,16 +82,48 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ---
 
-## v0.14.0 - Syver-named variables in the Docker wrappers
+## v0.15.0 - Agent sandbox profiles and sbxsyver
 
 | Field | Value |
 | --- | --- |
 | Released | pending |
-| Tag | `v0.14.0`, annotated and signed with the maintainer key |
+| Tag | pending |
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: `docs/0.13.0-shipped` (PR #58), `docs/dsyver-walkthrough` (PR #59), `feat/wrapper-syver-temp-dir` (PR #62), six dependency bumps (PRs #63, #64, #65, #67, #66, #68), then `go_update` for the Go 1.26.8 toolchain and this record |
-| Scope | 11 commits (excluding merges), 19 files, +1065 / -87, measured at `2eb0474` on `go_update` against `v0.13.0`. Re-measure at the tag |
+| Integration branch | `devel`, in this merge order: `docs/0.14.0-shipped` (PR #71), `fix/dgoss-syver-yaml` (PR #72), `deps/go-1.27` (PR #73), `feature/sbxsyver` (PR #74), `docs/agent-sandbox-profile` (PR #75), then `docs/0.15.0-pending` for this record |
+| Scope | 10 commits (excluding merges), 31 files, +1308 / -48, measured at `6d3563a` on `devel` against `v0.14.0`, before this record |
+| Changelog | [0.15.0](CHANGELOG.md#0150-based-on-krameffgoss-v060---agent-sandbox-profiles-and-sbxsyver) |
+
+A minor because it ships a new wrapper, `sbxsyver`, for Docker Sandboxes. No
+resource attribute changed, so `docs/schema.yaml` is unchanged. It also carries
+reference profiles for checking the sandboxes coding agents run in, both plain
+containers and Docker Sandboxes; the goss-named wrappers finding `syver.yaml`;
+and the Go toolchain moving from 1.26.8 to 1.27.1.
+
+**Suites run on 2026-10-05**, at `6d3563a` on `devel`: Linux unit under
+`-race`, `make check`, `make lint` and `make lint-cross` (golangci-lint
+v2.14.0), `make lint-yaml`, coverage, the security scan (govulncheck and trivy,
+no findings) and 208/208 goldens. The 6 goldens beyond 0.14.0's 202 are the
+two new profiles' render entries; the 202 are unchanged. CI on the same commit
+was green across every integration job, including `windows-latest`,
+`macos-latest`, arm64, ppc64le and the Docker distribution matrix.
+
+`sbxsyver` cannot run in CI. It was tested by hand against Docker Sandboxes
+v0.46.0 with the `balanced` network policy: a correctly configured sandbox
+passes all 30 checks of its profile, and one given a key and a token through
+`-e`, the host's `~/.aws` and a rule allowing a denied host fails exactly those
+four. In CI, `TestSbxsyver` covers the wrapper against a fake `sbx`.
+
+## v0.14.0 - Syver-named variables in the Docker wrappers
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-10-03 |
+| Tag | `v0.14.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `3e62a95`, the `devel` -> `main` merge commit from PR #70 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: `docs/0.13.0-shipped` (PR #58), `docs/dsyver-walkthrough` (PR #59), `feat/wrapper-syver-temp-dir` (PR #62), six dependency bumps (PRs #63, #64, #65, #67, #66, #68), then `go_update` (PR #69) for the Go 1.26.8 toolchain and this record. Merged to `main` through PR #70 |
+| Scope | 12 commits (excluding merges), 19 files, +1100 / -86, measured at `v0.14.0` against `v0.13.0` |
 | Changelog | [0.14.0](CHANGELOG.md#0140-based-on-krameffgoss-v060---syver-named-variables-in-the-docker-wrappers) |
 
 A minor because the Docker wrappers gain a variable, `SYVER_TEMP_DIR`. No
@@ -111,8 +144,17 @@ the same results and counts. The guest was not re-run, since it can only check
 out committed work; the `windows-latest` CI job on this PR is the first Windows
 run on 1.26.8.
 
-**Outstanding before the tag:** CI green on the PR, the `devel` -> `main`
-merge, the tag itself, and `/release-gate` including its after-tag section.
+CI was green on PR #69, on `devel` after it merged (including the
+cross-platform lint and scan, which only runs on push), and on PR #70,
+including `windows-latest` and `macos-latest`.
+
+**Verified after the push**, against the published release rather than the build
+log. The tag is an annotated tag object with a good signature from the
+maintainer key. The release carries 39 assets. `syver_0.14.0_SHA256SUMS` and all
+eight SPDX SBOMs verify against the project key, the checksum for
+`syver-linux-amd64` matches, and that binary reports `syver version 0.14.0` and
+was built with go1.26.8. `ghcr.io/krameff/syver:v0.14.0` and `:latest` resolve to
+the same index, annotated with revision `3e62a95` and version `0.14.0`.
 
 ---
 

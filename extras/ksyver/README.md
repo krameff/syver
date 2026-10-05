@@ -3,9 +3,11 @@
 ksyver is a wrapper for syver that aims to bring the simplicity of testing
 with syver to containers running in pods in Kubernetes.
 
-`kgoss` is the previous name of this script and is kept as a thin forwarding
-shim for one major version -- it behaves identically to `ksyver`. New scripts
-and documentation should use `ksyver`.
+`kgoss` is the previous name of this script and is kept for one major version
+as a compatibility copy. It takes the same commands, variables and spec files as
+`ksyver`; the difference is inside the pod, where `GOSS_CONTAINER_PATH` defaults
+to `/tmp/goss` rather than `/tmp/syver` and the copied binary is named `goss`.
+New scripts and documentation should use `ksyver`.
 
 ksyver is a script which when invoked copies and runs syver (the binary) within a
 Linux container. syver itself is only supported on Linux, but since it need only
@@ -96,8 +98,10 @@ If none of `-p|-c|-a` are specified the container is run with its configured ent
 `-d` and `-e` can be specified multiple (or zero) times to add additional
 directories and env vars.
 
-By default kgoss copies `goss.yaml` from the current working directory and
-nothing else. You may need other files like scripts and configurations copied
+By default ksyver and kgoss copy one spec file from the current working
+directory and nothing else: the first of `syver.yaml`, `syver.yml`, `goss.yaml`
+and `goss.yml`, staged in the pod as `goss.yaml`, plus a wait file found the
+same way. You may need other files like scripts and configurations copied
 as well. Specify `-d <path_to_dir>` for each additional directory you'd like
 to recursively copy. These will be copied as directories next to `goss.yaml`
 in the target container's `GOSS_CONTAINER_PATH`.

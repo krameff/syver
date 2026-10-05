@@ -2,9 +2,12 @@
 
 dsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to containers.
 
-`dgoss` is the previous name of this script and is kept as a thin forwarding
-shim for one major version -- it behaves identically to `dsyver`. New scripts
-and documentation should use `dsyver`. Everything below applies equally to
+`dgoss` is the previous name of this script and is kept for one major version
+as a compatibility copy. It takes the same commands, variables and spec files as
+`dsyver`; the difference is inside the container, where it stages files under
+`/goss` rather than `/syver` and names the copied binary `goss`, so existing
+`GOSS_OPTS` and in-container paths keep working. New scripts and documentation
+should use `dsyver`. Everything below applies equally to
 both names unless noted otherwise; examples use `dgoss` in a few places for
 historical continuity, but `dsyver` works the same way.
 

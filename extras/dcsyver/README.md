@@ -3,9 +3,11 @@
 dcsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to compose-managed
 containers. It is based on `dsyver`.
 
-`dcgoss` is the previous name of this script and is kept as a thin forwarding
-shim for one major version -- it behaves identically to `dcsyver`. New scripts
-and documentation should use `dcsyver`.
+`dcgoss` is the previous name of this script and is kept for one major version
+as a compatibility copy. It takes the same commands, variables and spec files as
+`dcsyver`; the difference is inside the container, where it stages files under
+`/goss` rather than `/syver` and names the copied binary `goss`. New scripts and
+documentation should use `dcsyver`.
 
 ## Usage
 
@@ -14,12 +16,13 @@ and documentation should use `dcsyver`.
 ### Run
 
 Run is used to validate a docker container defined in a Compose file (`compose.yaml`, `compose.yml`,
-`docker-compose.yaml`, or `docker-compose.yml`). It expects both a Compose file and a `goss.yaml` file to exist
-in the directory it was invoked from.
+`docker-compose.yaml`, or `docker-compose.yml`). It expects both a Compose file and a spec file to exist
+in the directory it was invoked from: the first of `syver.yaml`, `syver.yml`,
+`goss.yaml` and `goss.yml`, or the file named by `GOSS_FILE`.
 
-If the file `./goss_wait.yaml` exists in the current directory, goss regularly
-checks whether the conditions in the file are met. Only then does goss start the
-actual check with the file `./goss.yaml`. This is used, for example, to wait
+If a wait file exists in the current directory (`./syver_wait.yaml` or `./goss_wait.yaml`,
+or their `.yml` forms), syver regularly checks whether the conditions in it are met.
+Only then does it start the actual check with the spec file. This is used, for example, to wait
 until a certain port is open before executing the tests.
 
 Container configuration is used from the compose file, for example:

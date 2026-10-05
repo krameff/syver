@@ -24,7 +24,9 @@
 
 **Note:** For testing containers see the [dsyver](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) wrapper.
 There are also wrapper scripts for Kubernetes ([ksyver](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md))
-and Docker Compose ([dcsyver](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md)). The goss-named
+and Docker Compose ([dcsyver](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md)), and for
+Docker Sandboxes, the `sbx` microVMs coding agents run in
+([sbxsyver](https://github.com/krameff/syver/blob/main/extras/sbxsyver/README.md)). The goss-named
 `dgoss`, `kgoss` and `dcgoss` still ship alongside them and work unchanged.
 
 **Note:** For some Docker/Kubernetes healthcheck, health endpoint, and
