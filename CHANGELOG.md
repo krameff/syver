@@ -22,6 +22,11 @@
   - `dcsyver edit` and `ksyver edit` (and `dcgoss`, `kgoss`) exited 1 after a
     successful edit unless `GOSS_VARS` was set. They now exit 0
 
+- CI
+  - the Linux unit test run now uses the race detector, as the macOS, Windows
+    and release runs already did. It ran `make cov`, which has no `-race`, so no
+    Linux job had ever run it
+
 - release binaries
   - 32-bit binaries (`syver-linux-386`, `syver-linux-armv6`) are no longer
     published. Nothing tested them, and `install.sh` could not install the ARM

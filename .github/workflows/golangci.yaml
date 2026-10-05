@@ -94,8 +94,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # `make test`, not `make cov`: it is ci/go-test.sh, the same race-enabled
+      # run as release.yaml and the macOS and Windows jobs. `cov` has no -race,
+      # so with it no Linux job ever ran the race detector.
       - name: Unit tests and coverage
-        run: make cov
+        run: make test
 
       - name: Discovery E2E
         run: make test-discovery-e2e

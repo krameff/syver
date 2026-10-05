@@ -55,8 +55,8 @@ On macOS/Windows, `make test-discovery-e2e` builds a temporary syver binary and 
 | `pre-commit` | `fmt vet` + `go test ./...` | Fast local check (also runs scoped via git hook) |
 | `pre-push` | `fmt vet lint check` | Full local bundle before pushing / opening a PR |
 | `check` | `test` + discovery/depends-on E2E + `lint-markdown` + `test-security` | PR check bundle |
-| `test` | `./ci/go-test.sh` | Unit tests with coverage profile (`c.out`) |
-| `cov` | `go test -coverpkg=./... ./...` | Coverage run (used in CI) |
+| `test` | `./ci/go-test.sh` | Unit tests under the race detector, with coverage profile (`c.out`); what CI runs |
+| `cov` | `go test -coverpkg=./... ./...` | Coverage run without the race detector |
 | `test-discovery-e2e` | `./ci/discovery-e2e.sh` | `--discover` pipeline (flag, inline, discover+depends-on) |
 | `test-depends-on-e2e` | `./ci/depends-on-e2e.sh` | `depends-on` skip when prerequisite fails |
 | `lint-markdown` | `./ci/lint-markdown.sh` | Markdownlint on docs and README files |
@@ -73,7 +73,7 @@ with `|| true`), so `test-short-all`, `pre-push`, and CI's separate lint job agr
 | Workflow | Job | Tests run |
 | --- | --- | --- |
 | [`.github/workflows/golangci.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/golangci.yaml) | `lint` | golangci-lint |
-| | `coverage` | `make cov`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`**, **`./ci/trivyignore-check.sh`** |
+| | `coverage` | `make test`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`**, **`./ci/trivyignore-check.sh`** |
 | | `integration-test-*` | `make rockylinux9`, `jammy`, darwin, windows, etc. (includes discovery + depends-on E2E) |
 | [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml) | `analyze` | CodeQL static analysis for Go and GitHub Actions workflows |
 | [`.github/workflows/docs.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docs.yaml) | `lint` | markdownlint-cli2 on docs |
