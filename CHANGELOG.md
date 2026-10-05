@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.14.1 based on krameff/goss v0.6.0 - the goss-named wrappers find syver.yaml
+## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
 
 - documentation
   - a reference profile for checking the Docker container a coding agent runs

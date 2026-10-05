@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.15.0 - Agent sandbox profiles and sbxsyver](#v0150---agent-sandbox-profiles-and-sbxsyver)
 * [v0.14.0 - Syver-named variables in the Docker wrappers](#v0140---syver-named-variables-in-the-docker-wrappers)
 * [v0.13.0 - File owners and services on Windows](#v0130---file-owners-and-services-on-windows)
 * [v0.12.2 - Mount support on Windows](#v0122---mount-support-on-windows)
@@ -80,6 +81,38 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [Lineage](#lineage)
 
 ---
+
+## v0.15.0 - Agent sandbox profiles and sbxsyver
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: `docs/0.14.0-shipped` (PR #71), `fix/dgoss-syver-yaml` (PR #72), `deps/go-1.27` (PR #73), `feature/sbxsyver` (PR #74), `docs/agent-sandbox-profile` (PR #75), then `docs/0.15.0-pending` for this record |
+| Scope | 10 commits (excluding merges), 31 files, +1308 / -48, measured at `6d3563a` on `devel` against `v0.14.0`, before this record |
+| Changelog | [0.15.0](CHANGELOG.md#0150-based-on-krameffgoss-v060---agent-sandbox-profiles-and-sbxsyver) |
+
+A minor because it ships a new wrapper, `sbxsyver`, for Docker Sandboxes. No
+resource attribute changed, so `docs/schema.yaml` is unchanged. It also carries
+reference profiles for checking the sandboxes coding agents run in, both plain
+containers and Docker Sandboxes; the goss-named wrappers finding `syver.yaml`;
+and the Go toolchain moving from 1.26.8 to 1.27.1.
+
+**Suites run on 2026-10-05**, at `6d3563a` on `devel`: Linux unit under
+`-race`, `make check`, `make lint` and `make lint-cross` (golangci-lint
+v2.14.0), `make lint-yaml`, coverage, the security scan (govulncheck and trivy,
+no findings) and 208/208 goldens. The 6 goldens beyond 0.14.0's 202 are the
+two new profiles' render entries; the 202 are unchanged. CI on the same commit
+was green across every integration job, including `windows-latest`,
+`macos-latest`, arm64, ppc64le and the Docker distribution matrix.
+
+`sbxsyver` cannot run in CI. It was tested by hand against Docker Sandboxes
+v0.46.0 with the `balanced` network policy: a correctly configured sandbox
+passes all 30 checks of its profile, and one given a key and a token through
+`-e`, the host's `~/.aws` and a rule allowing a denied host fails exactly those
+four. In CI, `TestSbxsyver` covers the wrapper against a fake `sbx`.
 
 ## v0.14.0 - Syver-named variables in the Docker wrappers
 
