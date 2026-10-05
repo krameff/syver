@@ -263,10 +263,11 @@ func newApp() *cli.Command {
 						Sources: nonEmptyEnvVars("SYVER_RETRY_TIMEOUT", "GOSS_RETRY_TIMEOUT"),
 					},
 					&cli.IntFlag{
-						Name:    "max-concurrent",
-						Usage:   "Max number of tests to run concurrently",
-						Value:   50,
-						Sources: nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
+						Name:      "max-concurrent",
+						Usage:     "Max number of tests to run concurrently, at least 1",
+						Value:     50,
+						Sources:   nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
+						Validator: syver.ValidateMaxConcurrent,
 					},
 					&cli.StringFlag{
 						Name:    "discover",
@@ -325,10 +326,11 @@ func newApp() *cli.Command {
 						Sources: nonEmptyEnvVars("SYVER_ENDPOINT", "GOSS_ENDPOINT"),
 					},
 					&cli.IntFlag{
-						Name:    "max-concurrent",
-						Usage:   "Max number of tests to run concurrently",
-						Value:   50,
-						Sources: nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
+						Name:      "max-concurrent",
+						Usage:     "Max number of tests to run concurrently, at least 1",
+						Value:     50,
+						Sources:   nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
+						Validator: syver.ValidateMaxConcurrent,
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {

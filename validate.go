@@ -207,6 +207,23 @@ func validateDiscoveryConfig(ctx context.Context, c *util.Config, syverConfig *S
 	return discoveryOutput.Output(ofh, discovered, outputConfig), nil
 }
 
+// ValidateMaxConcurrent rejects a --max-concurrent below 1. It is the flag's
+// Validator on both validate and serve.
+func ValidateMaxConcurrent(n int) error {
+	if n < 1 {
+		return fmt.Errorf("--max-concurrent must be at least 1, got %d", n)
+	}
+	return nil
+}
+
+// workerCount is how many workers a run starts: five per CPU, capped at
+// maxConcurrent, and never fewer than one. Zero workers would check nothing and
+// report success, so the floor holds even for a library caller that sets
+// util.Config.MaxConcurrent directly and bypasses ValidateMaxConcurrent.
+func workerCount(maxConcurrent int) int {
+	return max(1, min(runtime.NumCPU()*5, maxConcurrent))
+}
+
 func runValidation(ctx context.Context, sys *system.System, syverConfig SyverConfig, skipList []string, maxConcurrent int) (<-chan []resource.TestResult, error) {
 	resources := syverConfig.Resources()
 	applyDisabledTypes(resources, skipList)
@@ -229,12 +246,8 @@ func validateParallel(ctx context.Context, sys *system.System, resources []resou
 		close(in)
 	}()
 
-	workerCount := runtime.NumCPU() * 5
-	if workerCount > maxConcurrent {
-		workerCount = maxConcurrent
-	}
 	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
+	for i := 0; i < workerCount(maxConcurrent); i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.15.1 based on krameff/goss v0.6.0 - fixes
+
+- validation
+  - `--max-concurrent 0`, or any value below 1, ran no checks at all: a failing
+    spec reported `Count: 0, Failed: 0` and exited 0, and `serve` answered 200.
+    A value below 1 is now rejected with an error naming the flag, whether it
+    comes from `--max-concurrent`, `SYVER_MAX_CONCURRENT` or
+    `GOSS_MAX_CONCURRENT`, on both `validate` and `serve`. Library callers get
+    the same from `util.WithMaxConcurrency`, and a run always starts at least
+    one worker even when `MaxConcurrent` is set directly
+
 ## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
 
 - documentation

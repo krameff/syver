@@ -303,7 +303,8 @@ The end-point will return the stest results in the format requested and an http 
     - `TRACE` - Detailed internal system activities useful for syver developers to debug.
 
 `--max-concurrent <num>`
-:   Max number of tests to run concurrently
+:   Max number of tests to run concurrently, at least 1. A lower value is
+    rejected with an error.
 
 !!! example
     ```console
@@ -386,7 +387,8 @@ Exits with status 0 on success, non-0 otherwise.
     - `TRACE` - Detailed internal system activities useful for syver developers to debug.
 
 `--max-concurrent <num>`
-:   Max number of tests to run concurrently
+:   Max number of tests to run concurrently, at least 1. A lower value is
+    rejected with an error.
 
 `--discover <gossfile>`
 :   Gossfile containing `discovery:` tests to run before the main `-g` gossfile. Results are
