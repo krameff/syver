@@ -17,6 +17,12 @@
     container, where they use `/goss` and a binary named `goss`, and the READMEs
     now say so
 
+- toolchain
+  - built with Go 1.27.1, up from 1.26.8, and `go.mod` now declares `go 1.27.0`,
+    so building syver from source needs Go 1.27 or later. Released binaries and
+    the container image need nothing new. No check, flag or rendered output
+    changes
+
 ## 0.14.0 based on krameff/goss v0.6.0 - syver-named variables in the Docker wrappers
 
 - documentation

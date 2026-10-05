@@ -108,7 +108,9 @@ func (m *DefMount) Opts() ([]string, error) {
 	if err := m.setup(); err != nil {
 		return nil, err
 	}
-	if err := mountAttributeSupported("opts"); err != nil {
+	// On Windows this always errors, by design, so staticcheck reports the
+	// comparison as always true there. See mount_windows.go.
+	if err := mountAttributeSupported("opts"); err != nil { //nolint:staticcheck // SA4023, see above
 		return nil, err
 	}
 	allOpts := splitMountInfo(m.mountInfo.Options)
@@ -120,7 +122,9 @@ func (m *DefMount) VfsOpts() ([]string, error) {
 	if err := m.setup(); err != nil {
 		return nil, err
 	}
-	if err := mountAttributeSupported("vfs-opts"); err != nil {
+	// On Windows this always errors, by design, so staticcheck reports the
+	// comparison as always true there. See mount_windows.go.
+	if err := mountAttributeSupported("vfs-opts"); err != nil { //nolint:staticcheck // SA4023, see above
 		return nil, err
 	}
 	opts := splitMountInfo(m.mountInfo.VFSOptions)
@@ -131,7 +135,9 @@ func (m *DefMount) Source() (string, error) {
 	if err := m.setup(); err != nil {
 		return "", err
 	}
-	if err := mountAttributeSupported("source"); err != nil {
+	// On Windows this always errors, by design, so staticcheck reports the
+	// comparison as always true there. See mount_windows.go.
+	if err := mountAttributeSupported("source"); err != nil { //nolint:staticcheck // SA4023, see above
 		return "", err
 	}
 
