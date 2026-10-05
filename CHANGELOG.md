@@ -59,6 +59,21 @@
     and release runs already did. It ran `make cov`, which has no `-race`, so no
     Linux job had ever run it
 
+- library API (only if you import syver as a Go module)
+  - removed exported items nothing used: `resource.HumanOutcomes()`, the
+    `resource.Value`, `Values` and `Contains` constants, the
+    `resource.Discoverable` and `resource.Dependent` interfaces (both subsets
+    of `resource.Resource`, which still declares their methods), and
+    `outputs.Discovery.ValidOptions()`
+
+- housekeeping
+  - removed scripts and a workflow nothing ran: `ci/build.sh`,
+    `integration-tests/run-tests-alpha.sh`, `novendor.sh`,
+    `development/push_images.sh` (it pushed nothing: it looked for images named
+    `goss_*`), and the manual `docker-integration-tests` workflow, whose pushed
+    images nothing pulled because the integration tests build their own.
+    `make bench` now runs the benchmarks in every package; it ran none
+
 - release binaries
   - 32-bit binaries (`syver-linux-386`, `syver-linux-armv6`) are no longer
     published. Nothing tested them, and `install.sh` could not install the ARM

@@ -13,15 +13,3 @@ func (d DiscoveryMeta) GetRegister() string {
 func (d DiscoveryMeta) GetDependsOn() []string {
 	return d.DependsOn
 }
-
-// Discoverable resources expose a register name for discovery output.
-type Discoverable interface {
-	Resource
-	GetRegister() string
-}
-
-// Dependent resources declare prerequisite tests that must pass first.
-type Dependent interface {
-	Resource
-	GetDependsOn() []string
-}

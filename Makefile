@@ -1,9 +1,6 @@
-export GO15VENDOREXPERIMENT=1
-
 exe = github.com/krameff/syver/cmd/syver
-pkgs = $(shell ./novendor.sh)
+pkgs = ./...
 cmd = syver
-GO111MODULE=on
 GO_FILES = $(shell git ls-files -- '*.go' ':!:*vendor*_test.go')
 VENV := $(shell echo $${VIRTUAL_ENV-.venv})
 PYTHON := $(VENV)/bin/python
@@ -86,7 +83,7 @@ fmt:
 
 bench:
 	$(info INFO: Starting build $@)
-	go test -bench=.
+	go test -run '^$$' -bench=. ./...
 
 test-int-validate-%: release/syver-%
 	$(info INFO: Starting build $@)
@@ -120,10 +117,6 @@ clean:
 build-images:
 	$(info INFO: Starting build $@)
 	development/build_images.sh
-
-push-images:
-	$(info INFO: Starting build $@)
-	development/push_images.sh
 
 # Update the matcher test golden files
 update-matcher-tests:
