@@ -86,12 +86,12 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | pending |
-| Commit | pending |
+| Released | 2026-10-05 |
+| Tag | `v0.15.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `7cf8f51`, the `devel` -> `main` merge commit from PR #77 |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: `docs/0.14.0-shipped` (PR #71), `fix/dgoss-syver-yaml` (PR #72), `deps/go-1.27` (PR #73), `feature/sbxsyver` (PR #74), `docs/agent-sandbox-profile` (PR #75), then `docs/0.15.0-pending` for this record |
-| Scope | 10 commits (excluding merges), 31 files, +1308 / -48, measured at `6d3563a` on `devel` against `v0.14.0`, before this record |
+| Integration branch | `devel`, in this merge order: `docs/0.14.0-shipped` (PR #71), `fix/dgoss-syver-yaml` (PR #72), `deps/go-1.27` (PR #73), `feature/sbxsyver` (PR #74), `docs/agent-sandbox-profile` (PR #75), then `docs/0.15.0-pending` (PR #76) for this record. Merged to `main` through PR #77 |
+| Scope | 11 commits (excluding merges), 31 files, +1340 / -47, measured at `v0.15.0` against `v0.14.0` |
 | Changelog | [0.15.0](CHANGELOG.md#0150-based-on-krameffgoss-v060---agent-sandbox-profiles-and-sbxsyver) |
 
 A minor because it ships a new wrapper, `sbxsyver`, for Docker Sandboxes. No
@@ -113,6 +113,20 @@ v0.46.0 with the `balanced` network policy: a correctly configured sandbox
 passes all 30 checks of its profile, and one given a key and a token through
 `-e`, the host's `~/.aws` and a rule allowing a denied host fails exactly those
 four. In CI, `TestSbxsyver` covers the wrapper against a fake `sbx`.
+
+CI was green on `devel` at `6d3563a`, on PR #77, and on `main` at `7cf8f51`
+after it merged, including the cross-platform lint and scan, which only runs on
+push.
+
+**Verified after the push**, against the published release rather than the build
+log. The tag is an annotated tag object with a good signature from the
+maintainer key. The release carries 41 assets, the two new ones being `sbxsyver`
+and its checksum file. `syver_0.15.0_SHA256SUMS` and all eight SPDX SBOMs verify
+against the project key alone, imported into an empty keyring. The checksum for
+`syver-linux-amd64` matches, and that binary reports `syver version 0.15.0` and
+was built with go1.27.1. `sbxsyver` matches its checksum and the tagged source.
+`ghcr.io/krameff/syver:v0.15.0` and `:latest` resolve to the same index,
+annotated with revision `7cf8f51` and version `0.15.0`.
 
 ## v0.14.0 - Syver-named variables in the Docker wrappers
 
