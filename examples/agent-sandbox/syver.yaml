@@ -1,0 +1,104 @@
+# A reference profile for a Docker container that a coding agent runs in.
+# Run it against the container as the agent would be started:
+#
+#   SYVER_VARS=vars.yaml dsyver run <your docker run arguments>
+#
+# Every value that varies between sandboxes is in vars.yaml. The sections are
+# independent: delete any that do not apply to yours.
+
+# --- Toolchain: what the agent needs is present and runs -------------------
+command:
+{{- range $name, $check := .Vars.tools }}
+  tool {{ $name }}:
+    exec: {{ $check }}
+    exit-status: 0
+{{- end }}
+
+  # The workspace is writable by the user the agent runs as.
+  workspace is writable:
+    exec: test -w {{ .Vars.workspace }}
+    exit-status: 0
+
+  # --- Identity: the agent does not run as root ----------------------------
+  not running as root:
+    exec: id -u
+    exit-status: 0
+    stdout:
+      - "!/^0$/"
+
+  # --- Credentials: none of the operator's secrets are in the environment ---
+  # Each check asserts only that the NAME is absent. grep -q prints nothing,
+  # so a variable that IS set does not have its value echoed into the output.
+{{- range .Vars.absent_env }}
+  env {{ . }} is not set:
+    exec: env | grep -q '^{{ . }}='
+    exit-status: 1
+{{- end }}
+
+# --- Network: egress is allowed where needed and denied everywhere else -----
+# The deny list is the half people skip. A sandbox that can reach anything
+# passes every allow check.
+addr:
+{{- range .Vars.egress_allow }}
+  tcp://{{ . }}:
+    reachable: true
+    timeout: 3000
+{{- end }}
+{{- range .Vars.egress_deny }}
+  tcp://{{ . }}:
+    reachable: false
+    timeout: 3000
+{{- end }}
+
+file:
+  # --- Workspace: mounted where the agent expects it -----------------------
+  {{ .Vars.workspace }}:
+    exists: true
+    filetype: directory
+
+  # --- Credentials: none of the operator's credential files are present ----
+  {{ .Vars.home }}/.ssh/id_rsa:
+    exists: false
+  {{ .Vars.home }}/.ssh/id_ed25519:
+    exists: false
+  {{ .Vars.home }}/.aws/credentials:
+    exists: false
+  {{ .Vars.home }}/.docker/config.json:
+    exists: false
+  {{ .Vars.home }}/.config/gh/hosts.yml:
+    exists: false
+  {{ .Vars.home }}/.kube/config:
+    exists: false
+  {{ .Vars.home }}/.git-credentials:
+    exists: false
+  {{ .Vars.home }}/.netrc:
+    exists: false
+
+  # --- Container escape: no runtime socket is mounted ----------------------
+  # A mounted socket lets the agent start a privileged container on the host.
+  /var/run/docker.sock:
+    exists: false
+  /run/podman/podman.sock:
+    exists: false
+
+  # --- Hardening: how the container was started, read from the inside ------
+  # These reflect `docker run` flags. Delete any your sandbox does not use.
+  #
+  # --cap-drop=ALL leaves an empty bounding set, and
+  # --security-opt no-new-privileges sets NoNewPrivs. Both are read from the
+  # status of the syver process itself, which runs with the container's limits.
+  /proc/self/status:
+    exists: true
+    contents:
+      - "/^CapBnd:\\s+0+$/"
+      - "/^NoNewPrivs:\\s+1$/"
+  # --read-only mounts the root filesystem read-only.
+  /proc/mounts:
+    exists: true
+    contents:
+      - "/^\\S+ / \\S+ ro[ ,]/"
+  # --memory sets a limit; without one, cgroup v2 reports "max".
+  /sys/fs/cgroup/memory.max:
+    exists: true
+    contents:
+      - "!/^max$/"

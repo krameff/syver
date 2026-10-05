@@ -2,6 +2,15 @@
 
 ## 0.14.1 based on krameff/goss v0.6.0 - the goss-named wrappers find syver.yaml
 
+- documentation
+  - a reference profile for checking the Docker container a coding agent runs
+    in, under `examples/agent-sandbox/`, with a guide in
+    `docs/containers/agent-sandboxes.md`. Run with `dsyver`, it checks that the
+    agent has its tools and workspace and does not run as root, and that the
+    operator's credential files and variables, the Docker socket and unfiltered
+    egress are NOT in reach, along with the usual hardening flags. It needs
+    nothing new in syver
+
 - the container wrappers
   - `dgoss`, `dcgoss` and `kgoss` now find a spec the same way `dsyver`,
     `dcsyver` and `ksyver` do: the first of `syver.yaml`, `syver.yml`,

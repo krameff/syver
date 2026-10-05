@@ -9,9 +9,10 @@ re-filming anything.
 | --- | --- |
 | `dsyver-demo.tape` | Checking a container image with `dsyver`: a spec, a passing run, then a failing run with its exit code |
 | `autoadd.tape` | Writing a spec from a running host with `syver autoadd`, validating it, breaking it, validating again |
+| `agent-sandbox-demo.tape` | Checking a coding agent's container with the `examples/agent-sandbox/` profile: a locked-down run passes, the same image started carelessly fails 7 checks, and the token it was given never appears in the output |
 | `make-card.sh` | Builds a 1080x1080 title card from `images/syver-logo.svg` |
 | `bake-card.sh` | Concatenates an opening card and a closing card onto a finished recording |
-| `card-dsyver.png`, `card-autoadd.png` | The opening card for each tape |
+| `card-dsyver.png`, `card-autoadd.png`, `card-sandbox.png` | The opening card for each tape |
 | `card-outro.png` | The shared closing card, which carries the call to action |
 
 **The renders themselves are not committed.** A minute of 1080x1080 video is
@@ -65,6 +66,11 @@ Per tape, on top of that:
   loader, not a missing file.
 * `autoadd.tape` needs a running `sshd`, because it writes a spec from it, and
   `syver` on `PATH`.
+* `agent-sandbox-demo.tape` needs a working directory set up as its header
+  describes: the profile, a `vars.yaml` with `example.com:443` removed from the
+  deny list (a render host has open egress, so it would fail the passing run),
+  a workspace and a fake credentials file to mount, and an `agent-sandbox`
+  image. Same `dsyver` and static-binary rules as above.
 
 ## Rendering
 
@@ -87,6 +93,7 @@ nothing checks.
 
 ```sh
 ./make-card.sh "Testing container images" card-dsyver.png
+./make-card.sh "Checking agent sandboxes" card-sandbox.png
 SUBTITLE=syver.readthedocs.io ./make-card.sh "Get started" card-outro.png
 ```
 
