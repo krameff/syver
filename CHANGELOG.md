@@ -64,6 +64,9 @@
   - the Linux unit test run now uses the race detector, as the macOS, Windows
     and release runs already did. It ran `make cov`, which has no `-race`, so no
     Linux job had ever run it
+  - the security scan uses Trivy 0.75.0 (was 0.74.0). The version is now
+    pinned once, in `ci/lib/trivy.sh`, and CI installs the same version the
+    local scripts run
 
 - library API (only if you import syver as a Go module)
   - removed exported items nothing used: `resource.HumanOutcomes()`, the

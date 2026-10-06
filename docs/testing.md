@@ -362,7 +362,8 @@ inspect findings without failing, set `SYVER_TRIVY_EXIT_CODE=0`; the summary
 line says explicitly when enforcement is off.
 
 Locally, Trivy runs via the `trivy` binary if installed, otherwise via a
-container runtime (Docker or Podman, `aquasec/trivy` pinned by digest). If
+container runtime (Docker or Podman, `aquasec/trivy` pinned by digest in
+`ci/lib/trivy.sh`, the same version CI installs). If
 neither is available, the scan is skipped with a warning unless
 `SECURITY_STRICT=1` (always set in CI).
 
