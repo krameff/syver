@@ -6,7 +6,6 @@ nav:
   - Command Reference: cli.md
   - The gossfile: gossfile.md
   - goss vs Syver: goss-vs-syver.md
-  - migrations.md
   - platforms.md
   - Windows: windows.md
   - containers

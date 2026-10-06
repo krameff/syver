@@ -53,6 +53,10 @@
     `syver`, the run steps in the wrapper READMEs name all four spec files,
     "this release" now names the release, and the goss v0.3 to v0.4 migration
     section is gone
+  - moving from goss is now one page, `docs/goss-vs-syver.md`: the upgrade
+    steps for `krameff/goss` v0.6.0 and for upstream `goss-org/goss` moved
+    there from `docs/migrations.md`, which is removed. Spec files need no
+    conversion, so there is no converter
 
 - CI
   - pull requests that touch the docs now build them with `mkdocs build
@@ -919,7 +923,7 @@ The breaking changes are limited to things that referenced the product by name
 (the binary is now `syver`, plus the User-Agent, checksum filename, container
 image and Go module path).
 
-- **Upgrading:** [docs/migrations.md](docs/migrations.md#upgrading-from-krameffgoss-v060)
+- **Upgrading:** [docs/goss-vs-syver.md](docs/goss-vs-syver.md#upgrading-from-krameffgoss-v060)
 - **Full side-by-side of what did and did not change:** [docs/goss-vs-syver.md](docs/goss-vs-syver.md)
 
 ### Detail

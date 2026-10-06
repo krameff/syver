@@ -12,8 +12,10 @@ release-for-release parity with upstream is not a goal. What *is* deliberately h
 stable is the file format: the tables below exist so you can tell which of the two
 you are dealing with in any given case.
 
-For a step-by-step move from upstream goss, see [migrations](migrations.md). This page
-is the quick reference for what is and isn't different.
+This page is the one place for moving to Syver from goss: what breaks, what does
+not, and the steps for [`krameff/goss` v0.6.0](#upgrading-from-krameffgoss-v060)
+and for [upstream `goss-org/goss`](#coming-from-goss-orggoss). Spec files need no
+conversion, because the format did not change.
 
 ---
 
@@ -43,7 +45,8 @@ For the binary-name break specifically, the fix is one line:
 sudo ln -s "$(command -v syver)" /usr/local/bin/goss
 ```
 
-See [migrations](migrations.md#upgrading-from-krameffgoss-v060) for the full upgrade path.
+See [Upgrading from krameff/goss v0.6.0](#upgrading-from-krameffgoss-v060) for the
+full upgrade path.
 
 ---
 
@@ -77,6 +80,72 @@ They are maintained for compatibility but no longer extended. New features
 arrive under the syver names only: for example, `SYVER_TEMP_DIR` has no `GOSS_*`
 equivalent, and `sbxsyver` has no goss-named copy. If removal is ever planned,
 it will be announced in the changelog at least one minor release beforehand.
+
+---
+
+## Upgrading from krameff/goss v0.6.0
+
+If you are already on the `krameff/goss` fork, this is the rename. Your gossfiles
+need no changes. What changes is the product's own name.
+
+| If you | Do this |
+| --- | --- |
+| Invoke `goss` by name in scripts or CI | Call `syver`, or symlink it (below) |
+| Use the community integrations | Symlink, see below |
+| Pull the container image | Use `ghcr.io/krameff/syver` |
+| Import this as a Go library | Update the path to `github.com/krameff/syver`, and pass a `context.Context` (see [Breaking changes](#breaking-changes)) |
+| Verify release checksums by filename | It is now `syver_<version>_SHA256SUMS` |
+| Nothing above | Nothing. Install the new binary and carry on |
+
+The third-party integrations listed in the README (`goss-ansible`,
+`kitchen-goss`, `packer-provisioner-goss` and the rest) all invoke a binary
+named `goss`, and `install.sh` installs `syver`, `dsyver` and `dgoss` but no
+`goss`. One symlink covers all of them:
+
+```bash
+sudo ln -s "$(command -v syver)" /usr/local/bin/goss
+```
+
+Everything in [Nothing to change](#nothing-to-change) carries over as it is.
+
+### Verifying releases
+
+Upstream `goss-org/goss` publishes no signatures. This fork GPG-signs its
+release checksums.
+
+The key for 0.7.0 onward is `krameff-syver-key.asc`, fingerprint
+`CD218D529C95DC65A71F18D84C9E5095CABE5092`. If you imported the earlier
+`krameff-goss-key.asc` from a 0.6.0 release, import the new one as well: the
+old key will not verify 0.7.0 artifacts. See
+[Verifying release signatures](installation.md#verifying-release-signatures).
+
+---
+
+## Coming from goss-org/goss
+
+Syntax, resource types, matchers and CLI flags carry over, so a gossfile that
+worked under upstream goss works here. Change where you get the binary, and the
+names in [Breaking changes](#breaking-changes) if you used any of them:
+
+| If you | Change to |
+| --- | --- |
+| Install manually or by script | The [`krameff/syver` releases page](https://github.com/krameff/syver/releases) and this repo's [`install.sh`](https://github.com/krameff/syver/blob/main/install.sh). See [Installation](installation.md) |
+| Use the container image | `ghcr.io/krameff/syver`, replacing the `aelsabbahy` or `goss-org` image |
+| Import it as a Go library | `github.com/krameff/syver` |
+
+None of the following are required. Leave them out and nothing changes.
+
+| Addition | What it does |
+| --- | --- |
+| [discovery](gossfile.md#discovery) | Runs lightweight checks before the main suite and feeds results into templates |
+| [`depends-on`](gossfile.md#test-dependencies) | Declares test prerequisites, so dependents are skipped rather than failed |
+| [`process.status`](gossfile.md#process) | Catches zombie processes |
+| [`process.user`](gossfile.md#process) | Catches something running as root that shouldn't be |
+| [`port.pid`](gossfile.md#port) | Identifies which process owns a listening socket |
+
+Process and port lookups moved from two unmaintained libraries
+(`goss-org/go-ps` and `goss-org/GOnetstat`) to the maintained `gopsutil`. Specs
+and output are unchanged.
 
 ---
 

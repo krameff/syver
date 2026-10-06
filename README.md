@@ -54,8 +54,8 @@ need to change.** `gossfile:`, `goss.yaml`, `GOSS_*` env vars, the `dgoss`/`dcgo
 wrappers and the `-g` flag all keep working.
 
 See [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md)
-for the full side-by-side comparison, including
-the single intentional breaking change.
+for the full side-by-side comparison and the upgrade steps,
+including the breaking changes, all of which are names rather than spec syntax.
 
 ## Installation
 
