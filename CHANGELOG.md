@@ -55,6 +55,12 @@
     section is gone
 
 - CI
+  - pull requests that touch the docs now build them with `mkdocs build
+    --strict`, so a broken link, heading anchor or snippet fails the pull
+    request rather than the next Read the Docs build. Broken anchors now fail
+    the strict build at all; mkdocs only reported them at INFO before. The
+    never-run GitHub Pages build job and the disabled preview-link workflow are
+    removed
   - the Linux unit test run now uses the race detector, as the macOS, Windows
     and release runs already did. It ran `make cov`, which has no `-race`, so no
     Linux job had ever run it

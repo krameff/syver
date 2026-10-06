@@ -77,6 +77,7 @@ with `|| true`), so `test-short-all`, `pre-push`, and CI's separate lint job agr
 | | `integration-test-*` | `make rockylinux9`, `jammy`, darwin, windows, etc. (includes discovery + depends-on E2E) |
 | [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml) | `analyze` | CodeQL static analysis for Go and GitHub Actions workflows |
 | [`.github/workflows/docs.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docs.yaml) | `lint` | markdownlint-cli2 on docs |
+| | `build` | `mkdocs build --strict`, failing on a broken link, anchor or snippet (same as `make docs`) |
 | [`.github/workflows/yamllint.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/yamllint.yaml) | — | YAML lint |
 
 ## Discovery E2E
