@@ -1,0 +1,11 @@
+# expect-count: 2
+# expect-skipped: 0
+---
+command:
+  help:
+    exit-status: 0
+    exec: "release/syver-linux-s390x help"
+    stdout:
+      - validate
+    stderr: []
+    timeout: 5000

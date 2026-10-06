@@ -54,6 +54,8 @@ func TestInstallScriptArch(t *testing.T) {
 		{"aarch64", "syver-linux-arm64"},
 		{"arm64", "syver-linux-arm64"},
 		{"s390x", "syver-linux-s390x"},
+		{"ppc64le", "syver-linux-ppc64le"},
+		{"ppc64", ""},
 		{"armv7l", ""},
 		{"arm", ""},
 		{"i686", ""},

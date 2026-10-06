@@ -46,6 +46,9 @@ case "$(uname -m)" in
     s390x)
         arch="s390x"
         ;;
+    ppc64le)
+        arch="ppc64le"
+        ;;
     *)
         # Release binaries are 64-bit only; 32-bit systems can build from source.
         echo "error: unknown/unsupported architecture: $(uname -m)" >&2

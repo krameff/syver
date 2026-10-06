@@ -89,6 +89,10 @@
     one. Release binaries are now 64-bit only, and `install.sh` refuses a 32-bit
     machine with an error instead of downloading the wrong file. 32-bit systems
     can still build from source
+  - a `syver-linux-ppc64le` binary is now published, and `install.sh`
+    installs it on a ppc64le machine. CI already ran the integration tests on
+    ppc64le under emulation; it now does the same for s390x, which was
+    published but never tested
 
 ## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
 

@@ -22,13 +22,18 @@ builds:
       - amd64
       - arm64
       - s390x
+      - ppc64le
     ignore:
       - goos: windows
         goarch: s390x
       - goos: windows
         goarch: arm64
+      - goos: windows
+        goarch: ppc64le
       - goos: darwin
         goarch: s390x
+      - goos: darwin
+        goarch: ppc64le
     main: ./cmd/syver
     flags:
       - -trimpath

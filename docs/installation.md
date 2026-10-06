@@ -63,7 +63,7 @@ chmod +rx /usr/local/bin/syver
 ```
 
 Adjust the version, OS, and architecture in the filename as needed. Release
-binaries are 64-bit only: `linux` has `amd64`, `arm64` and `s390x`, `darwin`
+binaries are 64-bit only: `linux` has `amd64`, `arm64`, `s390x` and `ppc64le`, `darwin`
 has `amd64` and `arm64`, and `windows` has `amd64`. On a 32-bit system,
 [build from source](#build-from-source).
 

@@ -1,0 +1,16 @@
+# expect-count: 2
+# expect-skipped: 2
+---
+command:
+  "autoadd /home/runner":
+    exit-status: 0
+    exec: "release/syver-linux-s390x autoadd /home/runner"
+    stdout:
+      - 'file:'
+      - '  exists: true'
+      - '  filetype: directory'
+    stderr: []
+    timeout: 5000
+
+    # needs implementation
+    skip: true

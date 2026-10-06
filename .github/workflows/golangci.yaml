@@ -178,6 +178,27 @@ jobs:
         shell: bash
         run: make test-int-validate-linux-ppc64le test-int-serve-linux-ppc64le
 
+  integration-test-linux-s390x:
+    needs: [coverage]
+    name: Integration tests (linux/s390x)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: s390x
+      - name: Integration tests
+        shell: bash
+        run: make test-int-validate-linux-s390x test-int-serve-linux-s390x
+
   integration-test-linux-arm64:
     needs: [coverage]
     name: Integration tests (linux/arm64)

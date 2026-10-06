@@ -149,8 +149,8 @@ mounted at `/goss/examples/` inside the test container.
 Script: [`integration-tests/run-validate-tests.sh`](https://github.com/krameff/syver/blob/main/integration-tests/run-validate-tests.sh)
 
 Platforms with no test container of their own -- macOS, Windows, and Linux on
-arm64 and ppc64le -- run their fixtures directly against a release binary rather
-than through Docker. Each fixture under
+arm64, ppc64le and s390x -- run their fixtures directly against a release
+binary rather than through Docker. Each fixture under
 `integration-tests/syver/<platform>/` is validated in turn.
 
 A fixture declares what it expects with comment directives, read from the file
