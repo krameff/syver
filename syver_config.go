@@ -2,7 +2,6 @@ package syver
 
 import (
 	"log"
-	"reflect"
 
 	"github.com/krameff/syver/resource"
 )
@@ -42,7 +41,7 @@ type SyverConfig struct {
 // NewSyverConfig builds an empty SyverConfig with every map field
 // initialised (FEAT-007: replaces two 16-entry make() blocks with a loop
 // over configAccessors/discoveryAccessors). gossfile has no accessor Make
-// (see the accessor table's comment in dispatch.go) so Syverfiles and
+// (see wiring's comment in dispatch.go) so Syverfiles and
 // SyverfileAlias are still made explicitly, exactly as before.
 func NewSyverConfig() *SyverConfig {
 	c := &SyverConfig{
@@ -77,7 +76,7 @@ func mergeType[V any](m map[string]V, t, k string, v V) {
 
 // Resources returns every validation-eligible resource (FEAT-007: replaces
 // the 16-argument genericConcatMaps call with a loop over resourceOrder;
-// see the accessor table's InValidation field, which is what "eligible"
+// see resource.Descriptor's InValidation field, which is what "eligible"
 // means here -- gossfile is the one registered type excluded).
 func (c *SyverConfig) Resources() []resource.Resource {
 	var tests []resource.Resource
@@ -94,21 +93,6 @@ func (c *SyverConfig) Resources() []resource.Resource {
 	}
 
 	return tests
-}
-
-func interfaceMap(slice any) map[string]any {
-	m := reflect.ValueOf(slice)
-	if m.Kind() != reflect.Map {
-		panic("InterfaceSlice() given a non-slice type")
-	}
-
-	ret := make(map[string]any)
-
-	for _, k := range m.MapKeys() {
-		ret[k.Interface().(string)] = m.MapIndex(k).Interface()
-	}
-
-	return ret
 }
 
 func mergeSyver(g1, g2 SyverConfig) SyverConfig {
