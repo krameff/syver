@@ -11,6 +11,16 @@
     the same from `util.WithMaxConcurrency`, and a run always starts at least
     one worker even when `MaxConcurrent` is set directly
 
+- matchers
+  - an empty `and`, `or`, `contain-elements` or `gjson` group is now a syntax
+    error. Each asserts nothing: `and: []` passed without looking at the value,
+    and so did `not:` around `or: []`. `consist-of: []` and a bare `[]` such as
+    `stderr: []` are unchanged
+  - `not:` around an `or:`, or an `and:`, whose children never ran (the gjson
+    path does not exist, or a child errored, such as `have-key` on a string)
+    printed a recovered panic and stack trace in place of the failure. It now
+    fails normally, reporting the error and the group
+
 - the container wrappers
   - `edit` now copies the spec back to the file it was read from. Every wrapper
     hands the spec to the container as `goss.yaml`, so `syver add` writes there,
