@@ -3,7 +3,6 @@ package syver
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"strings"
 	"sync"
 
@@ -139,13 +138,7 @@ func validateWithDependencies(ctx context.Context, sys *system.System, resources
 		completed := make(map[string]bool, len(schedule))
 		pending := append([]scheduledResource(nil), schedule...)
 
-		workerCount := runtime.NumCPU() * 5
-		if workerCount > maxConcurrent {
-			workerCount = maxConcurrent
-		}
-		if workerCount < 1 {
-			workerCount = 1
-		}
+		workers := workerCount(maxConcurrent)
 
 		for len(pending) > 0 {
 			var runnable []scheduledResource
@@ -203,7 +196,7 @@ func validateWithDependencies(ctx context.Context, sys *system.System, resources
 			}(runnable)
 
 			var wg sync.WaitGroup
-			for i := 0; i < workerCount; i++ {
+			for i := 0; i < workers; i++ {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()

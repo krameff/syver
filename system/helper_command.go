@@ -127,9 +127,6 @@ func runHelperCommand(ctx context.Context, name string, arg ...string) (*util.Co
 	// reachable unauthenticated. Bounded where it used to be infinite, and stated
 	// here rather than left to be rediscovered. docs/gossfile.md tells users the
 	// same number.
-	//
-	// system/service_windows.go's runHelperPowershell is a near-duplicate of this
-	// function and needs the same line. Change one, change both.
 	cmd.Cmd.WaitDelay = helperIOGrace
 	cmd.Run()
 

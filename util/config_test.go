@@ -72,3 +72,20 @@ func TestWithVarsData(t *testing.T) {
 		t.Fatalf("expected %q got %q", `{"hello":"world"}`, c.VarsInline)
 	}
 }
+
+// A max concurrency below 1 starts no worker, so a run checks nothing and
+// reports success. The option refuses it rather than store it.
+//
+// Revert-proof: drop the mc < 1 check from WithMaxConcurrency and the 0 and -1
+// cases fail.
+func TestWithMaxConcurrencyRejectsBelowOne(t *testing.T) {
+	for _, mc := range []int{0, -1} {
+		if _, err := NewConfig(WithMaxConcurrency(mc)); err == nil {
+			t.Errorf("NewConfig(WithMaxConcurrency(%d)) succeeded, want an error", mc)
+		}
+	}
+	c, err := NewConfig(WithMaxConcurrency(3))
+	if err != nil || c.MaxConcurrent != 3 {
+		t.Errorf("NewConfig(WithMaxConcurrency(3)) = %v, %v; want MaxConcurrent 3 and no error", c, err)
+	}
+}

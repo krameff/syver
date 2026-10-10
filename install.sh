@@ -40,19 +40,17 @@ case "$(uname -m)" in
     x86_64)
         arch="amd64"
         ;;
-    aarch32|arm)
-        arch="arm"
-        ;;
     aarch64|arm64)
         arch="arm64"
         ;;
     s390x)
         arch="s390x"
         ;;
-    i?86)
-        arch="386"
+    ppc64le)
+        arch="ppc64le"
         ;;
     *)
+        # Release binaries are 64-bit only; 32-bit systems can build from source.
         echo "error: unknown/unsupported architecture: $(uname -m)" >&2
         exit 1
         ;;
@@ -73,8 +71,8 @@ curl -L "$dsyver_url" -o "$DSYVER_INSTALL_LOC"
 chmod +rx "$DSYVER_INSTALL_LOC"
 echo "dsyver $WRAPPER_REF has been installed to $DSYVER_INSTALL_LOC"
 
-# The goss-named wrapper is still shipped as a working shim for one major
-# version, matching the compatibility promise the rest of the project makes.
+# The goss-named wrapper is still shipped as a working shim, under the
+# compatibility policy in docs/goss-vs-syver.md.
 dgoss_url="https://raw.githubusercontent.com/krameff/syver/$WRAPPER_REF/extras/dsyver/dgoss"
 echo "Downloading $dgoss_url"
 curl -L "$dgoss_url" -o "$DGOSS_INSTALL_LOC"

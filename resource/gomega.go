@@ -15,6 +15,20 @@ var errMissingRequiredAttribute = errors.New("syntax error: missing required att
 // the system under test.
 var errEmptyMatcher = errors.New("syntax error: invalid matcher configuration. An empty map asserts nothing, exactly one matcher is required")
 
+// errEmptyMatcherGroup is wrapped by emptyMatcherGroupError for a named group
+// with no sub-matchers: `and: []`, `or: []`, `contain-elements: []` or
+// `gjson: {}`. Each of those asserts nothing. `and`, `contain-elements` and
+// `gjson` are vacuously true, so the test passed without the value ever being
+// looked at; `or` is vacuously false, which `not:` turns into the same silent
+// pass. `consist-of: []` is not one of them: it asserts the value is empty. A
+// bare `[]` (`stderr: []`) is not either, because `syver add` writes it and
+// existing specs depend on it.
+var errEmptyMatcherGroup = errors.New("asserts nothing, at least one matcher is required")
+
+func emptyMatcherGroupError(name string) error {
+	return fmt.Errorf("syntax error: invalid '%s' argument. An empty value %w", name, errEmptyMatcherGroup)
+}
+
 func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 	// Default matchers
 	switch x := matcher.(type) {
@@ -124,6 +138,9 @@ func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 		if err != nil {
 			return nil, err
 		}
+		if len(subMatchers) == 0 {
+			return nil, emptyMatcherGroupError(matchType)
+		}
 		var interfaceSlice []any
 		for _, d := range subMatchers {
 			interfaceSlice = append(interfaceSlice, d)
@@ -150,11 +167,17 @@ func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 		if err != nil {
 			return nil, err
 		}
+		if len(subMatchers) == 0 {
+			return nil, emptyMatcherGroupError(matchType)
+		}
 		return matchers.And(subMatchers...), nil
 	case "or":
 		subMatchers, err := sliceToGomega(value, "or")
 		if err != nil {
 			return nil, err
+		}
+		if len(subMatchers) == 0 {
+			return nil, emptyMatcherGroupError(matchType)
 		}
 		return matchers.Or(subMatchers...), nil
 	case "gt", "ge", "lt", "le":
@@ -172,6 +195,9 @@ func matcherToGomegaMatcher(matcher any) (matchers.SyverMatcher, error) {
 		valueI, ok := value.(map[string]any)
 		if !ok {
 			return nil, invalidArgSyntaxError("gjson", "map", value)
+		}
+		if len(valueI) == 0 {
+			return nil, emptyMatcherGroupError(matchType)
 		}
 		for key, val := range valueI {
 			subMatcher, err := matcherToGomegaMatcher(val)

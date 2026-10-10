@@ -1,6 +1,8 @@
 package syver
 
 import (
+	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -74,4 +76,50 @@ func TestAccessorExhaustivenessGuard(t *testing.T) {
 			t.Errorf("accessor tables did not restore cleanly: %v", err)
 		}
 	})
+}
+
+// TestWiringReachesTheTaggedField checks each wiring line points at the
+// struct fields whose yaml key is that line's resource key, on both
+// SyverConfig and DiscoveryConfig, and that fieldOrder is the struct
+// declaration order. The compiler only checks the two selectors agree on a
+// map type, so `wire("file", <Packages selectors>)` would build cleanly and
+// file every `file:` entry under package.
+//
+// REVERT-PROOF: swapping the selectors of two wiring lines, or reordering
+// them, fails this test.
+func TestWiringReachesTheTaggedField(t *testing.T) {
+	yamlKey := func(f reflect.StructField) string {
+		return strings.Split(f.Tag.Get("yaml"), ",")[0]
+	}
+
+	var c SyverConfig
+	for _, key := range fieldOrder {
+		got := reflect.ValueOf(configAccessors[key].Field(&c)).Pointer()
+		v := reflect.ValueOf(&c).Elem()
+		for i := range v.NumField() {
+			if yamlKey(v.Type().Field(i)) == key && v.Field(i).Addr().Pointer() != got {
+				t.Errorf("configAccessors[%q].Field does not point at SyverConfig.%s", key, v.Type().Field(i).Name)
+			}
+		}
+	}
+
+	dt := reflect.TypeFor[DiscoveryConfig]()
+	var declared []string
+	for i := range dt.NumField() {
+		declared = append(declared, yamlKey(dt.Field(i)))
+	}
+	if !slices.Equal(fieldOrder, declared) {
+		t.Errorf("fieldOrder = %v, want DiscoveryConfig's declaration order %v", fieldOrder, declared)
+	}
+	for _, key := range fieldOrder {
+		var d DiscoveryConfig
+		discoveryAccessors[key].Make(&d)
+		v := reflect.ValueOf(d)
+		for i := range v.NumField() {
+			made := !v.Field(i).IsNil()
+			if want := yamlKey(dt.Field(i)) == key; made != want {
+				t.Errorf("discoveryAccessors[%q].Make: DiscoveryConfig.%s made=%v, want %v", key, dt.Field(i).Name, made, want)
+			}
+		}
+	}
 }

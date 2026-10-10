@@ -20,7 +20,6 @@
 * [The gossfile](gossfile.md) — full resource and matcher reference, including
   [discovery](gossfile.md#discovery) and
   [test dependencies (`depends-on`)](gossfile.md#test-dependencies)
-* [Migration guide](migrations.md) — breaking changes between versions
 * [Platforms](platforms.md) — per-platform support notes and caveats
 * [Windows](windows.md) — opt-in alpha support: what works, what does not, and
   what reports honestly rather than guessing

@@ -1,5 +1,124 @@
 # Changelog
 
+## 0.15.1 based on krameff/goss v0.6.0 - fixes
+
+- validation
+  - `--max-concurrent 0`, or any value below 1, ran no checks at all: a failing
+    spec reported `Count: 0, Failed: 0` and exited 0, and `serve` answered 200.
+    A value below 1 is now rejected with an error naming the flag, whether it
+    comes from `--max-concurrent`, `SYVER_MAX_CONCURRENT` or
+    `GOSS_MAX_CONCURRENT`, on both `validate` and `serve`. Library callers get
+    the same from `util.WithMaxConcurrency`, and a run always starts at least
+    one worker even when `MaxConcurrent` is set directly
+
+- matchers
+  - an empty `and`, `or`, `contain-elements` or `gjson` group is now a syntax
+    error. Each asserts nothing: `and: []` passed without looking at the value,
+    and so did `not:` around `or: []`. `consist-of: []` and a bare `[]` such as
+    `stderr: []` are unchanged
+  - `not:` around an `or:`, or an `and:`, whose children never ran (the gjson
+    path does not exist, or a child errored, such as `have-key` on a string)
+    printed a recovered panic and stack trace in place of the failure. It now
+    fails normally, reporting the error and the group
+
+- the container wrappers
+  - `edit` now copies the spec back to the file it was read from. Every wrapper
+    hands the spec to the container as `goss.yaml`, so `syver add` writes there,
+    and `edit` used to copy that out as `goss.yaml`: edits to a `syver.yaml`
+    landed in a new `goss.yaml`, and the unchanged `syver.yaml` still won on the
+    next run. On a new project, the `syver.yaml` that `syver add` creates was
+    never copied out at all. Wait files follow the same rule. Applies to
+    `dsyver`, `dcsyver`, `ksyver` and their goss-named shims
+  - `dcsyver edit` and `ksyver edit` (and `dcgoss`, `kgoss`) exited 1 after a
+    successful edit unless `GOSS_VARS` was set. They now exit 0
+
+- goss compatibility
+  - the goss names are now covered by a written policy, in
+    `docs/goss-vs-syver.md`: there are no current plans to remove them, they
+    are maintained but get no new features, and any removal will be announced
+    in the changelog at least one minor release beforehand. This replaces
+    "kept for one major version" in some pages and "permanent" in others
+  - `dgoss`, `dcgoss` and `kgoss` print a one-line INFO notice saying so and
+    naming the syver script to use. The syver binary prints nothing. A new
+    test holds each goss-named script identical to its syver twin apart from
+    the intended differences, and it found `kgoss`'s usage text still saying it
+    looks for a `goss` binary first, which it has not done since the rename
+
+- documentation
+  - removed the claim that goss-named release binaries are still published;
+    they were last published with v0.9.1
+  - the `ksyver` install instructions downloaded an archive no release has ever
+    had; they now download the Linux release binary
+  - `docs/schema.yaml`: `group` no longer lists `uid` and `groups`, which the
+    code does not have, `service` no longer requires `enabled` and `running`,
+    and `http.request-query-params`, `mount.vfs-opts` and `service.runlevels`
+    are added
+  - `docs/platforms.md` now agrees with `docs/windows.md` that Windows
+    `process: status` errors rather than passing
+  - the install page's `sha256sum -c` example now passes `--ignore-missing`,
+    without which checking one downloaded binary reports every other asset
+    as missing
+  - the help text for `--log-level` no longer says "Goss"
+  - smaller fixes: `goss` commands in `testing.md` and the examples now run
+    `syver`, the run steps in the wrapper READMEs name all four spec files,
+    "this release" now names the release, and the goss v0.3 to v0.4 migration
+    section is gone
+  - moving from goss is now one page, `docs/goss-vs-syver.md`: the upgrade
+    steps for `krameff/goss` v0.6.0 and for upstream `goss-org/goss` moved
+    there from `docs/migrations.md`, which is removed. Spec files need no
+    conversion, so there is no converter
+
+- CI
+  - pull requests that touch the docs now build them with `mkdocs build
+    --strict`, so a broken link, heading anchor or snippet fails the pull
+    request rather than the next Read the Docs build. Broken anchors now fail
+    the strict build at all; mkdocs only reported them at INFO before. The
+    never-run GitHub Pages build job and the disabled preview-link workflow are
+    removed
+  - the Linux unit test run now uses the race detector, as the macOS, Windows
+    and release runs already did. It ran `make cov`, which has no `-race`, so no
+    Linux job had ever run it
+  - the security scan uses Trivy 0.75.0 (was 0.74.0). The version is now
+    pinned once, in `ci/lib/trivy.sh`, and CI installs the same version the
+    local scripts run
+
+- library API (only if you import syver as a Go module)
+  - removed exported items nothing used: `resource.HumanOutcomes()`, the
+    `resource.Value`, `Values` and `Contains` constants, the
+    `resource.Discoverable` and `resource.Dependent` interfaces (both subsets
+    of `resource.Resource`, which still declares their methods), and
+    `outputs.Discovery.ValidOptions()`
+
+- housekeeping
+  - removed scripts and a workflow nothing ran: `ci/build.sh`,
+    `integration-tests/run-tests-alpha.sh`, `novendor.sh`,
+    `development/push_images.sh` (it pushed nothing: it looked for images named
+    `goss_*`), and the manual `docker-integration-tests` workflow, whose pushed
+    images nothing pulled because the integration tests build their own.
+    `make bench` now runs the benchmarks in every package; it ran none
+
+- release binaries
+  - 32-bit binaries (`syver-linux-386`, `syver-linux-armv6`) are no longer
+    published. Nothing tested them, and `install.sh` could not install the ARM
+    one. Release binaries are now 64-bit only, and `install.sh` refuses a 32-bit
+    machine with an error instead of downloading the wrong file. 32-bit systems
+    can still build from source
+  - a `syver-linux-ppc64le` binary is now published, and `install.sh`
+    installs it on a ppc64le machine. CI already ran the integration tests on
+    ppc64le under emulation; it now does the same for s390x, which was
+    published but never tested
+
+- dependencies
+  - built with Go 1.27.2, up from 1.27.1, a security update. It fixes five
+    vulnerabilities in `net/http` and its HTTP/2 support (GO-2026-6610 to
+    6613 and GO-2026-6617), which syver reaches through `serve` and the
+    `http:` check. Building from source still needs Go 1.27 or later
+  - routine updates with no change to any check, flag or rendered output.
+    `urfave/cli`, the command line framework, moves to 3.14.0;
+    `prometheus/client_golang`, behind the `prometheus` output and `/metrics`,
+    to 1.25.0; `gjson`, behind the `gjson` matcher, to 1.20.0; and the
+    `golang.org/x` libraries to their current releases
+
 ## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
 
 - documentation
@@ -825,7 +944,7 @@ The breaking changes are limited to things that referenced the product by name
 (the binary is now `syver`, plus the User-Agent, checksum filename, container
 image and Go module path).
 
-- **Upgrading:** [docs/migrations.md](docs/migrations.md#upgrading-from-krameffgoss-v060)
+- **Upgrading:** [docs/goss-vs-syver.md](docs/goss-vs-syver.md#upgrading-from-krameffgoss-v060)
 - **Full side-by-side of what did and did not change:** [docs/goss-vs-syver.md](docs/goss-vs-syver.md)
 
 ### Detail

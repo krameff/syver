@@ -880,7 +880,7 @@ is now `syver`; the Go module path is `github.com/krameff/syver`; the
 User-Agent, checksum filename and container image renamed. A legacy
 `goss-<os>-<arch>` archive is still published.
 
-* Upgrading: [docs/migrations.md](docs/migrations.md#upgrading-from-krameffgoss-v060)
+* Upgrading: [docs/goss-vs-syver.md](docs/goss-vs-syver.md#upgrading-from-krameffgoss-v060)
 * Side-by-side: [docs/goss-vs-syver.md](docs/goss-vs-syver.md)
 
 **Gate at release:** test floor 339 cases / 7 packages.

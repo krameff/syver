@@ -9,6 +9,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
+# shellcheck source=lib/trivy.sh
+source "${ROOT}/ci/lib/trivy.sh"
 
 IGNORE_FILE="${SYVER_TRIVY_IGNOREFILE:-.trivyignore.yaml}"
 # NO severity filter here, deliberately. This script asks "does this suppressed
@@ -17,13 +19,6 @@ IGNORE_FILE="${SYVER_TRIVY_IGNOREFILE:-.trivyignore.yaml}"
 # threshold reads as "no longer found" and the script advises deleting a live
 # suppression. The old default omitted LOW entirely. Verified: unfiltered, the
 # scan still returns exactly GO-2026-5932 and nothing spurious.
-TRIVY_SKIP_DIRS="${TRIVY_SKIP_DIRS:-integration-tests,release,site,.venv,.git}"
-# Keep in step with ci/security-scan.sh: the validator must look wherever the
-# gate looks, or a suppressed secret/misconfig ID would read as "no longer found".
-SYVER_TRIVY_SCANNERS="${SYVER_TRIVY_SCANNERS:-vuln,secret,misconfig}"
-SYVER_TRIVY_CACHE_DIR="${SYVER_TRIVY_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/trivy}"
-# Pinned for the same reasons as ci/security-scan.sh; keep the two in step.
-SYVER_TRIVY_IMAGE="${SYVER_TRIVY_IMAGE:-docker.io/aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969}"  # 0.74.0
 
 if [[ ! -f "${IGNORE_FILE}" ]]; then
   echo "[trivyignore-check] no ${IGNORE_FILE}, skipping"
@@ -76,14 +71,7 @@ run_trivy_json() {
 }
 
 run_trivy_json_container() {
-  local engine="$1"
-  mkdir -p "${SYVER_TRIVY_CACHE_DIR}" || echo "WARN: cannot create ${SYVER_TRIVY_CACHE_DIR}" >&2
-  # :z relabels for SELinux -- security-scan.sh already does this and this one
-  # did not, so on a RHEL-family host the bind mount could be unreadable here
-  # while the other scan worked.
-  "${engine}" run --rm -v "${ROOT}:/src:ro,z" \
-    -v "${SYVER_TRIVY_CACHE_DIR}:/root/.cache/trivy:z" \
-    -w /src "${SYVER_TRIVY_IMAGE}" \
+  trivy_container "$1" \
     fs --scanners "${SYVER_TRIVY_SCANNERS}" \
     --ignorefile /dev/null --exit-code 0 \
     --skip-dirs "${TRIVY_SKIP_DIRS}" --format json --quiet .

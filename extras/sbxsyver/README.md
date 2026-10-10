@@ -48,8 +48,9 @@ The exit status is syver's: 0 when every check passes, 1 when any fails.
 
 ### Environment variables
 
-Each `SYVER_*` name has a `GOSS_*` equivalent, as in the other wrappers. An
-exported but empty `SYVER_*` is treated as unset.
+The first six also accept their `GOSS_*` equivalent, as in the other wrappers;
+an exported but empty `SYVER_*` is treated as unset. `SYVER_TEMP_DIR` and
+`SBX_BIN` have no `GOSS_*` form.
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
