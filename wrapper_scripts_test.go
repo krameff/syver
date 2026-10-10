@@ -889,7 +889,10 @@ func TestGossShimParity(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				return string(b)
+				// A Windows checkout converts the scripts to CRLF, and the
+				// notice pattern and line split both expect LF. Without this
+				// the test finds no notice on Windows and fails.
+				return strings.ReplaceAll(string(b), "\r\n", "\n")
 			}
 			shim := read(p.goss)
 			m := gossShimNotice.FindAllStringSubmatchIndex(shim, -1)
