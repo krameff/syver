@@ -10,12 +10,6 @@ import (
 
 type Discovery struct{}
 
-func (r Discovery) ValidOptions() []*formatOption {
-	return []*formatOption{
-		{name: foPretty},
-	}
-}
-
 func (r Discovery) Output(w io.Writer, discovered map[string]bool, outConfig util.OutputConfig) int {
 	pretty := util.IsValueInList(foPretty, outConfig.FormatOptions)
 

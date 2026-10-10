@@ -1,0 +1,10 @@
+# expect-count: 2
+# expect-skipped: 2
+---
+service:
+  launchd:
+    enabled: true
+    running: true
+
+    # TODO: needs implementation
+    skip: true

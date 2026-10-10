@@ -2,9 +2,11 @@ package syver
 
 import (
 	"bytes"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -637,6 +639,284 @@ func TestSbxsyver(t *testing.T) {
 			if tc.vars {
 				if _, err := os.Stat(filepath.Join(stage, "vars.yaml")); err != nil {
 					t.Errorf("vars file was not staged\n%s", detail)
+				}
+			}
+		})
+	}
+}
+
+// editRuntime stands in for docker, podman or kubectl with a fake container
+// filesystem, FAKE_CTR. Staging (a `-v SRC:...` mount or a `cp SRC/. ...`)
+// copies into it, the interactive `exec -it` shell runs FAKE_EDIT inside it to
+// play the user's `syver add`, `test -e` answers from it, and `cp CTR:PATH DST`
+// copies out of it.
+const editRuntime = `#!/bin/bash
+echo "$*" >> "$FAKE_RUNTIME_LOG"
+prev=
+for a in "$@"; do
+  if [ "$prev" = "-v" ]; then cp -r "${a%%:*}/." "$FAKE_CTR/"; fi
+  prev=$a
+done
+last="${@: -1}"
+case "$1" in
+  run|create) echo fakecontainerid0 ;;
+  inspect) echo true ;;
+  cp)
+    if [ "${2%/.}" != "$2" ]; then cp -r "$2" "$FAKE_CTR/"
+    elif [ "${2#*:}" != "$2" ]; then cp "$FAKE_CTR/$(basename "${2#*:}")" "$3"
+    fi ;;
+  exec)
+    case " $* " in
+      *" -it "*) (cd "$FAKE_CTR" && eval "$FAKE_EDIT") ;;
+      *) case "$last" in
+           "test -e "*) test -e "$FAKE_CTR/$(basename "${last#test -e }")"; exit $? ;;
+         esac ;;
+    esac ;;
+esac
+exit 0
+`
+
+// TestWrapperEditCopyBack proves every wrapper's `edit` puts the spec it hands
+// out back where it came from. Each stages the spec into the container as
+// goss.yaml, so `syver add` writes to goss.yaml, and the wrappers used to copy
+// that to the host as goss.yaml: a syver.yaml never received the edits and
+// still won on the next run. On an empty project `syver add` writes syver.yaml,
+// which was never copied out at all. The run must also exit 0: dcsyver and
+// ksyver ended `edit` on `[[ -n "${GOSS_VARS}" ]] && ...`, so without
+// GOSS_VARS they exited 1 after copying back.
+//
+// REVERT-PROOF: restoring the goss.yaml-only copy-back in any script fails its
+// "syver.yaml", "new project" and "syver_wait.yaml" cases. Dropping the
+// `|| true` after the GOSS_VARS copy-back fails every dcsyver and ksyver case,
+// including "goss.yaml", the one that copied back correctly before the fix.
+func TestWrapperEditCopyBack(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the wrappers are bash scripts driving a local container runtime")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+
+	wrappers := []struct {
+		dir, script, runtime string
+		args                 []string
+		noGossFile           bool // the Kubernetes pair has never read GOSS_FILE
+	}{
+		{dir: "dsyver", script: "dsyver", runtime: "podman", args: []string{"edit", "example/image"}},
+		{dir: "dsyver", script: "dgoss", runtime: "podman", args: []string{"edit", "example/image"}},
+		{dir: "dcsyver", script: "dcsyver", runtime: "docker", args: []string{"edit", "svc"}},
+		{dir: "dcsyver", script: "dcgoss", runtime: "docker", args: []string{"edit", "svc"}},
+		{dir: "ksyver", script: "ksyver", runtime: "kubectl", args: []string{"edit", "-i", "example/image"}, noGossFile: true},
+		{dir: "ksyver", script: "kgoss", runtime: "kubectl", args: []string{"edit", "-i", "example/image"}, noGossFile: true},
+	}
+
+	// edit writes "edited" into the first file that exists, the way `syver add`
+	// writes to the spec it resolved, or creates syver.yaml when there is none.
+	const addToSpec = `for f in custom.yaml syver.yaml syver.yml goss.yaml goss.yml; do
+  [ -e "$f" ] && { echo edited > "$f"; exit 0; }
+done
+echo edited > syver.yaml`
+
+	tests := []struct {
+		name     string
+		files    []string // host files before, each containing its own name
+		gossFile string
+		edit     string
+		want     map[string]string // every spec-like host file after, and its content
+	}{
+		{
+			name: "syver.yaml", files: []string{"syver.yaml"}, edit: addToSpec,
+			want: map[string]string{"syver.yaml": "edited"},
+		},
+		{
+			name: "goss.yaml", files: []string{"goss.yaml"}, edit: addToSpec,
+			want: map[string]string{"goss.yaml": "edited"},
+		},
+		{
+			name: "new project", edit: addToSpec,
+			want: map[string]string{"syver.yaml": "edited"},
+		},
+		{
+			name: "syver_wait.yaml", files: []string{"syver.yaml", "syver_wait.yaml"},
+			edit: "echo edited-wait > goss_wait.yaml",
+			want: map[string]string{"syver.yaml": "syver.yaml", "syver_wait.yaml": "edited-wait"},
+		},
+		{
+			name: "explicit GOSS_FILE", files: []string{"syver.yaml", "custom.yaml"}, gossFile: "custom.yaml",
+			edit: addToSpec,
+			want: map[string]string{"syver.yaml": "syver.yaml", "custom.yaml": "edited"},
+		},
+	}
+
+	for _, w := range wrappers {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", w.dir, w.script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range tests {
+			t.Run(w.script+"/"+tc.name, func(t *testing.T) {
+				if tc.gossFile != "" && w.noGossFile {
+					t.Skip("this wrapper does not read GOSS_FILE")
+				}
+				dir := t.TempDir()
+				binDir := filepath.Join(dir, "bin")
+				specDir := filepath.Join(dir, "spec")
+				ctr := filepath.Join(dir, "ctr")
+				for _, d := range []string{binDir, specDir, ctr} {
+					if err := os.Mkdir(d, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				fake := filepath.Join(binDir, w.runtime)
+				if err := os.WriteFile(fake, []byte(editRuntime), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				for _, f := range tc.files {
+					if err := os.WriteFile(filepath.Join(specDir, f), []byte(f+"\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				// The compose wrappers refuse to start without a compose file.
+				if err := os.WriteFile(filepath.Join(specDir, "compose.yaml"), []byte("services: {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				fakeSyver := filepath.Join(dir, "syver")
+				if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				callLog := filepath.Join(dir, "calls.log")
+
+				cmd := exec.Command(bash, append([]string{scriptPath}, w.args...)...)
+				cmd.Dir = specDir
+				cmd.Env = append(os.Environ(),
+					"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"CONTAINER_RUNTIME="+w.runtime,
+					"COMPOSE_BIN=docker compose",
+					"GOSS_KUBECTL_BIN="+fake,
+					"GOSS_FILES_PATH="+specDir,
+					"GOSS_PATH="+fakeSyver,
+					"DGOSS_TEMP_DIR="+dir,
+					"FAKE_RUNTIME_LOG="+callLog,
+					"FAKE_CTR="+ctr,
+					"FAKE_EDIT="+tc.edit,
+				)
+				if tc.gossFile != "" {
+					cmd.Env = append(cmd.Env, "GOSS_FILE="+tc.gossFile)
+				}
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				runErr := cmd.Run()
+				callBytes, _ := os.ReadFile(callLog)
+				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + string(callBytes)
+				if runErr != nil {
+					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
+				}
+
+				got := map[string]string{}
+				entries, err := os.ReadDir(specDir)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, e := range entries {
+					if e.Name() == "compose.yaml" {
+						continue
+					}
+					b, err := os.ReadFile(filepath.Join(specDir, e.Name()))
+					if err != nil {
+						t.Fatal(err)
+					}
+					got[e.Name()] = strings.TrimSpace(string(b))
+				}
+				if !maps.Equal(got, tc.want) {
+					t.Errorf("host files after edit = %v, want %v\n%s", got, tc.want, detail)
+				}
+			})
+		}
+	}
+}
+
+// gossShimNotice is the compatibility notice each goss-named script prints. The
+// parity test removes it, after checking it names the script's syver twin.
+var gossShimNotice = regexp.MustCompile(`(?s)\n[ \t]*# The compatibility notice:.*?is maintained for compatibility but gets no new features; use (\w+)"\n\n`)
+
+// gossShimNames maps a syver script onto its goss-named shim. The identity
+// pairs protect text the two scripts share, repository paths and the syver
+// filenames they both probe, from the mappings after them. strings.Replacer
+// takes the match that starts earliest, so each protected string wins over
+// the mapping it contains.
+var gossShimNames = strings.NewReplacer(
+	"cmd/syver/", "cmd/syver/",
+	"syver.go", "syver.go",
+	"extras/dsyver/dsyver", "extras/dsyver/dsyver",
+	"extras/dcsyver/dcsyver", "extras/dcsyver/dcsyver",
+	"extras/ksyver/ksyver", "extras/ksyver/ksyver",
+	"${HOME}/syver", "${HOME}/syver",
+	"${HOME}/bin/syver", "${HOME}/bin/syver",
+	"`syver add` now defaults", "`syver add` now defaults",
+	"./syver.yaml", "./syver.yaml",
+	// The intended differences: script names, the in-container directory
+	// and binary, and the command named in prompts and comments.
+	"dcsyver", "dcgoss",
+	"dsyver", "dgoss",
+	"ksyver", "kgoss",
+	"/syver", "/goss",
+	"syver add", "goss add",
+	"Copy in syver", "Copy in goss",
+	"executes syver", "executes goss",
+)
+
+// TestGossShimParity holds dgoss, dcgoss and kgoss to their syver twins. The
+// shims are maintained copies, and they have drifted before: dgoss looked only
+// for goss.yaml long after dsyver learned syver.yaml. Each pair must be
+// identical once the intended differences are mapped and the shim's
+// compatibility notice is removed, so a fix applied to one script and not the
+// other fails here. The syver filenames are deliberately not mapped, which is
+// what catches a shim that stops probing them.
+//
+// REVERT-PROOF: dropping syver.yaml from the probe list in any one shim, or
+// deleting its compatibility notice, fails that pair.
+func TestGossShimParity(t *testing.T) {
+	for _, p := range []struct{ dir, syver, goss string }{
+		{"dsyver", "dsyver", "dgoss"},
+		{"dcsyver", "dcsyver", "dcgoss"},
+		{"ksyver", "ksyver", "kgoss"},
+	} {
+		t.Run(p.goss, func(t *testing.T) {
+			read := func(name string) string {
+				t.Helper()
+				b, err := os.ReadFile(filepath.Join("extras", p.dir, name))
+				if err != nil {
+					t.Fatal(err)
+				}
+				// A Windows checkout converts the scripts to CRLF, and the
+				// notice pattern and line split both expect LF. Without this
+				// the test finds no notice on Windows and fails.
+				return strings.ReplaceAll(string(b), "\r\n", "\n")
+			}
+			shim := read(p.goss)
+			m := gossShimNotice.FindAllStringSubmatchIndex(shim, -1)
+			if len(m) != 1 {
+				t.Fatalf("%s has %d compatibility notices, want 1", p.goss, len(m))
+			}
+			if named := shim[m[0][2]:m[0][3]]; named != p.syver {
+				t.Errorf("%s's notice points at %s, want %s", p.goss, named, p.syver)
+			}
+			shim = shim[:m[0][0]] + "\n" + shim[m[0][1]:]
+
+			want := strings.Split(gossShimNames.Replace(read(p.syver)), "\n")
+			got := strings.Split(shim, "\n")
+			for i := range max(len(want), len(got)) {
+				var w, g string
+				if i < len(want) {
+					w = want[i]
+				}
+				if i < len(got) {
+					g = got[i]
+				}
+				if w != g {
+					t.Fatalf("%s drifts from %s at line %d of the normalised scripts:\n  %s: %q\n  %s: %q",
+						p.goss, p.syver, i+1, p.syver, w, p.goss, g)
 				}
 			}
 		})

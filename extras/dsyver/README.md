@@ -2,8 +2,9 @@
 
 dsyver is a convenience wrapper around syver that aims to bring the simplicity of syver to containers.
 
-`dgoss` is the previous name of this script and is kept for one major version
-as a compatibility copy. It takes the same commands, variables and spec files as
+`dgoss` is the previous name of this script and is kept as a compatibility copy,
+under the [compatibility policy](https://syver.readthedocs.io/en/latest/goss-vs-syver/#compatibility-policy):
+maintained, but new features arrive in `dsyver` only. It takes the same commands, variables and spec files as
 `dsyver`; the difference is inside the container, where it stages files under
 `/goss` rather than `/syver` and names the copied binary `goss`, so existing
 `GOSS_OPTS` and in-container paths keep working. New scripts and documentation
@@ -94,15 +95,18 @@ for the dgoss command, for example:
 * Run the container with the flags you specified.
 * Stream the containers log output into the container as `/syver/docker_output.log`
     * This allows writing tests or waits against the container output
-* (optional) Run `goss` with `$GOSS_WAIT_OPTS` if `./goss_wait.yaml` file exists in the current dir
-* Run `goss` with `$GOSS_OPTS` using `./goss.yaml`
+* (optional) Run syver with `$GOSS_WAIT_OPTS` if a wait file exists in `GOSS_FILES_PATH`: the first of
+  `syver_wait.yaml`, `syver_wait.yml`, `goss_wait.yaml` and `goss_wait.yml`
+* Run syver with `$GOSS_OPTS` using the spec in `GOSS_FILES_PATH`: the first of `syver.yaml`,
+  `syver.yml`, `goss.yaml` and `goss.yml`
 
 ### Edit
 
 Edit will launch a container, install syver, and drop the user into an interactive shell.
-Once the user quits the interactive shell, any `syver.yaml` or `syver_wait.yaml`
-are copied out into the current directory. The goss-named equivalents are picked
-up too.
+Once the user quits the interactive shell, the spec and wait file are copied
+back to the files they were read from, so edits to a `syver.yaml` land in
+`syver.yaml`. On a new project, the `syver.yaml` that `syver add` creates is
+copied out under that name, into `GOSS_FILES_PATH`.
 This allows the user to leverage the `syver add|autoadd` commands to write tests as they would on a regular machine.
 
 **Example:**

@@ -12,13 +12,15 @@ import (
 
 // topLevelWarning describes one top-level key found in a spec that
 // checkTopLevelKeys does not recognise. It is a value, not a log line, so
-// callers decide whether and how to surface it -- see D1 in
-// PLAN_toplevel_key_guard.md: this guard never fails a run, it only reports.
+// callers decide whether and how to surface it. This guard never fails a run,
+// it only reports: a hard error would break the anchor pattern described on
+// checkTopLevelKeys, and any spec written for a newer syver and run on an
+// older one.
 type topLevelWarning struct {
 	// Path is the spec file this key was found in, or "" if the caller had
 	// none to give (e.g. content read from a byte slice with no filename).
-	// See D7: an included gossfile's warning carries that file's own path,
-	// not its parent's.
+	// An included gossfile's warning carries that file's own path, not its
+	// parent's.
 	Path string
 	// Line is the 1-indexed source line of the key itself, from yaml.v3's
 	// Node.Line.
@@ -26,7 +28,7 @@ type topLevelWarning struct {
 	// Key is the unrecognised top-level key, exactly as written.
 	Key string
 	// Suggestion is the closest legal key within edit distance 2, or "" if
-	// none qualifies. See D6.
+	// none qualifies.
 	Suggestion string
 }
 
@@ -68,23 +70,24 @@ func legalTopLevelKeys() map[string]bool {
 }
 
 // checkTopLevelKeys reports unknown top-level keys in a YAML spec document.
-// It never fails a run (see D1) and never mutates anything -- it returns the
+// It never fails a run and never mutates anything -- it returns the
 // warnings rather than logging them, so the caller decides (and so this is
 // testable without capturing log output). data is parsed independently of
-// the real decode in ReadJSONData; see the design note in
-// PLAN_toplevel_key_guard.md on why the node is not threaded through to the
-// real unmarshal.
+// the real decode in ReadJSONData. Spec files are small and this runs once
+// per file, so the second parse costs nothing worth saving, and threading the
+// node through to the real decode would touch the merge and `gossfile:`
+// recursion paths for no gain.
 //
-// Three kinds of key are exempt, per D2:
+// Three kinds of key are exempt:
 //
 //   - a key already in legalTopLevelKeys()
 //
 //   - a key beginning "x-" (the docker-compose-style extension convention)
 //
 //   - a key whose immediate value node itself carries an anchor. Detected
-//     structurally via yaml.v3's Node.Anchor, not by name -- see the trap
-//     section of PLAN_toplevel_key_guard.md for why a naming heuristic would
-//     be wrong here. Deliberately NOT a recursive subtree search -- see
+//     structurally via yaml.v3's Node.Anchor, not by name: an anchor carrier
+//     can be called anything, so nothing about its name tells it apart from
+//     a typo. Deliberately NOT a recursive subtree search -- see
 //     valueHasAnchor's doc comment for why that distinction matters.
 //
 // That third exemption is the mechanism that keeps a shared-block-via-YAML-anchor
@@ -182,7 +185,7 @@ func valueHasAnchor(n *yaml.Node) bool {
 }
 
 // suggestKey returns the legal key closest to key by Levenshtein distance,
-// if that distance is 1 or 2 (D6), or "" if nothing qualifies. Ties are
+// if that distance is 1 or 2, or "" if nothing qualifies. Ties are
 // broken by sorting the candidate set first, so the result is deterministic.
 func suggestKey(key string, legal map[string]bool) string {
 	candidates := make([]string, 0, len(legal))

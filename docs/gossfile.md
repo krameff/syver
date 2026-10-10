@@ -1122,6 +1122,22 @@ Count: 1, Failed: 1, Skipped: 0
 
 Syver supports advanced matchers by converting YAML input to [gomega](https://onsi.github.io/gomega/) matchers.
 
+!!! warning "An empty matcher group is a syntax error"
+
+    A matcher group with nothing in it asserts nothing, so Syver rejects it
+    rather than report a result without looking at the value:
+
+    ```yaml
+    and: []               # syntax error
+    or: []                # syntax error
+    contain-elements: []  # syntax error
+    gjson: {}             # syntax error
+    ```
+
+    Two empty forms are still accepted, because each checks the value:
+    `consist-of: []` asserts it is empty, and a bare `[]` (as in `stderr: []`,
+    which `syver add` writes) is unchanged.
+
 #### String Matchers
 
 These will convert the system attribute to a string prior to matching.
@@ -1210,8 +1226,6 @@ These matchers don't really fall into any of the above categories, or span multi
 
 !!! note
     When system returns a string it is converted into a one element array and matched
-
-See the following for examples: [link..]fixme
 
 ##### semver-constraint
 

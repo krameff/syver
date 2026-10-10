@@ -229,14 +229,9 @@ definitions:
       exists:
         type: boolean
         default: true
-      uid:
-        type: integer
-        default: 65534
       gid:
         type: integer
         default: 65534
-      groups:
-        type: object
       skip:
         type: boolean
         default: false
@@ -266,6 +261,15 @@ definitions:
         items:
           type: string
         default: [ "Content-Type: text/html" ]
+      request-query-params:
+        description: |
+          Set URL query parameters, properly encoded. Each key takes a list, so a
+          key can repeat, e.g. { "foo": [ "bar" ] }
+        type: object
+        additionalProperties:
+          type: array
+          items:
+            type: string
       headers:
         type: array
         description: |
@@ -395,6 +399,15 @@ definitions:
         default:
           - rw
           - relatime
+      vfs-opts:
+        description: |
+          The superblock options, as distinct from the per-mount options in
+          opts. See mount(2) and the mountinfo section of proc(5).
+        type: array
+        items:
+          type: string
+        default:
+          - rw
       source:
         type: string
         default: /dev/mapper/fedora-home
@@ -533,13 +546,8 @@ definitions:
         default: false
 
   serviceTest:
-    # `skip` is deliberately not required. It was the only definition in this
-    # schema that demanded it, and `skip` carries default: false everywhere,
-    # so requiring it here rejected the tool's own output: `syver add service`
-    # emits enabled + running and nothing else.
-    required:
-      - enabled
-      - running
+    # Nothing is required. The code requires no attribute, and a Windows spec
+    # may assert only Windows attributes such as `dependencies`.
     properties:
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
@@ -549,6 +557,13 @@ definitions:
       running:
         type: boolean
         default: true
+      runlevels:
+        type: array
+        items:
+          type: string
+        description: >-
+          The runlevels the service is enabled in. Supported on Alpine init,
+          sysv init and upstart.
       start-type:
         type: string
         description: >-

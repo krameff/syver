@@ -118,7 +118,6 @@ func newHealthHandler(ctx context.Context, c *util.Config) (*healthHandler, erro
 		baseCtx:       ctx,
 		c:             c,
 		syverConfig:   *cfg,
-		sys:           system.New(c.PackageManager),
 		outputer:      output,
 		cache:         cache,
 		syverMu:       &sync.Mutex{},
@@ -134,7 +133,6 @@ type res struct {
 type healthHandler struct {
 	c             *util.Config
 	syverConfig   SyverConfig
-	sys           *system.System
 	outputer      outputs.Outputer
 	cache         *cache.Cache
 	syverMu       *sync.Mutex
@@ -234,7 +232,6 @@ func (h healthHandler) fillCache(cacheKey string) [][]resource.TestResult {
 	}
 
 	log.Printf(cacheMissLogFormat, cacheKey)
-	h.sys = system.New(h.c.PackageManager)
 	tra := h.validate(h.baseCtx)
 	h.cache.SetDefault(cacheKey, tra)
 	return tra
@@ -259,9 +256,9 @@ func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs
 	return resp
 }
 func (h healthHandler) validate(ctx context.Context) [][]resource.TestResult {
-	h.sys = system.New(h.c.PackageManager)
+	sys := system.New(h.c.PackageManager)
 	res := make([][]resource.TestResult, 0)
-	tr, err := runValidation(ctx, h.sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
+	tr, err := runValidation(ctx, sys, h.syverConfig, h.c.DisabledResourceTypes, h.maxConcurrent)
 	if err != nil {
 		// Returning the empty set here used to answer 200 having run zero checks:
 		// no results means no failures, so every verdict rule -- including the

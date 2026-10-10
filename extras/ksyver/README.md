@@ -3,8 +3,9 @@
 ksyver is a wrapper for syver that aims to bring the simplicity of testing
 with syver to containers running in pods in Kubernetes.
 
-`kgoss` is the previous name of this script and is kept for one major version
-as a compatibility copy. It takes the same commands, variables and spec files as
+`kgoss` is the previous name of this script and is kept as a compatibility copy,
+under the [compatibility policy](https://syver.readthedocs.io/en/latest/goss-vs-syver/#compatibility-policy):
+maintained, but new features arrive in `ksyver` only. It takes the same commands, variables and spec files as
 `ksyver`; the difference is inside the pod, where `GOSS_CONTAINER_PATH` defaults
 to `/tmp/goss` rather than `/tmp/syver` and the copied binary is named `goss`.
 New scripts and documentation should use `ksyver`.
@@ -19,74 +20,28 @@ Windows, [winpty][] is used for interactive connections to the pod under test.
 
 ## Install
 
-Installing kgoss requires copying the kgoss file to a directory in your PATH
-and copying the goss file to your home folder (or a path set as `GOSS_PATH`),
-as follows.
-
-### Manual / UI
-
-You can manually install kgoss and goss by going through the Web UI, getting
-the files and putting them in the right path. To get each of them:
-
-* **kgoss**: Run `curl -sSLO
-  https://raw.githubusercontent.com/krameff/syver/main/extras/ksyver/kgoss`.
-* **goss**: Download a release archive such as `goss_0.5.0_linux_x86_64.tar.gz`
-  from <https://github.com/krameff/syver/releases>, extract it, and rename the
-  binary `goss`. Place it in your HOME directory, e.g. `C:\Users\<username>` on
-  Windows; or set the environment variable `GOSS_PATH` to its path. Or run
-  `curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh`.
-
-### Automatic / CLI
-
-To install from the command line or automatically, use the following commands.
-[jq][] is required to parse the API response and find the release asset's
-download URL.
-
-[jq]: https://stedolan.github.io/jq
-
-First get a GitHub personal access token for accessing the GitHub API from
-<https://github.com/settings/tokens>. Input it in the first
-line below. Set `dest_dir` to a directory in your `PATH` env var.
+ksyver needs two files on the machine you run it from: the `ksyver` script, in
+a directory on your `PATH`, and a **Linux** syver binary for your pod's
+architecture, which ksyver copies into the pod. Release binaries are named
+`syver-linux-<arch>` (`amd64`, `arm64` or `s390x`); see
+[Releases](https://github.com/krameff/syver/releases).
 
 ```shell
-token=<personal_access_token>
-username=$(whoami)
 dest_dir=${HOME}/bin
+arch=amd64   # the pod's architecture, not necessarily this machine's
 
-host=raw.githubusercontent.com
-repo=krameff/syver
-# for private repos, replace:
-# host=github.yourcompany.com
-# repo=org-name/goss
+curl -fsSL -o "${dest_dir}/ksyver" \
+  https://raw.githubusercontent.com/krameff/syver/main/extras/ksyver/ksyver
+chmod a+rx "${dest_dir}/ksyver"
 
-## install kgoss
-curl -sSL -u "${username}:${token}" -H 'Accept: application/vnd.github.v3.raw' -o "${dest_dir}/kgoss" \
-  https://${host}/api/v3/repos/${repo}/contents/extras/ksyver/kgoss
-chmod a+rx "${dest_dir}/kgoss"
-
-## install goss
-if [[ ! $(which jq) ]]; then echo "jq is required, get from https://stedolan.github.io/jq"; fi
-version=v0.5.0
-arch=x86_64
-asset="goss_${version#v}_linux_${arch}.tar.gz"
-host=github.com
-# for private repos, leave `host` blank or same as above:
-# host=github.yourcompany.com
-dl_url=$(curl -sSL -u "${username}:${token}" https://${host}/api/v3/repos/${repo}/releases \
-  | jq -r ".[] | select (.tag_name == \"${version}\") | .assets[] | select (.name == \"${asset}\") | .url")
-tmpdir=$(mktemp -d)
-curl -sSL -u "${username}:${token}" -H 'Accept: application/octet-stream' -o "${tmpdir}/${asset}" "${dl_url}"
-tar xzf "${tmpdir}/${asset}" -C "${tmpdir}"
-mv "${tmpdir}/goss" "${dest_dir}/goss"
-chmod a+rx "${dest_dir}/goss"
-
-# If `goss` is not in your path, export a GOSS_PATH variable:
-export GOSS_PATH=${dest_dir}/goss
-
-# Now you can use kgoss as described below:
-# kgoss edit ...
-# kgoss run ...
+curl -fsSL -o "${dest_dir}/syver" \
+  "https://github.com/krameff/syver/releases/latest/download/syver-linux-${arch}"
+chmod a+rx "${dest_dir}/syver"
 ```
+
+ksyver finds the binary as `syver` on your `PATH`, or as `~/syver` or
+`~/bin/syver`; otherwise set `GOSS_PATH` to it. On Windows, put it in your home
+directory, e.g. `C:\Users\<username>`, or set `GOSS_PATH`.
 
 ## Use
 
@@ -106,16 +61,17 @@ as well. Specify `-d <path_to_dir>` for each additional directory you'd like
 to recursively copy. These will be copied as directories next to `goss.yaml`
 in the target container's `GOSS_CONTAINER_PATH`.
 
-To find `goss.yaml` in another directory specify that directory's path in `GOSS_FILES_PATH`.
+To find the spec in another directory, specify that directory's path in `GOSS_FILES_PATH`.
 
 ### Run
 
-The `run` command is used to validate a container. It expects a
-`./goss.yaml` file to exist in the directory it was invoked from.
+The `run` command is used to validate a container. It uses the first of
+`syver.yaml`, `syver.yml`, `goss.yaml` and `goss.yml` found in
+`GOSS_FILES_PATH`, the current directory by default.
 
-If the file `./goss_wait.yaml` exists in the current directory, goss regularly
-checks whether the conditions in the file are met. Only then does goss start the
-actual check with the file `./goss.yaml`. This is used, for example, to wait
+If a wait file exists there (`syver_wait.yaml`, `syver_wait.yml`,
+`goss_wait.yaml` or `goss_wait.yml`), syver regularly checks whether the
+conditions in it are met. Only then does syver start the actual check. This is used, for example, to wait
 until a certain port is open before executing the tests.
 
 **Example:**
@@ -131,10 +87,12 @@ until a certain port is open before executing the tests.
 ### Edit
 
 Edit will launch a container, install goss, and drop the user into an
-interactive shell. Once the user quits the interactive shell, any `goss.yaml`
-or `goss_wait.yaml` are copied out into the current directory. This allows the
-user to leverage the `goss add|autoadd` commands to write tests as they would
-on a regular machine.
+interactive shell. Once the user quits the interactive shell, the spec and wait
+file are copied back to the files they were read from, so edits to a
+`syver.yaml` land in `syver.yaml`. On a new project, the `syver.yaml` that
+`syver add` creates is copied out under that name, into `GOSS_FILES_PATH`. This
+allows the user to leverage the `goss add|autoadd` commands to write tests as
+they would on a regular machine.
 
 **Example:**
 

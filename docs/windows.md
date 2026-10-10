@@ -216,7 +216,7 @@ unaffected in practice: it works on Windows.
 **`package:`.** Windows has no package-manager backend, so every assertion
 errors with `could not detect Package type on this system, please use --package
 flag to explicitly set it`. It does not silently answer "not installed", which
-it did before this release. A backend over the Add/Remove Programs registry
+it did before 0.11.0. A backend over the Add/Remove Programs registry
 hives is planned.
 
 **`port:`.** Every assertion errors with `not implemented yet`. gopsutil ships
@@ -317,7 +317,7 @@ what you are looking at. `addr`'s budget was raised from one second to five on
 2026-09-04 after exactly that happened. Treat a repeatable failure as real and a
 one-off as suspect, and check the rest of the run before assuming a regression.
 
-## Behaviour changes in this release
+## Behaviour changes since 0.11.0
 
 Windows specs that passed before may now fail. That is the point: they were not
 being checked.

@@ -88,6 +88,12 @@ extra:
     - icon: fontawesome/brands/github
       link: https://github.com/krameff/syver
 
+# A link to a missing heading anchor is only INFO by default, which --strict
+# ignores. Raised to a warning so `mkdocs build --strict` (make docs, and the
+# docs workflow) fails on it.
+validation:
+  anchors: warn
+
 watch:
   - README.md
   - LICENSE

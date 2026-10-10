@@ -50,24 +50,22 @@ curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh
 
 Release assets are raw, uncompressed binaries named `syver-<os>-<arch>`
 (for example `syver-linux-amd64`; Windows builds are named `syver-windows-amd64.exe`).
-Legacy `goss-<os>-<arch>` assets are published alongside them for one major
-version, so existing download URLs keep resolving.
+The goss-named binaries were last published with v0.9.1.
 
 To install manually from a GitHub release:
 
 ```bash
-SYVER_VER=v0.5.0
+SYVER_VER=v0.15.0   # any tag from the Releases page
 curl -L "https://github.com/krameff/syver/releases/download/${SYVER_VER}/syver-linux-amd64" \
   -o /tmp/syver
 sudo mv /tmp/syver /usr/local/bin/syver
 chmod +rx /usr/local/bin/syver
 ```
 
-Adjust the version, OS, and architecture in the filename as needed (`amd64`,
-`arm64`, `arm`, `s390x`, `386`, etc.).
-
-When release artifacts are published for this fork, download the matching archive
-from the repository **Releases** page. Until then, use [build from source](#build-from-source) above.
+Adjust the version, OS, and architecture in the filename as needed. Release
+binaries are 64-bit only: `linux` has `amd64`, `arm64`, `s390x` and `ppc64le`, `darwin`
+has `amd64` and `arm64`, and `windows` has `amd64`. On a 32-bit system,
+[build from source](#build-from-source).
 
 ## Verifying release signatures
 
@@ -77,14 +75,15 @@ as [`krameff-syver-key.asc`](https://github.com/krameff/syver/blob/main/krameff-
 attached to every release).
 
 ```bash
-SYVER_VER=v0.5.0
+SYVER_VER=v0.15.0   # the release you downloaded
 
 # import the signing key once
 curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-syver-key.asc | gpg --import
 
 # download the checksum file and its signature from the release page, then:
 gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.sig syver_${SYVER_VER#v}_SHA256SUMS
-sha256sum -c syver_${SYVER_VER#v}_SHA256SUMS
+# --ignore-missing: the file lists every release asset, not only the one you downloaded
+sha256sum --ignore-missing -c syver_${SYVER_VER#v}_SHA256SUMS
 ```
 
 A `gpg --verify` output of `Good signature from "Krameff Solutions Limited..."`

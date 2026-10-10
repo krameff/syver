@@ -15,10 +15,11 @@ on:
   workflow_dispatch:
 
 concurrency:
-  # Cancel only for pull requests. A push to main PUBLISHES the docs site, and
-  # killing that mid-publish can leave it half-updated; those queue instead.
+  # Nothing here publishes: Read the Docs builds the site itself, from
+  # .readthedocs.yaml. These jobs only check, so a newer run can replace an
+  # older one.
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   lint:
@@ -37,13 +38,15 @@ jobs:
             .github/CONTRIBUTING.md
 
   build:
-    if: false
+    # The same build Read the Docs runs (Python 3.12, docs/requirements.txt),
+    # with --strict, so a broken link, anchor or snippet fails the pull request
+    # instead of the next Read the Docs build. Nothing is uploaded.
+    name: Build Documentation (strict)
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@v7.0.1
       - uses: actions/setup-python@v7.0.0
         with:
           python-version: "3.12"
@@ -53,9 +56,4 @@ jobs:
           pip install --upgrade pip
           pip install --requirement docs/requirements.txt
       - name: Build documentation
-        run: mkdocs build
-      # To remove if not using github pages
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v5
-        with:
-          path: site
+        run: mkdocs build --strict
