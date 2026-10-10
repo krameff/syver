@@ -169,16 +169,9 @@ the cards. ffmpeg exits 0 on plenty of outputs nobody wants.
 
 ## Publishing
 
-Upload the finished `.mp4` as an asset on a GitHub release and reference the
-absolute URL, which keeps it on GitHub's CDN and out of the history:
+Renders are not published. They are not release assets and are not committed,
+so nothing in the docs or the README links to one. Keep a render local, or
+share it outside the repository.
 
-```markdown
-[Watch the walkthrough](https://github.com/krameff/syver/releases/download/<tag>/dsyver-demo.mp4)
-```
-
-Do NOT route it through `.goreleaser.yaml`'s `extra_files`, which uploads from
-the working tree and so puts the file back in the repository.
-
-**And add nothing to the docs until the URL resolves.** A reference to a file
-that does not exist builds a broken page, and `mkdocs build --strict` fails on
-it.
+Do NOT route one through `.goreleaser.yaml`'s `extra_files`: that uploads from
+the working tree as a release asset.

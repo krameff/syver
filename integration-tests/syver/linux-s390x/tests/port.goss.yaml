@@ -1,0 +1,11 @@
+# expect-count: 2
+# expect-skipped: 2
+---
+port:
+  tcp:135:
+    listening: true
+    ip:
+    - 0.0.0.0
+
+    # TODO: needs implementation
+    skip: true

@@ -15,9 +15,8 @@ import (
 	"github.com/krameff/syver/system"
 )
 
-// TestCheckTopLevelKeys_UnknownKeysWarn is the measured fixture from
-// PLAN_toplevel_key_guard.md: a spec with two unknown top-level keys and one
-// legal one must report exactly the two, each with its own line number, and
+// TestCheckTopLevelKeys_UnknownKeysWarn: a spec with two unknown top-level
+// keys and one legal one must report exactly the two, each with its own line number, and
 // no suggestion for either (neither is close to a legal key).
 func TestCheckTopLevelKeys_UnknownKeysWarn(t *testing.T) {
 	data := []byte("plugins:\n  some-vendor-thing:\n    binary: /nonexistent/plugin\ntotally-made-up-key:\n  whatever: true\ncommand:\n  echo ok:\n    exit-status: 0\n")
@@ -65,7 +64,7 @@ func TestCheckTopLevelKeys_AnchorReferenceDoesNotSuppressUnrelatedWarning(t *tes
 	require.Equal("port", warnings[0].Suggestion)
 }
 
-// TestCheckTopLevelKeys_DeepAnchorDoesNotExempt pins D2's narrowed anchor
+// TestCheckTopLevelKeys_DeepAnchorDoesNotExempt pins the narrowed anchor
 // exemption: only a top-level key whose IMMEDIATE value node carries the
 // anchor is exempt. An anchor buried further down inside an otherwise
 // ordinary (and unrecognised) block is not evidence the key exists to carry
@@ -82,7 +81,7 @@ func TestCheckTopLevelKeys_DeepAnchorDoesNotExempt(t *testing.T) {
 	}
 }
 
-// TestCheckTopLevelKeys_XPrefixExempt covers D2's second exemption: a
+// TestCheckTopLevelKeys_XPrefixExempt covers the second exemption: a
 // top-level key beginning "x-" is always allowed, independent of whether it
 // carries an anchor.
 func TestCheckTopLevelKeys_XPrefixExempt(t *testing.T) {
@@ -93,7 +92,7 @@ func TestCheckTopLevelKeys_XPrefixExempt(t *testing.T) {
 	assert.Empty(t, warnings, "a top-level key prefixed x- must be exempt")
 }
 
-// TestCheckTopLevelKeys_SuggestionWithinEditDistance2 covers D6's positive
+// TestCheckTopLevelKeys_SuggestionWithinEditDistance2 covers the positive
 // case with a key distinct from the prot/port example already exercised
 // above: a single missing character.
 func TestCheckTopLevelKeys_SuggestionWithinEditDistance2(t *testing.T) {
@@ -107,7 +106,7 @@ func TestCheckTopLevelKeys_SuggestionWithinEditDistance2(t *testing.T) {
 	require.Equal("gossfile", warnings[0].Suggestion)
 }
 
-// TestCheckTopLevelKeys_NoSuggestionWhenFar covers D6's required negative:
+// TestCheckTopLevelKeys_NoSuggestionWhenFar covers the required negative:
 // a key far from every legal one warns with no "did you mean".
 func TestCheckTopLevelKeys_NoSuggestionWhenFar(t *testing.T) {
 	data := []byte("totally-unrelated-thing:\n  whatever: true\ncommand:\n  echo ok:\n    exit-status: 0\n")
@@ -121,7 +120,7 @@ func TestCheckTopLevelKeys_NoSuggestionWhenFar(t *testing.T) {
 }
 
 // TestTopLevelWarning_String pins the exact wording against the plan's
-// worked examples, including the D7 fallback (no path -- just the line).
+// worked examples, including the fallback (no path -- just the line).
 func TestTopLevelWarning_String(t *testing.T) {
 	withPath := topLevelWarning{Path: "syver.yaml", Line: 4, Key: "plugins"}
 	assert.Equal(t, `syver.yaml:4: unknown top-level key "plugins" -- ignored`, withPath.String())
@@ -130,7 +129,7 @@ func TestTopLevelWarning_String(t *testing.T) {
 	assert.Equal(t, `syver.yaml:7: unknown top-level key "prot" -- ignored (did you mean "port"?)`, withSuggestion.String())
 
 	noPath := topLevelWarning{Line: 3, Key: "plugins"}
-	assert.Equal(t, `3: unknown top-level key "plugins" -- ignored`, noPath.String(), "D7 fallback: no path available, just the line")
+	assert.Equal(t, `3: unknown top-level key "plugins" -- ignored`, noPath.String(), "fallback: no path available, just the line")
 }
 
 // TestLegalTopLevelKeys_MatchesSyverConfigYAMLTags is the reflection guard
@@ -160,7 +159,7 @@ func TestLegalTopLevelKeys_MatchesSyverConfigYAMLTags(t *testing.T) {
 }
 
 // TestReadJSONData_UnknownTopLevelKey_WarnsExactlyOnceDespiteDoubleDecode is
-// D5's correctness requirement, modelled directly on
+// the correctness requirement, modelled directly on
 // Test_syverfileAlias_CollisionLogsWarnAndGossfileWins (the BUG-001 test
 // this is required to match the shape of): every validate run decodes a
 // spec twice, peek then real (see quietDecode's doc comment in store.go),
@@ -193,7 +192,7 @@ func TestReadJSONData_UnknownTopLevelKey_WarnsExactlyOnceDespiteDoubleDecode(t *
 }
 
 // TestReadJSONData_ValidatesCleanDespiteUnknownTopLevelKeys is the plan's
-// "does not change results" claim (D1), exercised end to end: two unknown
+// "does not change results" claim, exercised end to end: two unknown
 // top-level keys warn, but the spec still decodes and validates exactly as
 // if they were not there.
 func TestReadJSONData_ValidatesCleanDespiteUnknownTopLevelKeys(t *testing.T) {
@@ -229,7 +228,7 @@ func TestReadJSONData_ValidatesCleanDespiteUnknownTopLevelKeys(t *testing.T) {
 	assert.Equal(t, 0, failed, "the run must still exit clean")
 }
 
-// TestReadJSONData_IncludedGossfile_WarnsWithIncludedFilePath covers D7:
+// TestReadJSONData_IncludedGossfile_WarnsWithIncludedFilePath pins the rule that
 // a typo inside an *included* gossfile must warn with that file's own path,
 // not the parent's -- the least useful version of this diagnostic would be
 // one that always names the root spec regardless of where the typo lives.

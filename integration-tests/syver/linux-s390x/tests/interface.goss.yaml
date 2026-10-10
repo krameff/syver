@@ -1,0 +1,12 @@
+# expect-count: 3
+# expect-skipped: 3
+---
+interface:
+  eth0:
+    exists: true
+    addrs:
+      - '127.0.0.1'
+    mtu: 1500
+
+    # TODO: needs implementation
+    skip: true

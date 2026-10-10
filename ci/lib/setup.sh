@@ -52,15 +52,6 @@ _err_trap() {
   echo >&2 "${cmd} exited ${err}" 1>&2
 }
 
-_setup_constants() {
-  export EXIT_SUCCESS=0
-  export EXIT_INVALID_ARGUMENT=66
-  export EXIT_FAILED_TO_SOURCE=67
-  export EXIT_FAILED_TO_CD=68
-  export EXIT_FAILED_AFTER_RETRY=69
-  export EXIT_NOT_FOUND=70
-}
-
 # Print traceback of call stack, starting from the call location.
 # An optional argument can specify how many additional stack frames to skip.
 print_traceback() {

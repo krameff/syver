@@ -94,8 +94,11 @@ jobs:
         with:
           go-version-file: go.mod
 
+      # `make test`, not `make cov`: it is ci/go-test.sh, the same race-enabled
+      # run as release.yaml and the macOS and Windows jobs. `cov` has no -race,
+      # so with it no Linux job ever ran the race detector.
       - name: Unit tests and coverage
-        run: make cov
+        run: make test
 
       - name: Discovery E2E
         run: make test-discovery-e2e
@@ -103,14 +106,17 @@ jobs:
       - name: Depends-on E2E
         run: make test-depends-on-e2e
 
+      # The version is pinned in ci/lib/trivy.sh, shared with the local scripts.
+      # Pinning the action SHA pins the INSTALLER, not the scanner: its
+      # `version` input defaults to 'latest', and scan findings fail the build.
+      - name: Read the pinned Trivy version
+        id: trivy
+        run: echo "version=v$(. ci/lib/trivy.sh && echo "${SYVER_TRIVY_VERSION}")" >> "$GITHUB_OUTPUT"
+
       - name: Install Trivy
         uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567
         with:
-          # Pinning the action SHA pins the INSTALLER, not the scanner: this
-          # action's `version` input defaults to 'latest'. Security scan findings
-          # now fail the build, so an unpinned scanner could turn CI red with no
-          # repo change. Keep in step with SYVER_TRIVY_IMAGE in ci/security-scan.sh.
-          version: v0.74.0
+          version: ${{ steps.trivy.outputs.version }}
 
       - name: Security scan
         env:
@@ -171,6 +177,27 @@ jobs:
       - name: Integration tests
         shell: bash
         run: make test-int-validate-linux-ppc64le test-int-serve-linux-ppc64le
+
+  integration-test-linux-s390x:
+    needs: [coverage]
+    name: Integration tests (linux/s390x)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v7.0.0
+        with:
+          go-version-file: go.mod
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: s390x
+      - name: Integration tests
+        shell: bash
+        run: make test-int-validate-linux-s390x test-int-serve-linux-s390x
 
   integration-test-linux-arm64:
     needs: [coverage]

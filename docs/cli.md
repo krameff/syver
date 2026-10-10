@@ -18,7 +18,7 @@ COMMANDS:
    help, h      Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
-   --log-level string, --loglevel string, -L string, -l string  Goss log verbosity level (default: "INFO") [$SYVER_LOGLEVEL, $GOSS_LOGLEVEL]
+   --log-level string, --loglevel string, -L string, -l string  Log verbosity level (default: "INFO") [$SYVER_LOGLEVEL, $GOSS_LOGLEVEL]
    --syverfile string, --gossfile string, -g string              Syver file to read from / write to [$SYVER_FILE, $GOSS_FILE]
    --vars string [ --vars string ]                               json/yaml file containing variables for template. Can be specified multiple times. Later files override overlapping keys. [$SYVER_VARS, $GOSS_VARS]
    --vars-inline string                                          json/yaml string containing variables for template (overwrites vars) [$SYVER_VARS_INLINE, $GOSS_VARS_INLINE]
@@ -30,7 +30,8 @@ GLOBAL OPTIONS:
 !!! note
     Most flags can be set by using environment variables, see `--help` for more info.
     `SYVER_*` variables are checked first; the legacy `GOSS_*` variables are
-    still honored as a fallback for one major version.
+    still honored as a fallback, under the
+    [compatibility policy](goss-vs-syver.md#compatibility-policy).
 
 ## Global options
 
@@ -303,7 +304,8 @@ The end-point will return the stest results in the format requested and an http 
     - `TRACE` - Detailed internal system activities useful for syver developers to debug.
 
 `--max-concurrent <num>`
-:   Max number of tests to run concurrently
+:   Max number of tests to run concurrently, at least 1. A lower value is
+    rejected with an error.
 
 !!! example
     ```console
@@ -386,7 +388,8 @@ Exits with status 0 on success, non-0 otherwise.
     - `TRACE` - Detailed internal system activities useful for syver developers to debug.
 
 `--max-concurrent <num>`
-:   Max number of tests to run concurrently
+:   Max number of tests to run concurrently, at least 1. A lower value is
+    rejected with an error.
 
 `--discover <gossfile>`
 :   Gossfile containing `discovery:` tests to run before the main `-g` gossfile. Results are

@@ -1,0 +1,7 @@
+# expect-count: 1
+# expect-skipped: 1
+---
+user:
+  ci-user:
+    skip: true
+    # TODO: needs implementation for linux-s390x CI user assertions

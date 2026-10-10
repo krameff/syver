@@ -3,7 +3,6 @@ package syver
 import (
 	"context"
 	"fmt"
-	"runtime"
 	"sync"
 
 	"github.com/krameff/syver/resource"
@@ -34,16 +33,10 @@ func validateDiscovery(ctx context.Context, sys *system.System, syverConfig Syve
 		close(work)
 	}()
 
-	workerCount := runtime.NumCPU() * 5
-	if workerCount > maxConcurrent {
-		workerCount = maxConcurrent
-	}
-	if workerCount < 1 {
-		workerCount = 1
-	}
+	workers := workerCount(maxConcurrent)
 
 	var wg sync.WaitGroup
-	for i := 0; i < workerCount; i++ {
+	for i := 0; i < workers; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

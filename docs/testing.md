@@ -55,8 +55,8 @@ On macOS/Windows, `make test-discovery-e2e` builds a temporary syver binary and 
 | `pre-commit` | `fmt vet` + `go test ./...` | Fast local check (also runs scoped via git hook) |
 | `pre-push` | `fmt vet lint check` | Full local bundle before pushing / opening a PR |
 | `check` | `test` + discovery/depends-on E2E + `lint-markdown` + `test-security` | PR check bundle |
-| `test` | `./ci/go-test.sh` | Unit tests with coverage profile (`c.out`) |
-| `cov` | `go test -coverpkg=./... ./...` | Coverage run (used in CI) |
+| `test` | `./ci/go-test.sh` | Unit tests under the race detector, with coverage profile (`c.out`); what CI runs |
+| `cov` | `go test -coverpkg=./... ./...` | Coverage run without the race detector |
 | `test-discovery-e2e` | `./ci/discovery-e2e.sh` | `--discover` pipeline (flag, inline, discover+depends-on) |
 | `test-depends-on-e2e` | `./ci/depends-on-e2e.sh` | `depends-on` skip when prerequisite fails |
 | `lint-markdown` | `./ci/lint-markdown.sh` | Markdownlint on docs and README files |
@@ -73,10 +73,11 @@ with `|| true`), so `test-short-all`, `pre-push`, and CI's separate lint job agr
 | Workflow | Job | Tests run |
 | --- | --- | --- |
 | [`.github/workflows/golangci.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/golangci.yaml) | `lint` | golangci-lint |
-| | `coverage` | `make cov`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`**, **`./ci/trivyignore-check.sh`** |
+| | `coverage` | `make test`, **`make test-discovery-e2e`**, **`make test-depends-on-e2e`**, **`./ci/security-scan.sh`**, **`./ci/trivyignore-check.sh`** |
 | | `integration-test-*` | `make rockylinux9`, `jammy`, darwin, windows, etc. (includes discovery + depends-on E2E) |
 | [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml) | `analyze` | CodeQL static analysis for Go and GitHub Actions workflows |
 | [`.github/workflows/docs.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/docs.yaml) | `lint` | markdownlint-cli2 on docs |
+| | `build` | `mkdocs build --strict`, failing on a broken link, anchor or snippet (same as `make docs`) |
 | [`.github/workflows/yamllint.yaml`](https://github.com/krameff/syver/blob/main/.github/workflows/yamllint.yaml) | — | YAML lint |
 
 ## Discovery E2E
@@ -91,15 +92,15 @@ make test-discovery-e2e
 
 Steps performed:
 
-1. `goss validate -g discovery.yaml --format discovery` → JSON with `Discovered` key
-2. `goss validate -g goss.yml --discover discovery.yaml --format documentation` → `Failed: 0`
-3. `goss validate -g goss-inline.yml --format documentation` → inline `discovery:` → `Failed: 0`
-4. `goss validate -g goss-with-deps.yml --discover discovery.yaml` → `Failed: 1`, `Skipped: 1`
+1. `syver validate -g discovery.yaml --format discovery` → JSON with `Discovered` key
+2. `syver validate -g goss.yml --discover discovery.yaml --format documentation` → `Failed: 0`
+3. `syver validate -g goss-inline.yml --format documentation` → inline `discovery:` → `Failed: 0`
+4. `syver validate -g goss-with-deps.yml --discover discovery.yaml` → `Failed: 1`, `Skipped: 1`
 
 Manual equivalent:
 
 ```bash
-goss validate -g integration-tests/syver/examples/discovery/goss.yml \
+syver validate -g integration-tests/syver/examples/discovery/goss.yml \
   --discover integration-tests/syver/examples/discovery/discovery.yaml \
   --format documentation
 ```
@@ -107,9 +108,9 @@ goss validate -g integration-tests/syver/examples/discovery/goss.yml \
 Export-only (unchanged):
 
 ```bash
-goss validate -g integration-tests/syver/examples/discovery/discovery.yaml --format discovery \
+syver validate -g integration-tests/syver/examples/discovery/discovery.yaml --format discovery \
   > /tmp/discovered.json
-goss --vars /tmp/discovered.json \
+syver --vars /tmp/discovered.json \
   validate -g integration-tests/syver/examples/discovery/goss.yml --format documentation
 ```
 
@@ -148,8 +149,8 @@ mounted at `/goss/examples/` inside the test container.
 Script: [`integration-tests/run-validate-tests.sh`](https://github.com/krameff/syver/blob/main/integration-tests/run-validate-tests.sh)
 
 Platforms with no test container of their own -- macOS, Windows, and Linux on
-arm64 and ppc64le -- run their fixtures directly against a release binary rather
-than through Docker. Each fixture under
+arm64, ppc64le and s390x -- run their fixtures directly against a release
+binary rather than through Docker. Each fixture under
 `integration-tests/syver/<platform>/` is validated in turn.
 
 A fixture declares what it expects with comment directives, read from the file
@@ -297,7 +298,10 @@ which green they are looking at.
 
 ### Package `cmd/syver`
 
-No Go tests — behaviour covered by root package API tests and integration tests.
+Tests in `cmd/syver/*_test.go` cover the CLI layer: spec path resolution across
+the four probed filenames, `SYVER_*` / `GOSS_*` environment variable precedence,
+the goss-named flag and subcommand aliases, `--vars-inline` parsing, and flag
+validation such as `--max-concurrent`.
 
 ## Docker integration tests
 
@@ -309,7 +313,7 @@ make test-int-all   # full matrix (slow)
 ```
 
 Non-amd64 / darwin / windows via [`integration-tests/run-validate-tests.sh`](https://github.com/krameff/syver/blob/main/integration-tests/run-validate-tests.sh)
-(find `*.goss.yaml` under platform dirs and run `goss validate`).
+(find `*.goss.yaml` under platform dirs and run `syver validate`).
 
 ## Markdown lint
 
@@ -358,7 +362,8 @@ inspect findings without failing, set `SYVER_TRIVY_EXIT_CODE=0`; the summary
 line says explicitly when enforcement is off.
 
 Locally, Trivy runs via the `trivy` binary if installed, otherwise via a
-container runtime (Docker or Podman, `aquasec/trivy` pinned by digest). If
+container runtime (Docker or Podman, `aquasec/trivy` pinned by digest in
+`ci/lib/trivy.sh`, the same version CI installs). If
 neither is available, the scan is skipped with a warning unless
 `SECURITY_STRICT=1` (always set in CI).
 
@@ -375,7 +380,7 @@ and
 
 Workflow: [`.github/workflows/codeql.yml`](https://github.com/krameff/syver/blob/main/.github/workflows/codeql.yml)
 
-Runs on pull requests and pushes to `devel`, plus a weekly schedule.
+Runs on pull requests and pushes to `devel` and `main`, plus a weekly schedule.
 Uses GitHub's advanced CodeQL setup for Go and Actions with category
 `/language:<language>` so PRs can be compared against the base branch.
 

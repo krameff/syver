@@ -3,6 +3,8 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "${ROOT}"
+# shellcheck source=lib/trivy.sh
+source "${ROOT}/ci/lib/trivy.sh"
 
 # UNKNOWN is included deliberately. Trivy reports Go vulndb GO-IDs with no CVSS
 # score as UNKNOWN, and GO-2026-5932 -- the sole entry in this repo's
@@ -10,7 +12,6 @@ cd "${ROOT}"
 # the severity class its own suppression file governs, so the suppressions and the
 # validator that guards it were protecting a door the gate did not use.
 TRIVY_SEVERITY="${TRIVY_SEVERITY:-HIGH,CRITICAL,MEDIUM,UNKNOWN}"
-TRIVY_SKIP_DIRS="${TRIVY_SKIP_DIRS:-integration-tests,release,site,.venv,.git}"
 # Passed explicitly because trivy does NOT auto-detect the YAML variant:
 # --ignorefile defaults literally to ".trivyignore". Verified -- with only
 # .trivyignore.yaml present and no flag, the suppression does not apply. If this
@@ -22,10 +23,6 @@ TRIVY_SKIP_DIRS="${TRIVY_SKIP_DIRS:-integration-tests,release,site,.venv,.git}"
 # so an absolute path outside it does not exist inside the container and trivy
 # exits 1 ("FAILED TO RUN") rather than scanning unsuppressed.
 SYVER_TRIVY_IGNOREFILE="${SYVER_TRIVY_IGNOREFILE:-.trivyignore.yaml}"
-# trivy's own default is [vuln,secret]. Naming just "vuln" is not a no-op, it
-# NARROWS -- it turned the secret scanner off on what is now a blocking gate.
-# Verified against `trivy fs --help` on 0.74.0.
-SYVER_TRIVY_SCANNERS="${SYVER_TRIVY_SCANNERS:-vuln,secret,misconfig}"
 # Findings must FAIL the run, not just print. Without --exit-code trivy exits 0
 # with HIGH CVEs on screen, so `make check` and `make pre-push` went green while
 # the summary below said "both ran" -- and .trivyignore suppressed entries in a
@@ -43,22 +40,7 @@ SYVER_TRIVY_SCANNERS="${SYVER_TRIVY_SCANNERS:-vuln,secret,misconfig}"
 #     our knob out of trivy's namespace.
 # Set to 0 to inspect findings without failing; the summary says so explicitly.
 SYVER_TRIVY_EXIT_CODE="${SYVER_TRIVY_EXIT_CODE:-2}"
-# The DB is ~700MB and is re-pulled into a throwaway layer on every containerised
-# run without this. Honours XDG_CACHE_HOME so it can be moved off a full volume.
-SYVER_TRIVY_CACHE_DIR="${SYVER_TRIVY_CACHE_DIR:-${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/trivy}"
-# Pinned, not :latest, because --exit-code above makes findings blocking and a
-# floating scanner can turn a build red with no repo change.
-# NOTE: this pins the CONTAINER path only. CI installs a trivy binary via
-# aquasecurity/setup-trivy and therefore takes the local-binary path below, so
-# CI's version is pinned by that workflow's `version:` input, not by this.
-# Digest, not tag: a version tag is still re-pointable, so it floats slowly
-# rather than not at all. This is the manifest LIST digest for 0.74.0, so
-# multi-arch is preserved -- verified against `podman manifest inspect`, which
-# shows sha256:ee940acb... as the amd64 platform manifest. Do NOT pin to that
-# one, it breaks arm64. Bump tag and digest together.
-SYVER_TRIVY_IMAGE="${SYVER_TRIVY_IMAGE:-docker.io/aquasec/trivy@sha256:62b1e65e8869bc4b4c6aa4fa2b21595256c7c2f6018a9d9ad61caf87187c1969}"  # 0.74.0
-
-# Pinned for the same reason as the trivy image. CI installs trivy via
+# Pinned for the same reason as trivy (ci/lib/trivy.sh). CI installs trivy via
 # setup-trivy but never installs govulncheck, so it falls through to this
 # `go run` -- which at @latest fetches and executes whatever shipped that day,
 # inside the security gate itself. Bump deliberately.
@@ -154,19 +136,8 @@ run_trivy() {
     .
 }
 
-# Runs trivy through a container runtime. Accepts docker or podman: this
-# project's own dev sandbox is podman-only, so a docker-only fallback meant the
-# scan silently skipped on the very machine most of the development happens on.
 run_trivy_container() {
-  local runtime="$1"
-  # :z relabels the bind mount for SELinux, which podman on RHEL-family hosts
-  # needs and docker ignores harmlessly.
-  mkdir -p "${SYVER_TRIVY_CACHE_DIR}" || echo "WARN: cannot create ${SYVER_TRIVY_CACHE_DIR}, trivy will re-download its DB" >&2
-  "${runtime}" run --rm \
-    -v "${ROOT}:/src:ro,z" \
-    -v "${SYVER_TRIVY_CACHE_DIR}:/root/.cache/trivy:z" \
-    -w /src \
-    "${SYVER_TRIVY_IMAGE}" \
+  trivy_container "$1" \
     fs --scanners "${SYVER_TRIVY_SCANNERS}" --severity "${TRIVY_SEVERITY}" \
     --exit-code "${SYVER_TRIVY_EXIT_CODE}" \
     --ignorefile "${SYVER_TRIVY_IGNOREFILE}" \

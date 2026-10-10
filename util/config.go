@@ -165,9 +165,13 @@ func WithCache(d time.Duration) ConfigOption {
 	}
 }
 
-// WithMaxConcurrency is the maximum concurrent test that can be run
+// WithMaxConcurrency is the maximum concurrent test that can be run. It must be
+// at least 1: with no worker a run checks nothing and reports success.
 func WithMaxConcurrency(mc int) ConfigOption {
 	return func(c *Config) error {
+		if mc < 1 {
+			return fmt.Errorf("max concurrency must be at least 1, got %d", mc)
+		}
 		c.MaxConcurrent = mc
 		return nil
 	}

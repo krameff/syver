@@ -1,0 +1,13 @@
+# expect-count: 2
+# expect-skipped: 0
+---
+command:
+  "validate":
+    exit-status: 0
+    exec: "release/syver-linux-s390x -g integration-tests/syver/linux-s390x/commands/validate-input.yaml validate"
+    stdout:
+      - 'Count: 1'
+      - 'Failed: 0'
+      - 'Skipped: 0'
+    stderr: []
+    timeout: 5000

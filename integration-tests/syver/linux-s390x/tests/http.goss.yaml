@@ -1,0 +1,17 @@
+# expect-count: 3
+# expect-skipped: 0
+---
+http:
+  https://google.com:
+    status: 200
+    allow-insecure: false
+    no-follow-redirects: false
+    timeout: 10000
+    request-headers:
+      - "Content-Type: text/html"
+    headers:
+      - "Content-Type: text/html"
+    body:
+      - "google"
+    username: ""
+    password: ""

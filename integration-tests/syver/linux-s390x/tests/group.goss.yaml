@@ -1,0 +1,7 @@
+# expect-count: 2
+# expect-skipped: 0
+---
+group:
+  root:
+    exists: true
+    gid: 0

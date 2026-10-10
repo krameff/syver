@@ -11,12 +11,6 @@ import (
 )
 
 const (
-	Value = iota
-	Values
-	Contains
-)
-
-const (
 	SUCCESS = iota
 	FAIL
 	SKIP
@@ -29,17 +23,6 @@ const (
 	OutcomeSkip    = "skip"
 	OutcomeUnknown = "unknown"
 )
-
-var humanOutcomes map[int]string = map[int]string{
-	UNKNOWN: OutcomeUnknown,
-	SUCCESS: OutcomePass,
-	FAIL:    OutcomeFail,
-	SKIP:    OutcomeSkip,
-}
-
-func HumanOutcomes() map[int]string {
-	return humanOutcomes
-}
 
 type ValidateError string
 

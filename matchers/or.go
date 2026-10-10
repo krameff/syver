@@ -41,8 +41,17 @@ func (m *OrMatcher) FailureResult(actual interface{}) MatcherResult {
 }
 
 func (m *OrMatcher) NegatedFailureResult(actual interface{}) MatcherResult {
-	firstSuccessfulMatcher := getUnexported(m, "firstSuccessfulMatcher")
-	return firstSuccessfulMatcher.(SyverMatcher).NegatedFailureResult(actual)
+	// Unset when no child matched: the enclosing transform errored before this
+	// ran (a gjson path that does not exist), or a child errored. Report the
+	// group itself rather than dereference nil.
+	if m.firstSuccessfulMatcher == nil {
+		return MatcherResult{
+			Actual:   actual,
+			Message:  "not to satisfy any of these matchers",
+			Expected: m.Matchers,
+		}
+	}
+	return m.firstSuccessfulMatcher.NegatedFailureResult(actual)
 }
 
 func (m *OrMatcher) MarshalJSON() ([]byte, error) {

@@ -6,18 +6,6 @@ import (
 	"github.com/krameff/syver/resource"
 )
 
-// fieldOrder mirrors SyverConfig/DiscoveryConfig's struct declaration
-// order. Used by NewSyverConfig()'s Make() loop and SyverConfig.Merge() /
-// DiscoveryConfig.Merge() -- preserved even though nothing observably
-// depends on it (Make has no side effects to order, and Merge's only
-// observable ordering effect is the sequence of "[WARN] Duplicate key"
-// log lines), simply because there's no reason to introduce a difference.
-var fieldOrder = []string{
-	"file", "package", "addr", "port", "service", "user", "group",
-	"command", "dns", "process", "kernel-param", "mount", "interface",
-	"http", "matching", "registry",
-}
-
 // resourceOrder mirrors the old genericConcatMaps() call order in
 // SyverConfig.Resources() and DiscoveryConfig.Entries()/
 // entriesWithoutValidation() -- a different order than fieldOrder. Kept
@@ -31,369 +19,125 @@ var resourceOrder = []string{
 	"interface", "matching", "registry",
 }
 
-// accessor is the one remaining per-type enumeration (FEAT-007 S4.3): every
-// other switch/list/map literal that used to be duplicated once per
-// resource type across syver_config.go, discovery_config.go and add.go now
-// drives off configAccessors/discoveryAccessors instead.
+// accessor is a resource type's handle on its SyverConfig field.
 //
-// Field exists because of FEAT-007 G1: Get returns a *copy* (built by
-// genericConcatMaps/interfaceMap, which allocates a new map by reflection),
-// which is fine for iteration (Resources(), Merge()) but wrong for `syver
-// add` -- add.go must mutate syverConfig.<Field> itself, or newly added
-// resources silently stop being written to the file. Field returns a
-// pointer to the live struct field instead (e.g. &c.Ports), for
+// Get and Field are deliberately different (FEAT-007 G1): Get returns a
+// *copy* of the map, which is fine for iteration (Resources(), Merge()) but
+// wrong for `syver add` -- add.go must mutate syverConfig.<Field> itself, or
+// newly added resources silently stop being written to the file. Field
+// returns a pointer to the live struct field instead (e.g. &c.Ports), for
 // resource.UpsertLive to write through.
 type accessor struct {
-	// Make initialises this field's map on a fresh SyverConfig (replaces
-	// syver_config.go's two 16-entry make() blocks).
+	// Make initialises this field's map on a fresh SyverConfig.
 	Make func(c *SyverConfig)
 	// Get returns a *copy* of this field as a generic map, for iteration
-	// only (SyverConfig.Resources(), DiscoveryConfig.Entries()). Never use
-	// this to mutate -- see Field.
+	// only. Never use this to mutate -- see Field.
 	Get func(c *SyverConfig) map[string]any
-	// Field returns a pointer to the live struct field itself (e.g.
-	// &c.Ports), for callers that need to insert into it directly (`syver
-	// add`, via resource.UpsertLive). See FEAT-007 G1.
+	// Field returns a pointer to the live struct field itself.
 	Field func(c *SyverConfig) any
-	// Merge folds src's entries for this type into dst, using the existing
-	// mergeType warn-on-duplicate helper.
+	// Merge folds src's entries for this type into dst, warning on
+	// duplicates (mergeType).
 	Merge func(dst, src *SyverConfig)
 }
 
-// configAccessors covers every registered resource type (including
-// "gossfile" and "matching") -- one entry per SyverConfig field. gossfile's
-// Make/Get/Merge are deliberately nil: it's excluded from
-// SyverConfig.Resources() (InValidation: false) and has its own special
-// merge handling (mergeSyver nils Syverfiles before the generic Merge loop
-// runs -- see §4.6), so there is nothing generic for those three to do for
-// it. Field is set for every entry, including gossfile, because `syver add
-// syver` still needs to reach the live Syverfiles field.
-var configAccessors = map[string]accessor{
-	"file": {
-		Make:  func(c *SyverConfig) { c.Files = make(resource.FileMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Files) },
-		Field: func(c *SyverConfig) any { return &c.Files },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Files {
-				mergeType(dst.Files, "file", k, v)
-			}
-		},
-	},
-	"package": {
-		Make:  func(c *SyverConfig) { c.Packages = make(resource.PackageMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Packages) },
-		Field: func(c *SyverConfig) any { return &c.Packages },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Packages {
-				mergeType(dst.Packages, "package", k, v)
-			}
-		},
-	},
-	"addr": {
-		Make:  func(c *SyverConfig) { c.Addrs = make(resource.AddrMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Addrs) },
-		Field: func(c *SyverConfig) any { return &c.Addrs },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Addrs {
-				mergeType(dst.Addrs, "addr", k, v)
-			}
-		},
-	},
-	"port": {
-		Make:  func(c *SyverConfig) { c.Ports = make(resource.PortMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Ports) },
-		Field: func(c *SyverConfig) any { return &c.Ports },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Ports {
-				mergeType(dst.Ports, "port", k, v)
-			}
-		},
-	},
-	"service": {
-		Make:  func(c *SyverConfig) { c.Services = make(resource.ServiceMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Services) },
-		Field: func(c *SyverConfig) any { return &c.Services },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Services {
-				mergeType(dst.Services, "service", k, v)
-			}
-		},
-	},
-	"user": {
-		Make:  func(c *SyverConfig) { c.Users = make(resource.UserMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Users) },
-		Field: func(c *SyverConfig) any { return &c.Users },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Users {
-				mergeType(dst.Users, "user", k, v)
-			}
-		},
-	},
-	"group": {
-		Make:  func(c *SyverConfig) { c.Groups = make(resource.GroupMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Groups) },
-		Field: func(c *SyverConfig) any { return &c.Groups },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Groups {
-				mergeType(dst.Groups, "group", k, v)
-			}
-		},
-	},
-	"command": {
-		Make:  func(c *SyverConfig) { c.Commands = make(resource.CommandMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Commands) },
-		Field: func(c *SyverConfig) any { return &c.Commands },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Commands {
-				mergeType(dst.Commands, "command", k, v)
-			}
-		},
-	},
-	"dns": {
-		Make:  func(c *SyverConfig) { c.DNS = make(resource.DNSMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.DNS) },
-		Field: func(c *SyverConfig) any { return &c.DNS },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.DNS {
-				mergeType(dst.DNS, "dns", k, v)
-			}
-		},
-	},
-	"process": {
-		Make:  func(c *SyverConfig) { c.Processes = make(resource.ProcessMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Processes) },
-		Field: func(c *SyverConfig) any { return &c.Processes },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Processes {
-				mergeType(dst.Processes, "process", k, v)
-			}
-		},
-	},
-	"gossfile": {
-		Field: func(c *SyverConfig) any { return &c.Syverfiles },
-	},
-	"kernel-param": {
-		Make:  func(c *SyverConfig) { c.KernelParams = make(resource.KernelParamMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.KernelParams) },
-		Field: func(c *SyverConfig) any { return &c.KernelParams },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.KernelParams {
-				mergeType(dst.KernelParams, "kernel-param", k, v)
-			}
-		},
-	},
-	"mount": {
-		Make:  func(c *SyverConfig) { c.Mounts = make(resource.MountMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Mounts) },
-		Field: func(c *SyverConfig) any { return &c.Mounts },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Mounts {
-				mergeType(dst.Mounts, "mount", k, v)
-			}
-		},
-	},
-	"interface": {
-		Make:  func(c *SyverConfig) { c.Interfaces = make(resource.InterfaceMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Interfaces) },
-		Field: func(c *SyverConfig) any { return &c.Interfaces },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Interfaces {
-				mergeType(dst.Interfaces, "interface", k, v)
-			}
-		},
-	},
-	"http": {
-		Make:  func(c *SyverConfig) { c.HTTPs = make(resource.HTTPMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.HTTPs) },
-		Field: func(c *SyverConfig) any { return &c.HTTPs },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.HTTPs {
-				mergeType(dst.HTTPs, "http", k, v)
-			}
-		},
-	},
-	"matching": {
-		Make:  func(c *SyverConfig) { c.Matchings = make(resource.MatchingMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Matchings) },
-		Field: func(c *SyverConfig) any { return &c.Matchings },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Matchings {
-				mergeType(dst.Matchings, "matching", k, v)
-			}
-		},
-	},
-	"registry": {
-		Make:  func(c *SyverConfig) { c.Registries = make(resource.RegistryMap) },
-		Get:   func(c *SyverConfig) map[string]any { return interfaceMap(c.Registries) },
-		Field: func(c *SyverConfig) any { return &c.Registries },
-		Merge: func(dst, src *SyverConfig) {
-			for k, v := range src.Registries {
-				mergeType(dst.Registries, "registry", k, v)
-			}
-		},
-	},
-}
-
-// discoveryAccessor is discoveryAccessors' per-type record. Deliberately
-// smaller than accessor: DiscoveryConfig has no live-field add path and no
-// per-type Make() call site distinct from configAccessors' (NewSyverConfig
-// builds both SyverConfig's and DiscoveryConfig's maps from the same
-// resource.Descriptors() pass -- see syver_config.go), so only Get and
-// Merge are needed here.
+// discoveryAccessor is the same handle on a DiscoveryConfig field.
+// DiscoveryConfig has no `syver add` path, so it needs no Field.
 type discoveryAccessor struct {
 	Make  func(c *DiscoveryConfig)
 	Get   func(c *DiscoveryConfig) map[string]any
 	Merge func(dst, src *DiscoveryConfig)
 }
 
-// discoveryAccessors covers exactly the registered types with InDiscovery
-// true -- everything except gossfile, which has no DiscoveryConfig field at
-// all (there's no "discover other gossfiles" concept).
-var discoveryAccessors = map[string]discoveryAccessor{
-	"file": {
-		Make: func(c *DiscoveryConfig) { c.Files = make(resource.FileMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Files) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Files {
-				mergeType(dst.Files, "file", k, v)
-			}
+// wiredType is one resource type's pair of accessors.
+type wiredType struct {
+	key  string
+	cfg  accessor
+	disc discoveryAccessor
+}
+
+// wire builds both accessors for a resource type from the two struct fields
+// that hold it, one on SyverConfig and one on DiscoveryConfig.
+func wire[V any, M ~map[string]V](key string, cfg func(*SyverConfig) *M, disc func(*DiscoveryConfig) *M) wiredType {
+	return wiredType{
+		key: key,
+		cfg: accessor{
+			Make:  func(c *SyverConfig) { *cfg(c) = make(M) },
+			Get:   func(c *SyverConfig) map[string]any { return anyMap(*cfg(c)) },
+			Field: func(c *SyverConfig) any { return cfg(c) },
+			Merge: func(dst, src *SyverConfig) {
+				for k, v := range *cfg(src) {
+					mergeType(*cfg(dst), key, k, v)
+				}
+			},
 		},
-	},
-	"package": {
-		Make: func(c *DiscoveryConfig) { c.Packages = make(resource.PackageMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Packages) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Packages {
-				mergeType(dst.Packages, "package", k, v)
-			}
+		disc: discoveryAccessor{
+			Make: func(c *DiscoveryConfig) { *disc(c) = make(M) },
+			Get:  func(c *DiscoveryConfig) map[string]any { return anyMap(*disc(c)) },
+			Merge: func(dst, src *DiscoveryConfig) {
+				for k, v := range *disc(src) {
+					mergeType(*disc(dst), key, k, v)
+				}
+			},
 		},
-	},
-	"addr": {
-		Make: func(c *DiscoveryConfig) { c.Addrs = make(resource.AddrMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Addrs) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Addrs {
-				mergeType(dst.Addrs, "addr", k, v)
-			}
-		},
-	},
-	"port": {
-		Make: func(c *DiscoveryConfig) { c.Ports = make(resource.PortMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Ports) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Ports {
-				mergeType(dst.Ports, "port", k, v)
-			}
-		},
-	},
-	"service": {
-		Make: func(c *DiscoveryConfig) { c.Services = make(resource.ServiceMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Services) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Services {
-				mergeType(dst.Services, "service", k, v)
-			}
-		},
-	},
-	"user": {
-		Make: func(c *DiscoveryConfig) { c.Users = make(resource.UserMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Users) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Users {
-				mergeType(dst.Users, "user", k, v)
-			}
-		},
-	},
-	"group": {
-		Make: func(c *DiscoveryConfig) { c.Groups = make(resource.GroupMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Groups) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Groups {
-				mergeType(dst.Groups, "group", k, v)
-			}
-		},
-	},
-	"command": {
-		Make: func(c *DiscoveryConfig) { c.Commands = make(resource.CommandMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Commands) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Commands {
-				mergeType(dst.Commands, "command", k, v)
-			}
-		},
-	},
-	"dns": {
-		Make: func(c *DiscoveryConfig) { c.DNS = make(resource.DNSMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.DNS) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.DNS {
-				mergeType(dst.DNS, "dns", k, v)
-			}
-		},
-	},
-	"process": {
-		Make: func(c *DiscoveryConfig) { c.Processes = make(resource.ProcessMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Processes) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Processes {
-				mergeType(dst.Processes, "process", k, v)
-			}
-		},
-	},
-	"kernel-param": {
-		Make: func(c *DiscoveryConfig) { c.KernelParams = make(resource.KernelParamMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.KernelParams) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.KernelParams {
-				mergeType(dst.KernelParams, "kernel-param", k, v)
-			}
-		},
-	},
-	"mount": {
-		Make: func(c *DiscoveryConfig) { c.Mounts = make(resource.MountMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Mounts) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Mounts {
-				mergeType(dst.Mounts, "mount", k, v)
-			}
-		},
-	},
-	"interface": {
-		Make: func(c *DiscoveryConfig) { c.Interfaces = make(resource.InterfaceMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Interfaces) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Interfaces {
-				mergeType(dst.Interfaces, "interface", k, v)
-			}
-		},
-	},
-	"http": {
-		Make: func(c *DiscoveryConfig) { c.HTTPs = make(resource.HTTPMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.HTTPs) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.HTTPs {
-				mergeType(dst.HTTPs, "http", k, v)
-			}
-		},
-	},
-	"matching": {
-		Make: func(c *DiscoveryConfig) { c.Matchings = make(resource.MatchingMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Matchings) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Matchings {
-				mergeType(dst.Matchings, "matching", k, v)
-			}
-		},
-	},
-	"registry": {
-		Make: func(c *DiscoveryConfig) { c.Registries = make(resource.RegistryMap) },
-		Get:  func(c *DiscoveryConfig) map[string]any { return interfaceMap(c.Registries) },
-		Merge: func(dst, src *DiscoveryConfig) {
-			for k, v := range src.Registries {
-				mergeType(dst.Registries, "registry", k, v)
-			}
-		},
-	},
+	}
+}
+
+// anyMap copies a typed resource map into a map[string]any.
+func anyMap[V any, M ~map[string]V](m M) map[string]any {
+	out := make(map[string]any, len(m))
+	for k, v := range m {
+		out[k] = v
+	}
+	return out
+}
+
+// wiring is the one per-type table: a new resource type is one line here.
+// Listed in SyverConfig/DiscoveryConfig's struct declaration order, which
+// becomes fieldOrder.
+//
+// gossfile is not listed: it has no DiscoveryConfig field (there's no
+// "discover other gossfiles" concept), it is excluded from
+// SyverConfig.Resources() (InValidation: false), and its merge is special
+// (mergeSyver nils Syverfiles before the generic Merge loop runs). It gets
+// a Field-only configAccessors entry below, because `syver add syver` still
+// needs to reach the live Syverfiles field.
+var wiring = []wiredType{
+	wire("file", func(c *SyverConfig) *resource.FileMap { return &c.Files }, func(c *DiscoveryConfig) *resource.FileMap { return &c.Files }),
+	wire("package", func(c *SyverConfig) *resource.PackageMap { return &c.Packages }, func(c *DiscoveryConfig) *resource.PackageMap { return &c.Packages }),
+	wire("addr", func(c *SyverConfig) *resource.AddrMap { return &c.Addrs }, func(c *DiscoveryConfig) *resource.AddrMap { return &c.Addrs }),
+	wire("port", func(c *SyverConfig) *resource.PortMap { return &c.Ports }, func(c *DiscoveryConfig) *resource.PortMap { return &c.Ports }),
+	wire("service", func(c *SyverConfig) *resource.ServiceMap { return &c.Services }, func(c *DiscoveryConfig) *resource.ServiceMap { return &c.Services }),
+	wire("user", func(c *SyverConfig) *resource.UserMap { return &c.Users }, func(c *DiscoveryConfig) *resource.UserMap { return &c.Users }),
+	wire("group", func(c *SyverConfig) *resource.GroupMap { return &c.Groups }, func(c *DiscoveryConfig) *resource.GroupMap { return &c.Groups }),
+	wire("command", func(c *SyverConfig) *resource.CommandMap { return &c.Commands }, func(c *DiscoveryConfig) *resource.CommandMap { return &c.Commands }),
+	wire("dns", func(c *SyverConfig) *resource.DNSMap { return &c.DNS }, func(c *DiscoveryConfig) *resource.DNSMap { return &c.DNS }),
+	wire("process", func(c *SyverConfig) *resource.ProcessMap { return &c.Processes }, func(c *DiscoveryConfig) *resource.ProcessMap { return &c.Processes }),
+	wire("kernel-param", func(c *SyverConfig) *resource.KernelParamMap { return &c.KernelParams }, func(c *DiscoveryConfig) *resource.KernelParamMap { return &c.KernelParams }),
+	wire("mount", func(c *SyverConfig) *resource.MountMap { return &c.Mounts }, func(c *DiscoveryConfig) *resource.MountMap { return &c.Mounts }),
+	wire("interface", func(c *SyverConfig) *resource.InterfaceMap { return &c.Interfaces }, func(c *DiscoveryConfig) *resource.InterfaceMap { return &c.Interfaces }),
+	wire("http", func(c *SyverConfig) *resource.HTTPMap { return &c.HTTPs }, func(c *DiscoveryConfig) *resource.HTTPMap { return &c.HTTPs }),
+	wire("matching", func(c *SyverConfig) *resource.MatchingMap { return &c.Matchings }, func(c *DiscoveryConfig) *resource.MatchingMap { return &c.Matchings }),
+	wire("registry", func(c *SyverConfig) *resource.RegistryMap { return &c.Registries }, func(c *DiscoveryConfig) *resource.RegistryMap { return &c.Registries }),
+}
+
+// configAccessors and discoveryAccessors are wiring indexed by key, and
+// fieldOrder is its key order. fieldOrder drives NewSyverConfig()'s Make()
+// loop and the two Merge() methods; nothing observably depends on it beyond
+// the sequence of "[WARN] Duplicate key" log lines.
+var configAccessors, discoveryAccessors, fieldOrder = indexWiring(wiring)
+
+func indexWiring(ws []wiredType) (map[string]accessor, map[string]discoveryAccessor, []string) {
+	cfg := map[string]accessor{
+		"gossfile": {Field: func(c *SyverConfig) any { return &c.Syverfiles }},
+	}
+	disc := make(map[string]discoveryAccessor, len(ws))
+	order := make([]string, 0, len(ws))
+	for _, w := range ws {
+		cfg[w.key] = w.cfg
+		disc[w.key] = w.disc
+		order = append(order, w.key)
+	}
+	return cfg, disc, order
 }
 
 // unrecognizedResourceType is the single fall-through point for a lookup
