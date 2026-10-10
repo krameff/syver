@@ -24,7 +24,7 @@ require (
 	github.com/urfave/cli/v3 v3.13.0
 	go.yaml.in/yaml/v2 v2.4.4
 	go.yaml.in/yaml/v3 v3.0.5
-	golang.org/x/sys v0.48.0
+	golang.org/x/sys v0.49.0
 	gotest.tools/v3 v3.5.2
 )
 
