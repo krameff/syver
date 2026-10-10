@@ -108,6 +108,17 @@
     ppc64le under emulation; it now does the same for s390x, which was
     published but never tested
 
+- dependencies
+  - built with Go 1.27.2, up from 1.27.1, a security update. It fixes five
+    vulnerabilities in `net/http` and its HTTP/2 support (GO-2026-6610 to
+    6613 and GO-2026-6617), which syver reaches through `serve` and the
+    `http:` check. Building from source still needs Go 1.27 or later
+  - routine updates with no change to any check, flag or rendered output.
+    `urfave/cli`, the command line framework, moves to 3.14.0;
+    `prometheus/client_golang`, behind the `prometheus` output and `/metrics`,
+    to 1.25.0; `gjson`, behind the `gjson` matcher, to 1.20.0; and the
+    `golang.org/x` libraries to their current releases
+
 ## 0.15.0 based on krameff/goss v0.6.0 - agent sandbox profiles and sbxsyver
 
 - documentation
