@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.15.1 - Fixes](#v0151---fixes)
 * [v0.15.0 - Agent sandbox profiles and sbxsyver](#v0150---agent-sandbox-profiles-and-sbxsyver)
 * [v0.14.0 - Syver-named variables in the Docker wrappers](#v0140---syver-named-variables-in-the-docker-wrappers)
 * [v0.13.0 - File owners and services on Windows](#v0130---file-owners-and-services-on-windows)
@@ -81,6 +82,48 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [Lineage](#lineage)
 
 ---
+
+## v0.15.1 - Fixes
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-10-10 |
+| Tag | `v0.15.1`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `232ad7e`, the `devel` -> `main` merge commit from PR #84 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | one branch, `audit/0.15.1`, merged to `devel` through PR #83 and from there to `main` through PR #84. The same branch was also merged straight to `main` through PR #82 (`00af1dd`), so `main` carries the release twice; the trees are identical and the tag is on the PR #84 merge |
+| Scope | 15 commits (excluding merges), 92 files, +1932 / -1221, measured at `v0.15.1` against `v0.15.0` |
+| Changelog | [0.15.1](CHANGELOG.md#0151-based-on-krameffgoss-v060---fixes) |
+
+A patch release: fixes from an audit of 0.15.0, documentation corrections and
+the Go toolchain moving from 1.27.1 to 1.27.2, a security update for
+`net/http`. No resource attribute changed. `docs/schema.yaml` changed only to
+correct it: `group` no longer lists `uid` and `groups`, which were never
+supported. The published binaries changed: `syver-linux-386` and
+`syver-linux-armv6` are no longer built, and `syver-linux-ppc64le` is new.
+
+**Suites run on 2026-10-10.** At `89f2a4f`, with Go 1.27.2: Linux unit under
+`-race`, `make check`, `make lint-cross` (golangci-lint v2.14.0), the security
+scan across every release target (govulncheck v1.7.0, no findings) and
+`go mod verify`. At `b6b2783`, the commit tagged, which changes only a test
+and a jammy package pattern on top of that: the Docker suite on the remote
+builder (rockylinux9 126, almalinux10 126, jammy 126, alpine3 127, arch 106,
+all `Failed: 0`, serve tests passed). CI on `b6b2783` was green across every
+integration job, including `windows-latest`, `macos-latest`, arm64, ppc64le,
+s390x and the Docker distribution matrix. The Windows Server 2025 guest was not
+run for this release.
+
+**Verified after the push**, against the published release rather than the build
+log. The tag is an annotated tag object on `232ad7e` with a good signature from
+the maintainer key, and its tree is identical to `devel` at the time. The
+release carries 38 assets: 41 for 0.15.0, less the six for the two 32-bit
+binaries, plus three for `syver-linux-ppc64le`. `syver_0.15.1_SHA256SUMS` and
+the `syver-linux-amd64` SBOM verify against the project key alone, imported
+into an empty keyring. The checksum for `syver-linux-amd64` matches, and its
+embedded build information shows go1.27.2 and revision `232ad7e`.
+`ghcr.io/krameff/syver:v0.15.1` and `:latest` resolve to the same index, for
+linux/amd64 and linux/arm64, annotated with revision `232ad7e` and version
+`0.15.1`.
 
 ## v0.15.0 - Agent sandbox profiles and sbxsyver
 
