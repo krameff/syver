@@ -5,7 +5,8 @@
 #
 # To bump: change SYVER_TRIVY_VERSION and SYVER_TRIVY_IMAGE together. The
 # golangci and release workflows read SYVER_TRIVY_VERSION from this file for
-# aquasecurity/setup-trivy, so CI follows without a workflow edit.
+# aquasecurity/setup-trivy, and the docker-syver and trivy-schedule image scans
+# for trivy-action's `version:`, so CI follows without a workflow edit.
 
 # Pinned, not latest: scan findings fail the build, so a floating scanner can
 # turn a build red with no repo change.
