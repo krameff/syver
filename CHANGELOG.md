@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.15.2 based on krameff/goss v0.6.0 - Go 1.27.3 security update
+
+- dependencies
+  - built with Go 1.27.3, up from 1.27.2, a security update. It fixes
+    GO-2026-6809 in `crypto/x509`, which now distrusts compromised
+    intermediate certificates; syver reaches it through the `http:` check and
+    `serve` over TLS. Building from source still needs Go 1.27 or later
+  - routine updates with no change to any check, flag or rendered output.
+    `prometheus/common`, behind the `prometheus` output and `/metrics`, moves
+    to 0.73.1, and `prometheus/procfs`, `moby/sys/mountinfo` and
+    `golang.org/x/net` to their current releases
+
 ## 0.15.1 based on krameff/goss v0.6.0 - fixes
 
 - validation
