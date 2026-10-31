@@ -45,8 +45,11 @@ curl -L https://raw.githubusercontent.com/krameff/syver/main/extras/dsyver/dgoss
 chmod +rx /usr/local/bin/dgoss
 
 # Download the desired syver version to your preferred location (e.g. v0.7.0).
+# It is the LINUX binary, because dgoss copies it into the container: use
+# syver-linux-arm64 on Apple silicon, syver-linux-amd64 on Intel or for
+# linux/amd64 images. A darwin binary cannot run in the container.
 # Release assets are raw, uncompressed binaries -- there is no tarball to extract.
-curl -L "https://github.com/krameff/syver/releases/download/v0.7.0/syver-darwin-arm64" \
+curl -L "https://github.com/krameff/syver/releases/download/v0.7.0/syver-linux-arm64" \
   -o ~/Downloads/syver
 chmod +rx ~/Downloads/syver
 # Point SYVER_PATH at it (GOSS_PATH is still honoured)

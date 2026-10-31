@@ -70,7 +70,7 @@ jobs:
         uses: docker/setup-buildx-action@v4.4.1
 
       - name: Login to GHCR
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -130,10 +130,19 @@ jobs:
           annotations: ${{ steps.meta.outputs.annotations }}
           platforms: ${{ env.PLATFORMS }}
 
+      # The version is pinned in ci/lib/trivy.sh. trivy-action installs its own
+      # scanner, and without `version:` it uses the action's default (v0.70.0
+      # at v0.36.0), not the one every other scan here runs.
+      - name: Read the pinned Trivy version
+        if: github.ref_name == 'main'
+        id: trivy
+        run: echo "version=v$(. ci/lib/trivy.sh && echo "${SYVER_TRIVY_VERSION}")" >> "$GITHUB_OUTPUT"
+
       - name: Run Trivy vulnerability scanner (main)
         if: github.ref_name == 'main'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: ${{ steps.trivy.outputs.version }}
           image-ref: ghcr.io/${{ github.repository_owner }}/syver:main
           format: sarif
           output: trivy-main-results.sarif

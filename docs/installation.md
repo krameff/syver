@@ -48,6 +48,12 @@ The supported install path is:
 curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh
 ```
 
+It runs on Linux and macOS and installs the binary for your OS and
+architecture, along with the `dsyver` and `dgoss` wrappers. On macOS the
+wrappers need a separate Linux binary to copy into the container; the script
+prints the commands, and the [dsyver README](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md#mac-osx)
+explains why. On Windows, download the binary from the releases page.
+
 Release assets are raw, uncompressed binaries named `syver-<os>-<arch>`
 (for example `syver-linux-amd64`; Windows builds are named `syver-windows-amd64.exe`).
 The goss-named binaries were last published with v0.9.1.

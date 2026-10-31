@@ -27,12 +27,14 @@ exit 0
 `
 
 // TestInstallScriptArch runs install.sh against a fake uname and curl and
-// checks each machine name downloads a binary the release actually publishes
-// (goreleaser's syver-linux-<arch>), and that 32-bit machines, for which no
-// binary is published, are refused rather than sent to a URL that 404s.
+// checks each OS and machine name downloads a binary the release actually
+// publishes (goreleaser's syver-<os>-<arch>), and that combinations with no
+// published binary (32-bit machines, darwin on s390x, an OS with no build) are
+// refused rather than sent to a URL that 404s.
 //
 // REVERT-PROOF: restoring the old `aarch32|arm) arch="arm"` or
-// `i?86) arch="386"` mapping fails the "arm" or "i686" case.
+// `i?86) arch="386"` mapping fails the "arm" or "i686" case, and the old
+// hard-coded `syver-linux-$arch` URL fails both Darwin cases.
 func TestInstallScriptArch(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("install.sh is a POSIX shell script")
@@ -47,22 +49,29 @@ func TestInstallScriptArch(t *testing.T) {
 	}
 
 	tests := []struct {
-		uname string
+		os    string // uname -s
+		uname string // uname -m
 		asset string // empty: no binary is published, so the script must refuse it
+		err   string // the refusal expected when asset is empty
 	}{
-		{"x86_64", "syver-linux-amd64"},
-		{"aarch64", "syver-linux-arm64"},
-		{"arm64", "syver-linux-arm64"},
-		{"s390x", "syver-linux-s390x"},
-		{"ppc64le", "syver-linux-ppc64le"},
-		{"ppc64", ""},
-		{"armv7l", ""},
-		{"arm", ""},
-		{"i686", ""},
-		{"mips", ""},
+		{"Linux", "x86_64", "syver-linux-amd64", ""},
+		{"Linux", "aarch64", "syver-linux-arm64", ""},
+		{"Linux", "arm64", "syver-linux-arm64", ""},
+		{"Linux", "s390x", "syver-linux-s390x", ""},
+		{"Linux", "ppc64le", "syver-linux-ppc64le", ""},
+		{"Linux", "ppc64", "", "unsupported architecture"},
+		{"Linux", "armv7l", "", "unsupported architecture"},
+		{"Linux", "arm", "", "unsupported architecture"},
+		{"Linux", "i686", "", "unsupported architecture"},
+		{"Linux", "mips", "", "unsupported architecture"},
+		{"Darwin", "arm64", "syver-darwin-arm64", ""},
+		{"Darwin", "x86_64", "syver-darwin-amd64", ""},
+		{"Darwin", "s390x", "", "unsupported architecture"},
+		{"FreeBSD", "x86_64", "", "unsupported OS"},
+		{"MINGW64_NT-10.0", "x86_64", "", "unsupported OS"},
 	}
 	for _, tc := range tests {
-		t.Run(tc.uname, func(t *testing.T) {
+		t.Run(tc.os+"/"+tc.uname, func(t *testing.T) {
 			bin := t.TempDir()
 			dst := t.TempDir()
 			log := filepath.Join(t.TempDir(), "curl.log")
@@ -73,7 +82,7 @@ func TestInstallScriptArch(t *testing.T) {
 				}
 			}
 			writeExec("curl", fakeCurl)
-			writeExec("uname", "#!/bin/sh\necho "+tc.uname+"\n")
+			writeExec("uname", "#!/bin/sh\ncase \"$1\" in -s) echo '"+tc.os+"' ;; *) echo '"+tc.uname+"' ;; esac\n")
 
 			cmd := exec.Command(sh, script)
 			cmd.Env = append(os.Environ(),
@@ -84,8 +93,8 @@ func TestInstallScriptArch(t *testing.T) {
 			out, err := cmd.CombinedOutput()
 
 			if tc.asset == "" {
-				if err == nil || !strings.Contains(string(out), "unsupported architecture") {
-					t.Fatalf("want an unsupported-architecture error, got err=%v\n%s", err, out)
+				if err == nil || !strings.Contains(string(out), tc.err) {
+					t.Fatalf("want an %q error, got err=%v\n%s", tc.err, err, out)
 				}
 				return
 			}

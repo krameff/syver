@@ -22,6 +22,10 @@ jobs:
       actions: read
 
     steps:
+      # First, because the scan reads its pinned version from ci/lib/trivy.sh.
+      - name: Check out
+        uses: actions/checkout@v7.0.1
+
       # WITHOUT THIS THE SCAN CANNOT RUN AT ALL, and it fails in a way that does
       # not mention authentication first. `packages: read` grants the WORKFLOW
       # permission to read packages; it does not log the Docker client in, and
@@ -36,15 +40,23 @@ jobs:
       # public repo does not imply a publicly pullable image, and an explicit
       # login is correct either way.
       - name: Login to GHCR
-        uses: docker/login-action@v4.6.0
+        uses: docker/login-action@v4.7.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # The version is pinned in ci/lib/trivy.sh. trivy-action installs its own
+      # scanner, and without `version:` it uses the action's default (v0.70.0
+      # at v0.36.0), not the one every other scan here runs.
+      - name: Read the pinned Trivy version
+        id: trivy
+        run: echo "version=v$(. ci/lib/trivy.sh && echo "${SYVER_TRIVY_VERSION}")" >> "$GITHUB_OUTPUT"
+
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@v0.36.0
         with:
+          version: ${{ steps.trivy.outputs.version }}
           image-ref: ghcr.io/${{ github.repository_owner }}/syver:latest
           format: "sarif"
           output: "trivy-results.sarif"
@@ -63,9 +75,6 @@ jobs:
       # driven by trivy's database, which cannot be pinned the way the scanner
       # version is, so it can start failing with no repo change. Weekly that is a
       # "go look" signal; on a PR it would block unrelated work.
-      - name: Check out
-        uses: actions/checkout@v7.0.1
-
       - name: Validate .trivyignore entries (strict)
         env:
           TRIVYIGNORE_STRICT: "1"
