@@ -35,6 +35,21 @@ DSYVER_INSTALL_LOC="${SYVER_DST%/}/dsyver"
 DGOSS_INSTALL_LOC="${SYVER_DST%/}/dgoss"
 touch "$INSTALL_LOC" || { echo "ERROR: Cannot write to $SYVER_DST set SYVER_DST elsewhere or use sudo"; exit 1; }
 
+case "$(uname -s)" in
+    Linux)
+        os="linux"
+        ;;
+    Darwin)
+        os="darwin"
+        ;;
+    *)
+        # Windows has a release binary (syver-windows-amd64.exe) but no shell to
+        # run this script in; download it from the releases page instead.
+        echo "error: unsupported OS: $(uname -s), download a binary from https://github.com/krameff/syver/releases" >&2
+        exit 1
+        ;;
+esac
+
 # Reference: https://wiki.debian.org/ArchitectureSpecificsMemo
 case "$(uname -m)" in
     x86_64)
@@ -56,7 +71,13 @@ case "$(uname -m)" in
         ;;
 esac
 
-url="https://github.com/krameff/syver/releases/download/$SYVER_VER/syver-linux-$arch"
+# darwin is published for amd64 and arm64 only.
+if [ "$os" = "darwin" ] && [ "$arch" != "amd64" ] && [ "$arch" != "arm64" ]; then
+    echo "error: unknown/unsupported architecture: $(uname -m) on $(uname -s)" >&2
+    exit 1
+fi
+
+url="https://github.com/krameff/syver/releases/download/$SYVER_VER/syver-$os-$arch"
 
 echo "Downloading $url"
 curl -L "$url" -o "$INSTALL_LOC"
@@ -78,4 +99,14 @@ echo "Downloading $dgoss_url"
 curl -L "$dgoss_url" -o "$DGOSS_INSTALL_LOC"
 chmod +rx "$DGOSS_INSTALL_LOC"
 echo "dgoss $WRAPPER_REF has been installed to $DGOSS_INSTALL_LOC (compatibility shim)"
+
+# dsyver copies the syver binary into the container it tests, and the darwin
+# binary installed above cannot run in a Linux container.
+if [ "$os" = "darwin" ]; then
+    echo
+    echo "NOTE: dsyver and dgoss need a Linux syver binary to copy into the container. For example:"
+    echo "  curl -L https://github.com/krameff/syver/releases/download/$SYVER_VER/syver-linux-$arch -o ~/syver-linux-$arch"
+    echo "  chmod +x ~/syver-linux-$arch"
+    echo "  export SYVER_PATH=~/syver-linux-$arch"
+fi
 }

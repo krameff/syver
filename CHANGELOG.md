@@ -2,6 +2,16 @@
 
 ## 0.15.2 based on krameff/goss v0.6.0 - Go 1.27.3 security update
 
+- installation
+  - `install.sh` on macOS downloaded the Linux binary, so the `syver` it
+    installed could not run. It now installs the darwin binary for the
+    machine's architecture, refuses an OS it has no binary for instead of
+    installing the Linux one, and on macOS prints how to point `dsyver` and
+    `dgoss` at a Linux binary, which they need to copy into the container
+  - the `dsyver` README's macOS steps pointed `SYVER_PATH` at the darwin
+    binary, which cannot run inside a Linux container. They now use the Linux
+    one
+
 - dependencies
   - built with Go 1.27.3, up from 1.27.2, a security update. It fixes
     GO-2026-6809 in `crypto/x509`, which now distrusts compromised
