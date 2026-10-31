@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.15.2 - Go 1.27.3 security update](#v0152---go-1273-security-update)
 * [v0.15.1 - Fixes](#v0151---fixes)
 * [v0.15.0 - Agent sandbox profiles and sbxsyver](#v0150---agent-sandbox-profiles-and-sbxsyver)
 * [v0.14.0 - Syver-named variables in the Docker wrappers](#v0140---syver-named-variables-in-the-docker-wrappers)
@@ -82,6 +83,49 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [Lineage](#lineage)
 
 ---
+
+## v0.15.2 - Go 1.27.3 security update
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-10-31 |
+| Tag | `v0.15.2`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `7f96674`, the `devel` -> `main` merge commit from PR #96 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: Dependabot's syft action (PR #81), the 0.15.0 and 0.15.1 release records (PRs #85, #86), Dependabot's `prometheus/common` and `setup-python` (PRs #87, #88), `deps/go-1.27.3` (PR #94), Dependabot's `mkdocs-material`, `markdownlint-cli2-action` and `login-action` (PRs #90, #92, #93), then `ci/trivy-0.76.1` (PR #95). Merged to `main` through PR #96 |
+| Scope | 13 commits (excluding merges), 14 files, +205 / -55, measured at `v0.15.2` against `v0.15.1` |
+| Changelog | [0.15.2](CHANGELOG.md#0152-based-on-krameffgoss-v060---go-1273-security-update) |
+
+A patch release: the Go toolchain moves from 1.27.2 to 1.27.3, a security
+update for `crypto/x509` (GO-2026-6809), with routine module updates.
+`install.sh` now installs the darwin binary on macOS instead of the Linux one,
+and the `dsyver` macOS steps use the Linux binary the container needs. No
+resource attribute, flag or rendered output changed, and the set of published
+binaries is unchanged. CI moves to Trivy 0.76.1, and the two image scans now
+use that pinned version instead of the action's default.
+
+**Suites run on 2026-10-31.** On `deps/go-1.27.3`, with Go 1.27.3: Linux unit
+under `-race`, `make check`, golangci-lint v2.14.0 for linux, windows and
+darwin, the cross-platform security scan (govulncheck v1.7.0, no findings), and
+the goldens, 228/228 byte-identical against a baseline captured on `devel`
+before the change. The Docker suite on the remote builder passed on that branch
+(rockylinux9 126, almalinux10 126, jammy 126, alpine3 127, arch 106, all
+`Failed: 0`, serve tests passed). CI on `devel` at `458c906`, whose tree is the
+one tagged, was green on every job, including `windows-latest`,
+`macos-latest`, arm64, ppc64le, s390x, the Docker distribution matrix and
+CodeQL. The Windows Server 2025 guest was not run for this release.
+
+**Verified after the push**, against the published release rather than the build
+log. The tag is an annotated tag object on `7f96674` with a good signature from
+the maintainer key, and its tree is identical to `devel` at `458c906`. The
+release carries 38 assets, the same as 0.15.1. `syver_0.15.2_SHA256SUMS` and
+the `syver-linux-amd64` SBOM verify against the project key alone, imported
+into an empty keyring. The checksum for `syver-linux-amd64` matches, and its
+embedded build information shows go1.27.3 and revision `7f96674`.
+`ghcr.io/krameff/syver:v0.15.2` and `:latest` resolve to the same index, for
+linux/amd64 and linux/arm64, annotated with revision `7f96674` and version
+`0.15.2`. Trivy 0.76.1 finds nothing in the published image beyond the
+suppressed `golang.org/x/crypto/openpgp` advisory.
 
 ## v0.15.1 - Fixes
 
