@@ -165,12 +165,40 @@ func IsSupportedPackageManager(p string) bool {
 	return false
 }
 
+// detector holds everything the distro, package-manager and service-manager
+// detection reads from the host, so tests can point it at a fixture tree and a
+// fake PATH instead of the machine running the tests. root is prepended to
+// every absolute path probed; the host detector uses "" so the paths read are
+// exactly "/etc/...".
+type detector struct {
+	root       string
+	goos       string
+	hasCommand func(string) bool
+}
+
+func hostDetector() detector {
+	return detector{root: "", goos: runtime.GOOS, hasCommand: HasCommand}
+}
+
+func (d detector) readFile(name string) ([]byte, error) {
+	return os.ReadFile(d.root + name)
+}
+
+func (d detector) exists(name string) bool {
+	_, err := os.Stat(d.root + name)
+	return err == nil
+}
+
 // DetectPackageManager attempts to detect whether or not the system is using
 // "dpkg", "rpm", "apk", or "pacman" package managers. It first attempts to
 // detect the distro. If that fails, it falls back to finding package manager
 // executables. If that fails, it returns the empty string.
 func DetectPackageManager() string {
-	switch DetectDistro() {
+	return hostDetector().packageManager()
+}
+
+func (d detector) packageManager() string {
+	switch d.distro() {
 	case "ubuntu":
 		return "dpkg"
 	case "redhat":
@@ -183,7 +211,7 @@ func DetectPackageManager() string {
 		return "dpkg"
 	}
 	for _, manager := range []string{"dpkg", "rpm", "apk", "pacman"} {
-		if HasCommand(manager) {
+		if d.hasCommand(manager) {
 			return manager
 		}
 	}
@@ -195,17 +223,21 @@ func DetectPackageManager() string {
 // command to detect systemd, and falls back on DetectDistro otherwise. If it can't
 // decide, it returns "init".
 func DetectService() string {
-	if runtime.GOOS == "windows" {
+	return hostDetector().service()
+}
+
+func (d detector) service() string {
+	if d.goos == "windows" {
 		return "windows"
 	}
-	if HasCommand("systemctl") {
-		if isLegacySystemd() {
+	if d.hasCommand("systemctl") {
+		if d.isLegacySystemd() {
 			return "systemdlegacy"
 		}
 		return "systemd"
 	}
 	// Centos Docker container doesn't run systemd, so we detect it or use init.
-	switch DetectDistro() {
+	switch d.distro() {
 	case "ubuntu":
 		return "upstart"
 	case "alpine":
@@ -220,15 +252,19 @@ func DetectService() string {
 // using. One of "ubuntu", "redhat" (including Centos), "alpine", "arch", or
 // "debian". If it can't decide, it returns an empty string.
 func DetectDistro() string {
-	if b, e := os.ReadFile("/etc/lsb-release"); e == nil && bytes.Contains(b, []byte("Ubuntu")) {
+	return hostDetector().distro()
+}
+
+func (d detector) distro() string {
+	if b, e := d.readFile("/etc/lsb-release"); e == nil && bytes.Contains(b, []byte("Ubuntu")) {
 		return "ubuntu"
-	} else if isRedhat() {
+	} else if d.isRedhat() {
 		return "redhat"
-	} else if _, err := os.Stat("/etc/alpine-release"); err == nil {
+	} else if d.exists("/etc/alpine-release") {
 		return "alpine"
-	} else if _, err := os.Stat("/etc/arch-release"); err == nil {
+	} else if d.exists("/etc/arch-release") {
 		return "arch"
-	} else if _, err := os.Stat("/etc/debian_version"); err == nil {
+	} else if d.exists("/etc/debian_version") {
 		return "debian"
 	}
 	return ""
@@ -242,24 +278,27 @@ func HasCommand(cmd string) bool {
 	return false
 }
 
-func isLegacySystemd() bool {
-	if b, err := os.ReadFile("/etc/debian_version"); err == nil {
-		i := bytes.Index(b, []byte("."))
-		if i < 0 {
-			return false
-		}
-		if major, err := strconv.Atoi(string(b[:i])); err == nil {
-			return major < 9
-		}
+func (d detector) isLegacySystemd() bool {
+	if b, err := d.readFile("/etc/debian_version"); err == nil {
+		return isLegacyDebianVersion(b)
 	}
 	return false
 }
 
-func isRedhat() bool {
-	if _, err := os.Stat("/etc/redhat-release"); err == nil {
-		return true
-	} else if _, err := os.Stat("/etc/system-release"); err == nil {
-		return true
+// isLegacyDebianVersion reports whether the contents of /etc/debian_version
+// name a Debian release older than 9 (stretch), whose systemd needs the legacy
+// service checks. Anything without a numeric major before a "." is not legacy.
+func isLegacyDebianVersion(b []byte) bool {
+	i := bytes.Index(b, []byte("."))
+	if i < 0 {
+		return false
+	}
+	if major, err := strconv.Atoi(string(b[:i])); err == nil {
+		return major < 9
 	}
 	return false
+}
+
+func (d detector) isRedhat() bool {
+	return d.exists("/etc/redhat-release") || d.exists("/etc/system-release")
 }
