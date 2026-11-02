@@ -2,6 +2,8 @@ package syver
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
@@ -21,7 +23,8 @@ func TestCancellingContextStopsARunningCommand(t *testing.T) {
 		t.Skip("uses sleep(1)")
 	}
 
-	c := &resource.Command{Exec: "sleep 30", ExitStatus: 0}
+	cmdline, started := startedSleep(t)
+	c := &resource.Command{Exec: cmdline, ExitStatus: 0}
 	c.SetID("sleep 30")
 
 	ctx, cancel := context.WithCancel(t.Context())
@@ -34,7 +37,7 @@ func TestCancellingContextStopsARunningCommand(t *testing.T) {
 	}()
 
 	// Let the child actually start before pulling the rug.
-	time.Sleep(500 * time.Millisecond)
+	waitForFile(t, started, done)
 	cancel()
 	cancelledAt := time.Now()
 
@@ -72,14 +75,19 @@ func TestCancelledCommandReportsCancellationNotExitMinusOne(t *testing.T) {
 		t.Skip("uses sleep(1)")
 	}
 
-	c := &resource.Command{Exec: "sleep 30", ExitStatus: 0}
+	cmdline, started := startedSleep(t)
+	c := &resource.Command{Exec: cmdline, ExitStatus: 0}
 	c.SetID("cancelled-probe")
 
 	ctx, cancel := context.WithCancel(t.Context())
 	results := make(chan []resource.TestResult, 1)
-	go func() { results <- c.Validate(ctx, system.New("")) }()
+	returned := make(chan struct{})
+	go func() {
+		defer close(returned)
+		results <- c.Validate(ctx, system.New(""))
+	}()
 
-	time.Sleep(500 * time.Millisecond)
+	waitForFile(t, started, returned)
 	cancel()
 
 	select {
@@ -103,5 +111,37 @@ func TestCancelledCommandReportsCancellationNotExitMinusOne(t *testing.T) {
 		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("Validate never returned after cancellation")
+	}
+}
+
+// startedSleep returns a command that marks itself started by creating a file
+// and then becomes "sleep 30" in the same process, plus the path of that file.
+// Waiting for the file instead of a fixed delay means cancellation is only
+// tested once the child is genuinely running, however slow the machine.
+func startedSleep(t *testing.T) (cmdline, marker string) {
+	t.Helper()
+	marker = filepath.Join(t.TempDir(), "started")
+	return "touch '" + marker + "' && exec sleep 30", marker
+}
+
+// waitForFile polls until path exists. It fails the test if the command under
+// test returns first (closing exited), since then it never got as far as
+// running, or if the file has not appeared within the deadline.
+func waitForFile(t *testing.T, path string, exited <-chan struct{}) {
+	t.Helper()
+	deadline := time.After(20 * time.Second)
+	tick := time.NewTicker(5 * time.Millisecond)
+	defer tick.Stop()
+	for {
+		if _, err := os.Stat(path); err == nil {
+			return
+		}
+		select {
+		case <-exited:
+			t.Fatal("command returned before it signalled that it had started")
+		case <-deadline:
+			t.Fatal("command did not start within 20s")
+		case <-tick.C:
+		}
 	}
 }

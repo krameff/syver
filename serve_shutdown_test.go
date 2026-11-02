@@ -24,6 +24,62 @@ func freePort(t *testing.T) int {
 	return l.Addr().(*net.TCPAddr).Port
 }
 
+// startServe runs Serve on a free loopback port and returns once it is
+// answering, along with the channel Serve's return value arrives on. Serve
+// binds the address itself, so the port is free when chosen but could be taken
+// by another process before Serve binds it. When that happens Serve returns the
+// bind error before ever answering, and this retries on a fresh port. Retrying
+// only after Serve has returned means no earlier attempt is still reading c.
+func startServe(t *testing.T, ctx context.Context, c *util.Config) (url string, done <-chan error) {
+	t.Helper()
+	const attempts = 5
+	for range attempts {
+		port := freePort(t)
+		c.ListenAddress = fmt.Sprintf("127.0.0.1:%d", port)
+		ch := make(chan error, 1)
+		go func() { ch <- Serve(ctx, c) }()
+
+		url = fmt.Sprintf("http://127.0.0.1:%d%s", port, c.Endpoint)
+		serving, err := waitUntilServing(url, ch)
+		if serving {
+			return url, ch
+		}
+		if err == nil {
+			t.Fatalf("Serve on port %d neither answered nor returned within the deadline", port)
+		}
+		t.Logf("Serve on port %d returned before answering (%v), retrying on another port", port, err)
+	}
+	t.Fatalf("Serve did not start after %d attempts", attempts)
+	return "", nil
+}
+
+// waitUntilServing polls url until it answers (true) or Serve returns first
+// (false, with Serve's error), which is what a failed bind looks like. It
+// returns (false, nil) if neither happens within the deadline.
+func waitUntilServing(url string, exited <-chan error) (bool, error) {
+	client := &http.Client{Timeout: time.Second}
+	deadline := time.After(10 * time.Second)
+	for {
+		select {
+		case err := <-exited:
+			return false, err
+		default:
+		}
+		resp, err := client.Get(url) //nolint:noctx // short-lived readiness poll
+		if err == nil {
+			_ = resp.Body.Close()
+			return true, nil
+		}
+		select {
+		case err := <-exited:
+			return false, err
+		case <-deadline:
+			return false, nil
+		case <-time.After(20 * time.Millisecond):
+		}
+	}
+}
+
 // Serve must return when its context is cancelled. Without this, main's
 // signal.NotifyContext -- which suppresses the default "signal terminates the
 // process" disposition -- turns SIGINT/SIGTERM into a no-op for `syver serve`,
@@ -36,7 +92,6 @@ func freePort(t *testing.T) int {
 // original empirical "Ctrl-C works" check passed: it exercised plain validate,
 // where cancellation happens to let the run finish naturally.
 func TestServeReturnsWhenContextCancelled(t *testing.T) {
-	port := freePort(t)
 	c, err := util.NewConfig(
 		util.WithSpecFile(filepath.Join("testdata", "passing.goss.yaml")),
 		util.WithNoColor(),
@@ -44,16 +99,13 @@ func TestServeReturnsWhenContextCancelled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config: %v", err)
 	}
-	// No ConfigOption exists for these two; Serve reads them off the struct.
-	c.ListenAddress = fmt.Sprintf("127.0.0.1:%d", port)
+	// No ConfigOption exists for the listen address or the endpoint; Serve
+	// reads them off the struct. startServe fills in the address.
 	c.Endpoint = "/healthz"
 
 	ctx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- Serve(ctx, c) }()
-
-	url := fmt.Sprintf("http://127.0.0.1:%d/healthz", port)
-	waitUntilServing(t, url)
+	defer cancel()
+	_, done := startServe(t, ctx, c)
 
 	cancel()
 	select {
@@ -65,19 +117,6 @@ func TestServeReturnsWhenContextCancelled(t *testing.T) {
 		t.Fatal("Serve did not return within 15s of cancellation: it is not watching ctx, " +
 			"so the process would ignore SIGINT/SIGTERM and have to be SIGKILLed")
 	}
-}
-
-func waitUntilServing(t *testing.T, url string) {
-	t.Helper()
-	for i := 0; i < 100; i++ {
-		resp, err := http.Get(url) //nolint:noctx // short-lived readiness poll
-		if err == nil {
-			_ = resp.Body.Close()
-			return
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
-	t.Fatal("server never became ready")
 }
 
 // fillCache runs ONE shared sweep and hands the same result to every waiter, so
