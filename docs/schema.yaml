@@ -15,9 +15,9 @@ definitions:
   title:
     type: string
     default: "UID must be between 50-100, GID doesn't matter. home is flexible"
-    description: title attribute is persisted when adding other resources with goss add
+    description: title attribute is persisted when adding other resources with syver add
   meta:
-    description: meta (arbitrary data) attributes are persisted when adding other resources with goss add
+    description: meta (arbitrary data) attributes are persisted when adding other resources with syver add
     type: object
   register:
     type: string
@@ -39,25 +39,38 @@ definitions:
       - type: object
         required:
           - register
+  discoveryRegister:
+    description: "Every discovery test must name the variable it writes with register."
+    type: object
+    required:
+      - register
   addrTest:
     required:
       - reachable
-      - timeout
     properties:
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
       reachable:
         type: boolean
         default: true
+      # optional attributes
+      address:
+        type: string
+        description: "The address to check, defaults to the hash key"
       timeout:
         type: integer
         default: 500
+        description: "in milliseconds, defaults to 500 when omitted or 0"
         examples:
           - 500
-          # optional attributes
       local-address:
         type: string
         default: 127.0.0.1
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   commandTest:
     type: object
     properties:
@@ -81,7 +94,8 @@ definitions:
           type: string
       timeout:
         type: integer
-        description: "in milliseconds"
+        default: 10000
+        description: "in milliseconds, defaults to 10000 when omitted or 0"
       skip:
         type: boolean
         default: false
@@ -99,6 +113,9 @@ definitions:
         type: boolean
         default: true
       # optional attributes
+      resolve:
+        type: string
+        description: "The name to resolve, defaults to the hash key"
       addrs:
         description: |
           list of addresses e.g. ["127.0.0.1", "::1"]
@@ -113,7 +130,12 @@ definitions:
       timeout:
         type: integer
         default: 500
-        description: in milliseconds (Only used when server attribute is provided)
+        description: in milliseconds for the whole lookup including retries
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   fileTest:
     required:
       - exists
@@ -123,6 +145,9 @@ definitions:
       exists:
         type: boolean
         default: true
+      path:
+        type: string
+        description: "The path to check, defaults to the hash key"
       mode:
         type: string
         default: "0644"
@@ -168,6 +193,9 @@ definitions:
           - file
           - symlink
           - directory
+          - socket
+          - character-device
+          - block-device
       contents:
         type:
           - array
@@ -229,12 +257,17 @@ definitions:
       exists:
         type: boolean
         default: true
+      groupname:
+        type: string
+        description: "The group to check, defaults to the hash key"
       gid:
         type: integer
         default: 65534
       skip:
         type: boolean
         default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   httpTest:
     required:
       - status
@@ -251,9 +284,13 @@ definitions:
         type: boolean
         default: false
         description: Setting this to true will NOT follow redirects
+      url:
+        type: string
+        description: "The URL to request, defaults to the hash key"
       timeout:
         type: integer
-        default: 1000
+        default: 5000
+        description: "in milliseconds, defaults to 5000 when omitted or 0"
       request-headers:
         description: |
           Set request header values, e.g. [ "Content-Type: text/html" ]
@@ -316,6 +353,8 @@ definitions:
       skip:
         type: boolean
         default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
       method:
         type: string
         default: PUT
@@ -347,9 +386,17 @@ definitions:
         default:
           - 172.17.0.2/16
           - fe80::42:acff:fe11:2/64
+      name:
+        type: string
+        description: "The interface to check, defaults to the hash key"
       mtu:
         type: integer
         default: 1500
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   kernelParamTest:
     description: |
       To see the full list of current values, run sysctl -a.
@@ -358,35 +405,46 @@ definitions:
     properties:
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
+      name:
+        type: string
+        description: "The parameter to read, defaults to the hash key"
       value:
         type: string
         default: Linux
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   matchingTest:
     properties:
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
       content:
-        anyOf:
-          - type: string
-            default: "some string"
-          - type: array
-            default:
-              - 2
-          - type: object
-            default:
-              foo: bar
-              baz: ring
+        description: "The value to test: any YAML value, usually from a template"
+        default: "some string"
       matches:
-        anyOf:
-          - type: integer
-          - type: object
-          - type: array
+        description: "A value or matcher, see https://github.com/krameff/syver/blob/main/docs/gossfile.md#matchers"
+      as-reader:
+        type: boolean
+        default: false
+        description: "Treat content as a stream read line by line, like file contents"
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   mountTest:
     required:
       - exists
     properties:
+      mountpoint:
+        type: string
+        description: "The mount point to check, defaults to the hash key"
       timeout:
         type: integer
+        default: 1000
+        description: "in milliseconds, defaults to 1000 when omitted or 0"
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
       exists:
@@ -422,6 +480,11 @@ definitions:
           lt:
             type: integer
             default: 95
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   packageTest:
     required:
       - installed
@@ -431,6 +494,9 @@ definitions:
       installed:
         type: boolean
         default: true
+      name:
+        type: string
+        description: "The package to check, defaults to the hash key"
       versions:
         oneOf:
           - type: object  # matcher
@@ -453,6 +519,9 @@ definitions:
       listening:
         type: boolean
         default: true
+      port:
+        type: string
+        description: "The [protocol:]port to check, defaults to the hash key"
       ip:
         description: what IP(s) is it listening on
         type: array
@@ -468,6 +537,8 @@ definitions:
       skip:
         type: boolean
         default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   processTest:
     required:
       - running
@@ -477,6 +548,9 @@ definitions:
       running:
         type: boolean
         default: true
+      comm:
+        type: string
+        description: "The process name to check, defaults to the hash key"
       status:
         description: process state(s), e.g. detect zombie processes
         type: array
@@ -495,6 +569,11 @@ definitions:
         type: array
         items:
           type: string
+      skip:
+        type: boolean
+        default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   registryTest:
     required:
       - exists
@@ -505,6 +584,9 @@ definitions:
         description: whether the registry key or value is present
         type: boolean
         default: true
+      name:
+        type: string
+        description: "The key or value path, defaults to the hash key"
       value:
         description: >-
           the data held by the value, always read as a string. REG_MULTI_SZ is
@@ -544,6 +626,8 @@ definitions:
       skip:
         type: boolean
         default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
 
   serviceTest:
     # Nothing is required. The code requires no attribute, and a Windows spec
@@ -551,6 +635,9 @@ definitions:
     properties:
       title: { "$ref":"#/definitions/title" }
       meta: { "$ref":"#/definitions/meta" }
+      name:
+        type: string
+        description: "The service to check, defaults to the hash key"
       enabled:
         type: boolean
         default: true
@@ -611,6 +698,8 @@ definitions:
       skip:
         type: boolean
         default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
   userTest:
     required:
       - exists
@@ -621,6 +710,9 @@ definitions:
         type: boolean
         default: true
       # optional attributes
+      username:
+        type: string
+        description: "The user to check, defaults to the hash key"
       uid:
         anyOf:
           - { "$ref": "#/definitions/matchingTest" }
@@ -651,6 +743,8 @@ definitions:
       skip:
         type: boolean
         default: false
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
 
 description: "A file describing a series of tests"
 type: "object"
@@ -687,7 +781,7 @@ properties:
           - <span class="pl-s">127.0.0.1</span>
           - <span class="pl-s">::1</span>
           <span class="pl-ent">server</span>: <span class="pl-s">8.8.8.8 </span><span class="pl-c"><span class="pl-c">#</span> Also supports server:port</span>
-          <span class="pl-ent">timeout</span>: <span class="pl-c1">500</span> <span class="pl-c"><span class="pl-c">#</span> in milliseconds (Only used when server attribute is provided)</span></pre><div class="zeroclipboard-container position-absolute right-0 top-0">
+          <span class="pl-ent">timeout</span>: <span class="pl-c1">500</span> <span class="pl-c"><span class="pl-c">#</span> in milliseconds for the whole lookup including retries</span></pre><div class="zeroclipboard-container position-absolute right-0 top-0">
           <clipboard-copy aria-label="Copy" class="ClipboardButton btn js-clipboard-copy m-2 p-0 tooltipped-no-delay" data-copy-feedback="Copied!" data-tooltip-direction="w" value="dns:
         localhost:
           # required attributes
@@ -697,7 +791,7 @@ properties:
             - 127.0.0.1
             - ::1
           server: 8.8.8.8 # Also supports server:port
-          timeout: 500 # in milliseconds (Only used when server attribute is provided)" tabindex="0" role="button" style="display: none;">
+          timeout: 500 # in milliseconds for the whole lookup including retries" tabindex="0" role="button" style="display: none;">
             <svg aria-hidden="true" height="16" viewBox="0 0 16 16" version="1.1" width="16" data-view-component="true" class="octicon octicon-copy js-clipboard-copy-icon m-2">
           <path fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"></path><path fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"></path>
       </svg>
@@ -794,6 +888,90 @@ properties:
         type: object
         additionalProperties:
           $ref: "#/definitions/packageDiscoveryTest"
+      addr:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/addrTest"
+            - $ref: "#/definitions/discoveryRegister"
+      port:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/portTest"
+            - $ref: "#/definitions/discoveryRegister"
+      service:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/serviceTest"
+            - $ref: "#/definitions/discoveryRegister"
+      user:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/userTest"
+            - $ref: "#/definitions/discoveryRegister"
+      group:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/groupTest"
+            - $ref: "#/definitions/discoveryRegister"
+      command:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/commandTest"
+            - $ref: "#/definitions/discoveryRegister"
+      dns:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/dnsTest"
+            - $ref: "#/definitions/discoveryRegister"
+      process:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/processTest"
+            - $ref: "#/definitions/discoveryRegister"
+      kernel-param:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/kernelParamTest"
+            - $ref: "#/definitions/discoveryRegister"
+      mount:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/mountTest"
+            - $ref: "#/definitions/discoveryRegister"
+      interface:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/interfaceTest"
+            - $ref: "#/definitions/discoveryRegister"
+      http:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/httpTest"
+            - $ref: "#/definitions/discoveryRegister"
+      matching:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/matchingTest"
+            - $ref: "#/definitions/discoveryRegister"
+      registry:
+        type: object
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/registryTest"
+            - $ref: "#/definitions/discoveryRegister"
 
   file:
     type: object
@@ -983,9 +1161,8 @@ properties:
       </svg>
          </clipboard-copy>
        </div></div>
-
-      additionalProperties:
-        $ref: "#/definitions/matchTest"
+    additionalProperties:
+      $ref: "#/definitions/matchingTest"
 
   mount:
     type: object

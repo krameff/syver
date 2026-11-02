@@ -19,6 +19,9 @@ about the other ninety nine.
 `dsyver` inverts it: you declare what the image should contain, and it checks
 the whole list in a fraction of a second.
 
+The [Testing a Docker image with dsyver](https://krameff.com/videos/syver/dsyver-image.mp4)
+demo video shows `dsyver` testing a Docker image.
+
 ## What it actually does
 
 1. Starts your container with the exact arguments you would have passed to

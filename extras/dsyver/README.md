@@ -19,13 +19,17 @@ is a step-by-step walkthrough -- what dsyver does, a worked example against a
 real image, what a failure looks like, and how to wire it into CI. This file is
 the reference for every flag and environment variable.
 
+To see it in action, watch
+[Testing a Docker image with dsyver](https://krameff.com/videos/syver/dsyver-image.mp4),
+one of the [Syver demo videos](https://krameff.com/syver.html#demos).
+
 The three links below predate the rename and describe `dgoss`, the original
 upstream tool. They remain conceptually accurate, since `dsyver` behaves
 identically, but the commands and branding are goss's.
 
 * [blog tutorial](https://medium.com/@aelsabbahy/tutorial-how-to-test-your-docker-image-in-half-a-second-bbd13e06a4a9) -
 Introduction to dgoss tutorial
-* [video tutorial](https://youtu.be/PEHz5EnZ-FM) - Same as above, but in video format
+* [upstream goss dgoss video tutorial](https://youtu.be/PEHz5EnZ-FM) - Same as above, but in video format
 * [dgoss-examples](https://github.com/aelsabbahy/dgoss-examples) - Repo containing examples of using dgoss to validate
 container images
 

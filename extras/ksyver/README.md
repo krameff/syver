@@ -76,31 +76,31 @@ until a certain port is open before executing the tests.
 
 **Example:**
 
-`kgoss run -e JENKINS_OPTS="--httpPort=8080 --httpsPort=-1" -e JAVA_OPTS="-Xmx1048m" -i jenkins:alpine`
+`ksyver run -e JENKINS_OPTS="--httpPort=8080 --httpsPort=-1" -e JAVA_OPTS="-Xmx1048m" -i jenkins:alpine`
 
-`kgoss run` will do the following:
+`ksyver run` will do the following:
 
 * Run the container with the start commands specified by `-c`, `-a`, or `-p`.
-* Run `goss` with `$GOSS_WAIT_OPTS` if `./goss_wait.yaml` file exists in the current dir.
-* Run `goss` with `$GOSS_OPTS` using `./goss.yaml` from `GOSS_FILES_PATH`.
+* Run syver with `$GOSS_WAIT_OPTS` against the wait file, if one was found.
+* Run syver with `$GOSS_OPTS` against the spec file found in `GOSS_FILES_PATH`.
 
 ### Edit
 
-Edit will launch a container, install goss, and drop the user into an
+Edit will launch a container, copy syver into it, and drop the user into an
 interactive shell. Once the user quits the interactive shell, the spec and wait
 file are copied back to the files they were read from, so edits to a
 `syver.yaml` land in `syver.yaml`. On a new project, the `syver.yaml` that
 `syver add` creates is copied out under that name, into `GOSS_FILES_PATH`. This
-allows the user to leverage the `goss add|autoadd` commands to write tests as
+allows the user to leverage the `syver add|autoadd` commands to write tests as
 they would on a regular machine.
 
 **Example:**
 
-`kgoss edit -e JENKINS_OPTS="--httpPort=8080 --httpsPort=-1" -e JAVA_OPTS="-Xmx1048m" -i jenkins:alpine`
+`ksyver edit -e JENKINS_OPTS="--httpPort=8080 --httpsPort=-1" -e JAVA_OPTS="-Xmx1048m" -i jenkins:alpine`
 
 ## Environment variables
 
-The following environment variables effect the behavior of kgoss.
+The following environment variables affect the behaviour of ksyver and kgoss.
 
 Every `GOSS_*` variable below also has a `SYVER_*` twin — `SYVER_FILES_PATH`,
 `SYVER_OPTS`, and so on. The `SYVER_*` name wins when it is set to a non-empty
@@ -112,10 +112,11 @@ binary itself uses for its own environment variables.
 Variable | Description | Default
 -------- | ----------- | -------
 GOSS\_PATH | Local location of a compatible syver (or legacy goss) binary to use in container | `$(which syver)`, falls back to `$(which goss)`
-GOSS\_FILES\_PATH | Location of the goss yaml files | `.`
-GOSS\_KUBECTL\_BIN | Kubenetes client tool to use | `$(which kubectl)`
+GOSS\_FILES\_PATH | Location of the spec, wait and vars files | `.`
+GOSS\_KUBECTL\_BIN | Kubernetes client tool to use | `$(which kubectl)`
 GOSS\_KUBECTL\_OPTS | Options to inject more options such as "--namespace=default" | ""
-GOSS\_OPTS | Options to use for the goss test run. | `--color --format documentation`
-GOSS\_WAIT\_OPTS | Options to use for the goss wait run, when `./goss_wait.yaml` exists. | `-r 30s -s 1s > /dev/null`
+GOSS\_OPTS | Options to use for the syver test run. | `--color --format documentation`
+GOSS\_WAIT\_OPTS | Options to use for the syver wait run, when a wait file exists. | `-r 30s -s 1s > /dev/null`
 GOSS\_VARS | Variables file relative to `GOSS_FILES_PATH` to copy and use | ""
-GOSS\_CONTAINER\_PATH | Path within container to put goss binary and YAML files | `/tmp/goss`
+GOSS\_FILES\_STRATEGY | How files reach the pod. `cp` (copy them in with `kubectl cp`) is the only strategy; any other value is an error | `cp`
+GOSS\_CONTAINER\_PATH | Path within container to put the syver binary and YAML files | `/tmp/syver` (`/tmp/goss` for kgoss)

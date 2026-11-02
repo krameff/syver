@@ -77,9 +77,12 @@ determine format from content
 If you asked for `{inline: bar}` and the error quotes `{inline:`, your shell
 split the command line.
 
-Every flag also has an environment variable, which sidesteps shell quoting
-entirely and is often easier in scripts. These are validated the same way, and
-the error names the variable rather than the flag:
+Most flags, `--vars-inline` among them, also have an environment variable,
+which sidesteps shell quoting entirely and is often easier in scripts. A few,
+such as `--package`, `render --debug` and `add --exclude-attr`, have none; the
+[environment variable table](cli.md#environment-variables) lists them all.
+Variables are validated the same way as flags, and the error names the variable
+rather than the flag:
 
 ```powershell
 $env:SYVER_VARS_INLINE = '{"inline": "bar"}'

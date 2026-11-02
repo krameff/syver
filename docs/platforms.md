@@ -14,7 +14,7 @@ no_data: :fontawesome-regular-circle-question:{ .grey title="Not yet tried, no d
 
 macOS and Windows binaries are new and considered alpha-quality.
 Some functionality may be missing, some may be broken.
-(Enhancements and bug-reports welcome, please see #551)
+(Enhancements and bug-reports welcome, please see [goss-org/goss#551](https://github.com/goss-org/goss/issues/551))
 
 To clearly signal that, syver emits a log message on every invocation saying so, linking here, then exits with a clear error.
 
@@ -106,13 +106,16 @@ This matrix attempts to track parity across platforms.
 |                     | mode                | {{ fully_supported }}   | {{ work_partially }}   | {{ not_implemented }}   |
 |                     | size                | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | owner               | {{ fully_supported }}   | {{ broken }}           | {{ work_partially }}    |
+|                     | uid                 | {{ fully_supported }}   | {{ no_data }}          | {{ not_implemented }}   |
 |                     | group               | {{ fully_supported }}   | {{ broken }}           | {{ work_partially }}    |
+|                     | gid                 | {{ fully_supported }}   | {{ no_data }}          | {{ not_implemented }}   |
 |                     | acl                 | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | acl-sid             | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | filetype            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
-|                     | contains            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
+|                     | contents            | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | md5                 | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | sha256              | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
+|                     | sha512              | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 |                     | linked-to           | {{ fully_supported }}   | {{ no_data }}          | {{ no_data }}           |
 | **gossfile**        |                     | {{ fully_supported }}   | {{ work_partially }}   | {{ work_partially }}    |
 | **group**           |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
@@ -183,9 +186,9 @@ attribute fails for any user at all rather than for unusual ones. It fails
 loudly with that message rather than reporting an empty or wrong list, so it
 will not silently mislead you, but do not use `groups:` in a Windows spec.
 
-**`uid:` and `gid:` on Windows are not a missing feature.** Windows identifies
-accounts and groups by SID (`S-1-5-21-...`), and syver parses these attributes
-as integers. There is no integer to report, so no implementation could satisfy
+**`uid:` and `gid:` on Windows, on `file`, `user` and `group`, are not a missing
+feature.** Windows identifies accounts and groups by SID (`S-1-5-21-...`), and
+syver parses these attributes as integers. There is no integer to report, so no implementation could satisfy
 them. They are listed as not implemented because that is the closest available
 status, not because the work is pending.
 
