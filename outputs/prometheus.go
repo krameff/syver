@@ -55,9 +55,13 @@ func (r Prometheus) Output(w io.Writer, results <-chan []resource.TestResult,
 	}
 
 	overallOutcome := resource.OutcomeUnknown
+	// The first result of the whole run seeds the overall outcome. Seeding
+	// at the first result of each group instead let a later passing group
+	// overwrite an earlier failure.
+	seeded := false
 	var startTime time.Time
 	for resultGroup := range results {
-		for i, tr := range resultGroup {
+		for _, tr := range resultGroup {
 			if startTime.IsZero() || tr.StartTime.Before(startTime) {
 				startTime = tr.StartTime
 			}
@@ -75,8 +79,9 @@ func (r Prometheus) Output(w io.Writer, results <-chan []resource.TestResult,
 				testOutcomesSyver.WithLabelValues(resType, outcome).Inc()
 				testDurationsSyver.WithLabelValues(resType, outcome).Add(float64(tr.Duration.Milliseconds()))
 			}
-			if i == 0 || canChangeOverallOutcome(overallOutcome, outcome) {
+			if !seeded || canChangeOverallOutcome(overallOutcome, outcome) {
 				overallOutcome = outcome
+				seeded = true
 			}
 		}
 	}

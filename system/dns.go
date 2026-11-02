@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"regexp"
@@ -72,13 +73,30 @@ func (d *DefDNS) setup() error {
 	}
 	d.loaded = true
 
+	// The timeout bounds the whole lookup, every attempt together, not each
+	// attempt: a resolver that hangs uses the budget on the first try, and
+	// only failures that come back quickly (refused, SERVFAIL) are retried in
+	// what is left.
+	deadline := time.Now().Add(time.Duration(d.Timeout) * time.Millisecond)
 	for i := 0; i < 3; i++ {
-		addrs, err := DNSlookup(d.host, d.server, d.qtype, d.Timeout)
+		budget := d.Timeout
+		if i > 0 {
+			budget = int(time.Until(deadline) / time.Millisecond)
+			if budget <= 0 {
+				break
+			}
+		}
+		addrs, err := DNSlookup(d.host, d.server, d.qtype, budget)
 		if err != nil || len(addrs) == 0 {
 			d.resolvable = false
 			d.addrs = []string{}
-			// DNSError is resolvable == false, ignore error
-			if _, ok := err.(*net.DNSError); ok {
+			// A name that does not exist is an answer, not a failure: it is
+			// resolvable == false with no error. Any other resolver error (a
+			// timeout, an unreachable or failing server) means the question
+			// was never answered, so it is retried and then reported, rather
+			// than passing as "not resolvable".
+			if isNotFound(err) {
+				d.err = nil
 				return nil
 			}
 			d.err = err
@@ -91,6 +109,13 @@ func (d *DefDNS) setup() error {
 		return nil
 	}
 	return d.err
+}
+
+// isNotFound reports whether err is the resolver saying the name does not
+// exist (NXDOMAIN, or no records of the requested type).
+func isNotFound(err error) bool {
+	var dnsErr *net.DNSError
+	return errors.As(err, &dnsErr) && dnsErr.IsNotFound
 }
 
 func (d *DefDNS) Addrs() ([]string, error) {
@@ -110,63 +135,88 @@ func (d *DefDNS) Exists() (bool, error) {
 	return false, nil
 }
 
+// lookupHost is the resolver used when no server is configured. A variable so
+// tests can stand in for the system resolver.
+var lookupHost = net.LookupHost
+
 func DNSlookup(host string, server string, qtype string, timeout int) ([]string, error) {
-	c1 := make(chan []string, 1)
-	e1 := make(chan error, 1)
+	type result struct {
+		addrs []string
+		err   error
+	}
+	// One channel carrying both values: with separate channels for the
+	// addresses and the error, both could be ready at once and select would
+	// pick either, so an error could be dropped in favour of an empty result.
+	c := make(chan result, 1)
 	timeoutD := time.Duration(timeout) * time.Millisecond
+	// Read once here, not in the goroutine, which may outlive this call.
+	resolve := lookupHost
 
-	var addrs []string
-	var err error
 	go func() {
-		if server != "" {
-			c := new(dns.Client)
-			c.Timeout = timeoutD
-			m := new(dns.Msg)
-
-			switch qtype {
-			case "A":
-				addrs, err = LookupA(host, server, c, m)
-			case "AAAA":
-				addrs, err = LookupAAAA(host, server, c, m)
-			case "PTR":
-				addrs, err = LookupPTR(host, server, c, m)
-			case "CNAME":
-				addrs, err = LookupCNAME(host, server, c, m)
-			case "MX":
-				addrs, err = LookupMX(host, server, c, m)
-			case "NS":
-				addrs, err = LookupNS(host, server, c, m)
-			case "SRV":
-				addrs, err = LookupSRV(host, server, c, m)
-			case "TXT":
-				addrs, err = LookupTXT(host, server, c, m)
-			case "CAA":
-				addrs, err = LookupCAA(host, server, c, m)
-			default:
-				addrs, err = LookupHost(host, server, c, m)
+		// This goroutine has no caller above it to recover a panic, so a
+		// malformed answer would otherwise kill the whole process, including
+		// `syver serve`. The channel is buffered and the normal send has not
+		// happened if we got here, so this send never blocks.
+		defer func() {
+			if rec := recover(); rec != nil {
+				c <- result{err: fmt.Errorf("DNS lookup of %s failed: panic: %v", host, rec)}
 			}
-		} else {
-			addrs, err = net.LookupHost(host)
-		}
-		if err != nil {
-			e1 <- err
-		}
-		c1 <- addrs
+		}()
+		addrs, err := dnsQuery(resolve, host, server, qtype, timeoutD)
+		c <- result{addrs, err}
 	}()
 	select {
-	case res := <-c1:
-		return res, nil
-	case err := <-e1:
-		return nil, err
+	case r := <-c:
+		if r.err != nil {
+			return nil, r.err
+		}
+		return r.addrs, nil
 	case <-time.After(timeoutD):
 		return nil, fmt.Errorf("DNS lookup timed out (%s)", timeoutD)
 	}
 }
 
+func dnsQuery(resolve func(string) ([]string, error), host string, server string, qtype string, timeout time.Duration) ([]string, error) {
+	if server == "" {
+		return resolve(host)
+	}
+	c := new(dns.Client)
+	c.Timeout = timeout
+	m := new(dns.Msg)
+
+	switch qtype {
+	case "A":
+		return LookupA(host, server, c, m)
+	case "AAAA":
+		return LookupAAAA(host, server, c, m)
+	case "PTR":
+		return LookupPTR(host, server, c, m)
+	case "CNAME":
+		return LookupCNAME(host, server, c, m)
+	case "MX":
+		return LookupMX(host, server, c, m)
+	case "NS":
+		return LookupNS(host, server, c, m)
+	case "SRV":
+		return LookupSRV(host, server, c, m)
+	case "TXT":
+		return LookupTXT(host, server, c, m)
+	case "CAA":
+		return LookupCAA(host, server, c, m)
+	default:
+		return LookupHost(host, server, c, m)
+	}
+}
+
 // A and AAAA record lookup - similar to net.LookupHost
 func LookupHost(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
-	a, _ := LookupA(host, server, c, m)
-	aaaa, _ := LookupAAAA(host, server, c, m)
+	a, errA := LookupA(host, server, c, m)
+	aaaa, errAAAA := LookupAAAA(host, server, c, m)
+	// Either family answering is enough. Only when both queries failed was
+	// the server never heard from, and that is an error, not "no addresses".
+	if errA != nil && errAAAA != nil {
+		return nil, errA
+	}
 	addrs = append(a, aaaa...)
 
 	return
@@ -175,7 +225,7 @@ func LookupHost(host string, server string, c *dns.Client, m *dns.Msg) (addrs []
 // A record lookup
 func LookupA(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeA)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -187,6 +237,26 @@ func LookupA(host string, server string, c *dns.Client, m *dns.Msg) (addrs []str
 	}
 
 	return
+}
+
+// exchange sends m to server and checks the response code. NOERROR and
+// NXDOMAIN are answers: the caller reads the answer section, and an empty one
+// means not found. Any other code (SERVFAIL, REFUSED, NOTIMP, FORMERR, ...)
+// means the server did not answer the question, which is an error rather than
+// "not resolvable", matching how the system resolver path reports it.
+func exchange(c *dns.Client, m *dns.Msg, server string) (*dns.Msg, error) {
+	r, _, err := c.Exchange(m, parseServerString(server))
+	if err != nil {
+		return nil, err
+	}
+	if r.Rcode != dns.RcodeSuccess && r.Rcode != dns.RcodeNameError {
+		var q string
+		if len(m.Question) > 0 {
+			q = " for " + dns.TypeToString[m.Question[0].Qtype] + " " + m.Question[0].Name
+		}
+		return nil, fmt.Errorf("DNS server %s answered %s%s", server, dns.RcodeToString[r.Rcode], q)
+	}
+	return r, nil
 }
 
 // parseServerString - Check if the DNS Server in server config has a port, if not ensure 53 is prefixed.
@@ -202,7 +272,7 @@ func parseServerString(server string) string {
 // AAAA (IPv6) record lookup
 func LookupAAAA(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeAAAA)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +289,7 @@ func LookupAAAA(host string, server string, c *dns.Client, m *dns.Msg) (addrs []
 // CNAME record lookup
 func LookupCNAME(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeCNAME)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -236,7 +306,7 @@ func LookupCNAME(host string, server string, c *dns.Client, m *dns.Msg) (addrs [
 // MX record lookup
 func LookupMX(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeMX)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +324,7 @@ func LookupMX(host string, server string, c *dns.Client, m *dns.Msg) (addrs []st
 // NS record lookup
 func LookupNS(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeNS)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -271,7 +341,7 @@ func LookupNS(host string, server string, c *dns.Client, m *dns.Msg) (addrs []st
 // SRV record lookup
 func LookupSRV(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeSRV)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +362,7 @@ func LookupSRV(host string, server string, c *dns.Client, m *dns.Msg) (addrs []s
 // TXT record lookup
 func LookupTXT(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeTXT)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
@@ -316,13 +386,17 @@ func LookupPTR(addr string, server string, c *dns.Client, m *dns.Msg) (name []st
 
 	m.SetQuestion(reverse, dns.TypePTR)
 
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}
 
+	// The answer section can hold more than PTR records: RFC 2317 classless
+	// reverse delegation answers with a CNAME to the delegated name first.
 	for _, ans := range r.Answer {
-		name = append(name, ans.(*dns.PTR).Ptr)
+		if t, ok := ans.(*dns.PTR); ok {
+			name = append(name, t.Ptr)
+		}
 	}
 
 	return
@@ -331,7 +405,7 @@ func LookupPTR(addr string, server string, c *dns.Client, m *dns.Msg) (name []st
 // CAA record lookup
 func LookupCAA(host string, server string, c *dns.Client, m *dns.Msg) (addrs []string, err error) {
 	m.SetQuestion(dns.Fqdn(host), dns.TypeCAA)
-	r, _, err := c.Exchange(m, parseServerString(server))
+	r, err := exchange(c, m, server)
 	if err != nil {
 		return nil, err
 	}

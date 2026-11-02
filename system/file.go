@@ -121,7 +121,41 @@ func (f *DefFile) Contents() (io.Reader, error) {
 	if err != nil {
 		return nil, err
 	}
-	return fh, nil
+	return &closeAtEOFReader{f: fh}, nil
+}
+
+// closeAtEOFReader streams a file and closes it as soon as a read returns EOF
+// or an error. Contents hands its caller a plain io.Reader, and nothing on the
+// validation path closes one, so returning the bare *os.File leaked a
+// descriptor per contents or contains check: a long-running `syver serve`
+// accumulated them until it hit the fd limit. Close is still provided, and is
+// safe to call more than once, for a caller that stops reading early.
+type closeAtEOFReader struct {
+	f   *os.File
+	err error
+}
+
+func (r *closeAtEOFReader) Read(p []byte) (int, error) {
+	if r.f == nil {
+		return 0, r.err
+	}
+	n, err := r.f.Read(p)
+	if err != nil {
+		r.f.Close()
+		r.f = nil
+		r.err = err
+	}
+	return n, err
+}
+
+func (r *closeAtEOFReader) Close() error {
+	if r.f == nil {
+		return nil
+	}
+	err := r.f.Close()
+	r.f = nil
+	r.err = os.ErrClosed
+	return err
 }
 
 func (f *DefFile) Size() (int, error) {

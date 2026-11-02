@@ -17,7 +17,12 @@ func validateDiscovery(ctx context.Context, sys *system.System, syverConfig Syve
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("no discovery tests found")
 	}
+	return runDiscoveryEntries(ctx, sys, entries, maxConcurrent), nil
+}
 
+// runDiscoveryEntries validates each entry and records whether it passed under
+// its register name.
+func runDiscoveryEntries(ctx context.Context, sys *system.System, entries []DiscoveryEntry, maxConcurrent int) map[string]bool {
 	type discoveryResult struct {
 		register string
 		passed   bool
@@ -41,7 +46,10 @@ func validateDiscovery(ctx context.Context, sys *system.System, syverConfig Syve
 		go func() {
 			defer wg.Done()
 			for entry := range work {
-				results := entry.Resource.Validate(ctx, sys)
+				// ValidateSafe, as the main schedulers use: these are bare
+				// goroutines, so a panicking resource would otherwise end the
+				// process instead of failing its discovery check.
+				results := resource.ValidateSafe(ctx, entry.Resource, sys)
 				passed := true
 				for _, result := range results {
 					if result.Result == resource.FAIL {
@@ -67,5 +75,5 @@ func validateDiscovery(ctx context.Context, sys *system.System, syverConfig Syve
 		discovered[result.register] = result.passed
 	}
 
-	return discovered, nil
+	return discovered
 }

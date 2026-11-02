@@ -48,6 +48,14 @@ func getMount(mountpoint string, timeout int) (*mountinfo.Info, error) {
 	// A volume query against a dead network mapping can block, so the calls
 	// keep the same timeout as the POSIX lookup.
 	go func() {
+		// Nothing above this goroutine recovers, so a panic here would end
+		// the process rather than fail the one check. The channel is
+		// buffered and nothing has been sent if we got here.
+		defer func() {
+			if rec := recover(); rec != nil {
+				c <- result{nil, fmt.Errorf("getMount %s failed: panic: %v", mountpoint, rec)}
+			}
+		}()
 		info, err := lookupDrive(root)
 		c <- result{info, err}
 	}()
@@ -56,7 +64,7 @@ func getMount(mountpoint string, timeout int) (*mountinfo.Info, error) {
 	case r := <-c:
 		return r.info, r.err
 	case <-time.After(timeoutD):
-		return nil, fmt.Errorf("getMount operation timed out after %s milliseconds", timeoutD)
+		return nil, fmt.Errorf("getMount operation timed out after %s", timeoutD)
 	}
 }
 
