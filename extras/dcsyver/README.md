@@ -10,6 +10,10 @@ maintained, but new features arrive in `dcsyver` only. It takes the same command
 `/goss` rather than `/syver` and names the copied binary `goss`. New scripts and
 documentation should use `dcsyver`.
 
+To see it in action, watch
+[Checking a Docker Compose service with dcsyver](https://krameff.com/videos/syver/dcsyver-compose.mp4),
+one of the [Syver demo videos](https://krameff.com/syver.html#demos).
+
 ## Usage
 
 `dcsyver [run|edit] <docker_run_params>` (or `dcgoss [run|edit] <docker_run_params>`, the compat shim)

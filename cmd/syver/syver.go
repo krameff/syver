@@ -127,7 +127,7 @@ var addSubcommandUsage = map[string]string{
 	"process":      "add new process name",
 	"http":         "add new http",
 	"gossfile":     "add new syver file, it will be imported from this one",
-	"kernel-param": "add new goss kernel param",
+	"kernel-param": "add new kernel param",
 	"mount":        "add new mount",
 	"interface":    "add new interface",
 	"registry":     "add new registry key",
