@@ -33,12 +33,16 @@ The binary is written under `dist/`, in a directory named for the build id in
 `.goreleaser.yaml` -- currently `binaries`, so for example
 `dist/binaries_linux_amd64_v1/syver`.
 
-## dgoss and other wrappers
+## dsyver and other wrappers
 
-* [dgoss](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) — run goss against Docker/Podman containers
-* [kgoss](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md) — Kubernetes wrapper
-* [dcgoss](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md) — Docker Compose wrapper
-* [sbxsyver](https://github.com/krameff/syver/blob/main/extras/sbxsyver/README.md) — Docker Sandboxes (`sbx`) wrapper
+* [dsyver](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md): run syver against Docker/Podman containers
+* [ksyver](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md): run syver against a Kubernetes pod
+* [dcsyver](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md): run syver against a Docker Compose service
+* [sbxsyver](https://github.com/krameff/syver/blob/main/extras/sbxsyver/README.md): run syver inside a Docker Sandbox (`sbx`)
+
+The goss-named `dgoss`, `kgoss` and `dcgoss` scripts still ship alongside
+these as working shims, under the
+[compatibility policy](goss-vs-syver.md#compatibility-policy).
 
 ## Release binaries
 
@@ -54,6 +58,19 @@ wrappers need a separate Linux binary to copy into the container; the script
 prints the commands, and the [dsyver README](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md#mac-osx)
 explains why. On Windows, download the binary from the releases page.
 
+The script checks the downloaded binary against the release's
+`syver_<version>_SHA256SUMS` file and stops without installing anything if the
+checksum does not match, the binary is not listed, or the file cannot be
+downloaded. Set `SYVER_SKIP_CHECKSUM=1` to install without the check. The
+`dsyver` and `dgoss` wrappers come from the source tree rather than the
+release, so the checksum file does not cover them. Each file is moved into
+`SYVER_DST` only once it has downloaded completely, so a failed download never
+leaves a partial file behind. If the binary fails to download or verify, any
+existing `syver` is left in place; the binary is installed before the
+wrappers, so if a wrapper download fails, `syver` has already been updated,
+and that wrapper and any after it keep their previous versions, or are not
+installed if there were none.
+
 Release assets are raw, uncompressed binaries named `syver-<os>-<arch>`
 (for example `syver-linux-amd64`; Windows builds are named `syver-windows-amd64.exe`).
 The goss-named binaries were last published with v0.9.1.
@@ -62,7 +79,7 @@ To install manually from a GitHub release:
 
 ```bash
 SYVER_VER=v0.15.0   # any tag from the Releases page
-curl -L "https://github.com/krameff/syver/releases/download/${SYVER_VER}/syver-linux-amd64" \
+curl -fL "https://github.com/krameff/syver/releases/download/${SYVER_VER}/syver-linux-amd64" \
   -o /tmp/syver
 sudo mv /tmp/syver /usr/local/bin/syver
 chmod +rx /usr/local/bin/syver

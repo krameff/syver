@@ -2,12 +2,15 @@ package syver
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -137,7 +140,7 @@ func TestWrapperContainerRuntimes(t *testing.T) {
 				cmd.Stderr = &stderr
 				runErr := cmd.Run()
 
-				callBytes, _ := os.ReadFile(callLog)
+				callBytes := readCallLog(t, callLog)
 				calls := string(callBytes)
 				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + calls
 
@@ -174,6 +177,170 @@ func containsLinePrefix(s, prefix string) bool {
 		}
 	}
 	return false
+}
+
+// readCallLog returns what a fake runtime recorded. A missing log means the
+// runtime was never called, which some cases expect, so it reads as empty;
+// any other read error fails the test rather than passing as an empty log.
+func readCallLog(t *testing.T, path string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		t.Fatal(err)
+	}
+	return b
+}
+
+// TestWrapperAdditionalCopyPath proves dsyver and dgoss treat
+// SYVER_ADDITIONAL_COPY_PATH as a colon-separated list: every directory is
+// staged and made readable (chmod -R 755), not only the first.
+//
+// REVERT-PROOF: restoring the quoted `for dir in "$(echo ... | sed 's/:/ /g')"`
+// loop in either script fails all three of its cases: the loop runs once, so
+// only the first directory is chmodded and a path with a space is split apart.
+func TestWrapperAdditionalCopyPath(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the wrappers are bash scripts driving a local container runtime")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+
+	tests := []struct {
+		name string
+		dirs []string // directories to create, each holding one private file
+		list string   // the variable's value, with each {i} replaced by dirs[i]
+	}{
+		{name: "two entries", dirs: []string{"extra-a", "extra-b"}, list: "{0}:{1}"},
+		{name: "path with a space", dirs: []string{"extra-a", "extra b"}, list: "{0}:{1}"},
+		{name: "empty entries are skipped", dirs: []string{"extra-a", "extra-b"}, list: "{0}::{1}:"},
+	}
+
+	for _, script := range []string{"dsyver", "dgoss"} {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", "dsyver", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range tests {
+			t.Run(script+"/"+tc.name, func(t *testing.T) {
+				dir := t.TempDir()
+				binDir := filepath.Join(dir, "bin")
+				specDir := filepath.Join(dir, "spec")
+				stage := filepath.Join(dir, "stage")
+				for _, d := range []string{binDir, specDir, stage} {
+					if err := os.Mkdir(d, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.WriteFile(filepath.Join(binDir, "podman"), []byte(stagingRuntime), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(specDir, "goss.yaml"), []byte("file: {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				fakeSyver := filepath.Join(dir, "syver")
+				if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				list := tc.list
+				for i, d := range tc.dirs {
+					p := filepath.Join(dir, d)
+					if err := os.Mkdir(p, 0o700); err != nil {
+						t.Fatal(err)
+					}
+					if err := os.WriteFile(filepath.Join(p, "f.sh"), []byte("#!/bin/sh\n"), 0o600); err != nil {
+						t.Fatal(err)
+					}
+					list = strings.ReplaceAll(list, "{"+strconv.Itoa(i)+"}", p)
+				}
+				callLog := filepath.Join(dir, "calls.log")
+
+				cmd := exec.Command(bash, scriptPath, "run", "example/image")
+				cmd.Env = append(os.Environ(),
+					"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"CONTAINER_RUNTIME=podman",
+					"GOSS_FILES_STRATEGY=mount",
+					"GOSS_FILES_PATH="+specDir,
+					"GOSS_PATH="+fakeSyver,
+					"GOSS_SLEEP=0",
+					"DGOSS_TEMP_DIR="+dir,
+					"SYVER_ADDITIONAL_COPY_PATH="+list,
+					"FAKE_RUNTIME_LOG="+callLog,
+					"FAKE_STAGE="+stage,
+				)
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				runErr := cmd.Run()
+				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + string(readCallLog(t, callLog))
+				if runErr != nil {
+					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
+				}
+
+				// Each file was created 0600, so an execute bit on the staged
+				// copy is the chmod -R 755 having reached that directory.
+				for _, d := range tc.dirs {
+					fi, err := os.Stat(filepath.Join(stage, d, "f.sh"))
+					if err != nil {
+						t.Errorf("%s was not staged: %v\n%s", d, err, detail)
+						continue
+					}
+					if fi.Mode().Perm()&0o100 == 0 {
+						t.Errorf("%s/f.sh staged with mode %v, want chmod 755 applied\n%s", d, fi.Mode().Perm(), detail)
+					}
+				}
+			})
+		}
+	}
+}
+
+// TestKsyverUsage proves ksyver and kgoss print their usage with the script's
+// own name, and still print the rest of the text literally. The text is a
+// quoted heredoc, so a $(basename $0) inside it was printed as written.
+//
+// REVERT-PROOF: moving the Usage line back inside the heredoc fails every
+// case of both scripts; restoring the bare `kgoss_cmd=$1;
+// shift` fails "no arguments", which then exits 1 with no usage at all.
+func TestKsyverUsage(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("ksyver is a bash script")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+	for _, script := range []string{"ksyver", "kgoss"} {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", "ksyver", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for name, args := range map[string][]string{"bogus command": {"bogus"}, "no arguments": nil} {
+			t.Run(script+"/"+name, func(t *testing.T) {
+				dir := t.TempDir()
+				fake := filepath.Join(dir, "fake")
+				if err := os.WriteFile(fake, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				cmd := exec.Command(bash, append([]string{scriptPath}, args...)...)
+				cmd.Env = append(os.Environ(), "GOSS_PATH="+fake, "GOSS_KUBECTL_BIN="+fake)
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				err := cmd.Run()
+
+				exitErr, ok := err.(*exec.ExitError)
+				if !ok || exitErr.ExitCode() != 2 {
+					t.Errorf("want exit status 2 from usage, got %v", err)
+				}
+				out := stderr.String()
+				if want := "Usage: " + script + " [command] [options]\n"; !strings.Contains(out, want) {
+					t.Errorf("usage does not contain %q\n%s", want, out)
+				}
+				if want := `GOSS_KUBECTL_BIN="$(which kubectl)"`; !strings.Contains(out, want) {
+					t.Errorf("usage no longer prints %q literally\n%s", want, out)
+				}
+			})
+		}
+	}
 }
 
 // TestWrapperSyverTempDir proves SYVER_TEMP_DIR steers where each wrapper builds
@@ -276,7 +443,7 @@ func TestWrapperSyverTempDir(t *testing.T) {
 					t.Fatalf("wrapper failed: %v\nstderr:\n%s", err, stderr.String())
 				}
 
-				callBytes, _ := os.ReadFile(callLog)
+				callBytes := readCallLog(t, callLog)
 				calls := string(callBytes)
 				mount := ""
 				for line := range strings.SplitSeq(calls, "\n") {
@@ -428,7 +595,7 @@ func TestWrapperSpecDiscovery(t *testing.T) {
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				runErr := cmd.Run()
-				callBytes, _ := os.ReadFile(callLog)
+				callBytes := readCallLog(t, callLog)
 				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + string(callBytes)
 				if runErr != nil {
 					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
@@ -606,7 +773,7 @@ func TestSbxsyver(t *testing.T) {
 			cmd.Stderr = &stderr
 			runErr := cmd.Run()
 
-			callBytes, _ := os.ReadFile(callLog)
+			callBytes := readCallLog(t, callLog)
 			calls := string(callBytes)
 			detail := "stderr:\n" + stderr.String() + "\nsbx calls:\n" + calls
 
@@ -807,7 +974,7 @@ echo edited > syver.yaml`
 				var stderr bytes.Buffer
 				cmd.Stderr = &stderr
 				runErr := cmd.Run()
-				callBytes, _ := os.ReadFile(callLog)
+				callBytes := readCallLog(t, callLog)
 				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + string(callBytes)
 				if runErr != nil {
 					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
