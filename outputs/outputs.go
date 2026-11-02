@@ -9,7 +9,6 @@ import (
 	"regexp"
 	"sort"
 	"strings"
-	"sync"
 	"time"
 	"unicode"
 
@@ -29,8 +28,8 @@ type Outputer interface {
 }
 
 var (
-	outputersMu sync.Mutex
-	outputers   = map[string]Outputer{
+	// outputers is fixed at compile time and only ever read, so it needs no lock.
+	outputers = map[string]Outputer{
 		"documentation": &Documentation{},
 		"json":          &Json{},
 		"junit":         &JUnit{},
@@ -46,6 +45,21 @@ var (
 	foPretty     = "pretty"
 	foExcludeRaw = "exclude_raw"
 	foSort       = "sort"
+
+	// excludeRawFormats are the formats that honour exclude_raw. The option is
+	// applied inside humanizeResult, which these formats share for their
+	// failure text, so it is listed once here rather than in each format's own
+	// ValidOptions. Formats that never call humanizeResult (prometheus, silent)
+	// are absent because the option has no effect on them.
+	excludeRawFormats = map[string]bool{
+		"documentation": true,
+		"json":          true,
+		"junit":         true,
+		"nagios":        true,
+		"rspecish":      true,
+		"structured":    true,
+		"tap":           true,
+	}
 )
 
 var green = color.New(color.FgGreen).SprintfFunc()
@@ -175,23 +189,8 @@ func indentLines(text string) string {
 	return result[:len(result)-1]
 }
 
-func RegisterOutputer(name string, outputer Outputer) {
-	outputersMu.Lock()
-	defer outputersMu.Unlock()
-
-	if outputer == nil {
-		panic("goss: Register outputer is nil")
-	}
-	if _, dup := outputers[name]; dup {
-		panic("goss: Register called twice for ouputer " + name)
-	}
-	outputers[name] = outputer
-}
-
 // Outputers returns a sorted list of the names of the registered outputers.
 func Outputers() []string {
-	outputersMu.Lock()
-	defer outputersMu.Unlock()
 	var list []string
 	for name := range outputers {
 		list = append(list, name)
@@ -201,22 +200,82 @@ func Outputers() []string {
 	return list
 }
 
-// FormatOptions returns a sorted list of all the valid options that outputers accept
+// FormatOptions returns a sorted list of every option at least one format
+// accepts.
 func FormatOptions() []string {
-	outputersMu.Lock()
-	defer outputersMu.Unlock()
-	found := map[string]*formatOption{}
-	for _, o := range outputers {
-		for _, opt := range o.ValidOptions() {
-			found[opt.name] = opt
+	found := map[string]bool{}
+	for _, f := range Outputers() {
+		for _, name := range ValidOptionsFor(f) {
+			found[name] = true
 		}
 	}
-	var list []string
+	list := make([]string, 0, len(found))
 	for name := range found {
 		list = append(list, name)
 	}
 	sort.Strings(list)
 	return list
+}
+
+// ValidOptionsFor returns the sorted options the named format honours, or nil
+// if format is not a format name.
+func ValidOptionsFor(format string) []string {
+	var opts []*formatOption
+	if format == "discovery" {
+		opts = Discovery{}.ValidOptions()
+	} else {
+		o, ok := outputers[format]
+		if !ok {
+			return nil
+		}
+		opts = o.ValidOptions()
+	}
+	names := make([]string, 0, len(opts)+1)
+	for _, opt := range opts {
+		names = append(names, opt.name)
+	}
+	if excludeRawFormats[format] {
+		names = append(names, foExcludeRaw)
+	}
+	sort.Strings(names)
+	return names
+}
+
+// NormalizeFormatOptions trims surrounding whitespace from each option and
+// drops any left empty, so "pretty, sort" from an environment variable means
+// the same as -o pretty -o sort. The formats compare option names exactly
+// apart from case, so an untrimmed " sort" would otherwise be ignored.
+func NormalizeFormatOptions(opts []string) []string {
+	out := make([]string, 0, len(opts))
+	for _, opt := range opts {
+		if opt = strings.TrimSpace(opt); opt != "" {
+			out = append(out, opt)
+		}
+	}
+	return out
+}
+
+// CheckFormatOptions sorts opts against format. Names are matched without
+// regard to case, as the formats themselves match them, and after
+// NormalizeFormatOptions.
+//
+// unknown holds options no format knows; ignored holds options some other
+// format knows but this one does not honour. Neither is an error: both have
+// always been accepted and had no effect, so the caller warns rather than
+// refusing to run. ignored is empty for an unknown format, which GetOutputer
+// reports.
+func CheckFormatOptions(format string, opts []string) (unknown, ignored []string) {
+	all := FormatOptions()
+	own := ValidOptionsFor(format)
+	for _, opt := range NormalizeFormatOptions(opts) {
+		switch {
+		case !util.IsValueInList(opt, all):
+			unknown = append(unknown, opt)
+		case own != nil && !util.IsValueInList(opt, own):
+			ignored = append(ignored, opt)
+		}
+	}
+	return unknown, ignored
 }
 
 // IsValidFormat determines if f is a valid format name based on Outputers()
