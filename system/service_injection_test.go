@@ -71,10 +71,10 @@ func TestNoPowershellSubprocessInTheServicePath(t *testing.T) {
 			if !ok {
 				return true
 			}
-			// util.NewCommandForWindowsPowershell / ...Context. The constructor is
-			// still exported from util -- removing an exported symbol would be a
-			// public API break in a minor release -- so the invariant is that
-			// nothing in system/ CALLS it, not that it does not exist.
+			// Matches any selector named NewCommandForWindowsPowershell*. util has
+			// no such constructor; this catches one being added and called from
+			// system/, which is the invariant: nothing in system/ shells out to
+			// PowerShell.
 			if strings.HasPrefix(sel.Sel.Name, "NewCommandForWindowsPowershell") {
 				t.Errorf("%s calls %s: the service path must not shell out to PowerShell. "+
 					"Read this file's header before adding one back.",

@@ -14,7 +14,9 @@ import (
 type Rspecish struct{}
 
 func (r Rspecish) ValidOptions() []*formatOption {
-	return []*formatOption{}
+	return []*formatOption{
+		{name: foSort},
+	}
 }
 
 func (r Rspecish) Output(w io.Writer, results <-chan []resource.TestResult,

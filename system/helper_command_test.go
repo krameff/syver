@@ -155,7 +155,7 @@ func runProbe(t *testing.T, p probe, ctx context.Context, patience time.Duration
 		return r.err
 	case <-time.After(patience):
 		t.Fatalf("%s probe did not return within %s: the helper is still running "+
-			"context-free (util.NewCommand), so nothing can interrupt it. Under `serve` "+
+			"context-free, so nothing can interrupt it. Under `serve` "+
 			"this holds syverMu and wedges every later probe for the life of the process.",
 			p.shim, patience)
 		return nil
@@ -167,7 +167,7 @@ func runProbe(t *testing.T, p probe, ctx context.Context, patience time.Duration
 // This is the shutdown half of the fix: SIGTERM to a `serve` daemon, or Ctrl-C
 // during `validate`, has to reach the child. Threading the context through the
 // eleven call sites is the whole mechanism, and each one is a separate plain
-// parameter, so any one of them left on util.NewCommand breaks only itself and
+// parameter, so any one of them that drops its context breaks only itself and
 // stays green in every other test.
 func TestCancellingContextStopsAHangingHelper(t *testing.T) {
 	for _, p := range helperProbes() {

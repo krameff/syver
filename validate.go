@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"sync"
 	"time"
 
@@ -92,6 +94,28 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 	return &syverConfig, nil
 }
 
+// checkFormatOptions normalises c.FormatOptions in place, so the outputters
+// see the trimmed names, then warns about options that will have no effect.
+// An option no format knows always draws a WARN listing every valid option;
+// the run continues, because refusing to start over an option that used to be
+// silently accepted would break existing units and scripts. With warnIgnored
+// set it also warns about options the chosen format does not honour; serve
+// passes false, because a request can negotiate a different format through its
+// Accept header and the option may apply to that one.
+func checkFormatOptions(c *util.Config, warnIgnored bool) {
+	c.FormatOptions = outputs.NormalizeFormatOptions(c.FormatOptions)
+	unknown, ignored := outputs.CheckFormatOptions(c.OutputFormat, c.FormatOptions)
+	for _, opt := range unknown {
+		log.Printf("[WARN] unknown format option %q has no effect; valid options: %s",
+			opt, strings.Join(outputs.FormatOptions(), ", "))
+	}
+	if warnIgnored {
+		for _, opt := range ignored {
+			log.Printf("[WARN] format option %q has no effect on the %s format", opt, c.OutputFormat)
+		}
+	}
+}
+
 func getOutputer(c *bool, format string) (outputs.Outputer, error) {
 	if c != nil && *c {
 		color.NoColor = true
@@ -125,6 +149,9 @@ func Validate(ctx context.Context, c *util.Config) (code int, err error) {
 	if err != nil {
 		return 1, err
 	}
+	// Before the spec loads, so the warnings come first rather than after the
+	// discovery: checks loading runs.
+	checkFormatOptions(c, true)
 	syverConfig, err := loadSyverConfigWithDiscover(ctx, c)
 	if err != nil {
 		return 78, err

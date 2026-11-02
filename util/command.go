@@ -17,24 +17,10 @@ type Command struct {
 	Status         int
 }
 
-// NewCommand builds a context-free command: nothing can interrupt its Run.
-//
-// Nothing in syver calls it any more, and new code should not. Every internal
-// caller was moved to NewCommandContext because a context-free child has no
-// cancellation and no bound, which under `serve` wedges the health endpoint for
-// the life of the process -- see system/helper_command.go. It stays exported
-// because it is part of the package's published surface.
-func NewCommand(name string, arg ...string) *Command {
-	//fmt.Println(arg)
-	command := new(Command)
-	command.name = name
-	command.Cmd = exec.Command(name, arg...)
-
-	return command
-}
-
-// NewCommandContext is NewCommand with a context attached, so that cancelling
-// the context kills the child process.
+// NewCommandContext builds a command bound to ctx, so that cancelling the
+// context kills the child process. There is deliberately no context-free
+// constructor: a child with no cancellation and no bound wedges `serve`'s health
+// endpoint for the life of the process, see system/helper_command.go.
 //
 // Only the `command:` resource needs this, because it is the only caller that
 // imposes a timeout. runCommand (system/command.go) used to return on timeout
@@ -79,10 +65,9 @@ func (c *Command) Run() error {
 		return c.Err
 	}
 
-	// A no-op unless configureProcessGroup registered something, so a
-	// context-free NewCommand is unaffected. On Windows this is where the
-	// process joins its Job Object -- the earliest point at which a process
-	// exists to assign. An assignment failure is not a check failure: the
+	// A no-op unless configureProcessGroup registered something. On Windows
+	// this is where the process joins its Job Object -- the earliest point at
+	// which a process exists to assign. An assignment failure is not a check failure: the
 	// command ran, and cmd.Cancel falls back to killing the direct child.
 	_ = attachProcessGroup(c.Cmd)
 

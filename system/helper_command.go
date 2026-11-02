@@ -56,14 +56,15 @@ var helperIOGrace = 5 * time.Second
 // runHelperCommand runs one of those helpers with the caller's context and a
 // bounded lifetime, and reports whether the context ended the run.
 //
-// Two separate failure modes are being closed here, and both were live:
+// It closes two separate failure modes:
 //
-//   - No cancellation. `util.NewCommand` produces a context-free `exec.Cmd`, so
-//     Run's `Wait` had nothing to interrupt it. Under `serve` that is not one
-//     slow request: fillCache holds syverMu for the duration of the sweep, and
-//     WriteTimeout is deliberately unset (see serve.go), so a single wedged
-//     helper parks every subsequent probe behind the mutex forever. The daemon
-//     then needs SIGKILL, and the helper outlives it.
+//   - No cancellation. A context-free `exec.Cmd` leaves Run's `Wait` with
+//     nothing to interrupt it, which is why this uses util.NewCommandContext.
+//     Under `serve` a wedged helper is not one slow request: fillCache holds
+//     syverMu for the duration of the sweep, and WriteTimeout is deliberately
+//     unset (see serve.go), so a single wedged helper would park every
+//     subsequent probe behind the mutex forever, leaving a daemon that needs
+//     SIGKILL and a helper that outlives it.
 //   - No bound. Even with cancellation wired up, nothing cancels on a host that
 //     is merely stuck rather than shutting down -- a systemd that never answers,
 //     an rpmdb lock nobody releases. The deadline is what makes such a check

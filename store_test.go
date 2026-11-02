@@ -2,12 +2,15 @@ package syver
 
 import (
 	"bytes"
+	"io"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/krameff/syver/util"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -488,4 +491,83 @@ func TestStaticStoreErrors(t *testing.T) {
 
 	err = unmarshal([]byte("{}"), NewSyverConfig(), UNSET)
 	assert.ErrorIs(t, err, errStoreFormatUnset)
+}
+
+// TestRenderJSONDebugDump pins `render --debug`: the template dump goes
+// through the logger on stderr, never stdout, which carries only the rendered
+// spec; and render installs the configured log level, so -L WARN or -L ERROR
+// silences the dump while the default INFO shows it.
+func TestRenderJSONDebugDump(t *testing.T) {
+	prevDebug, prevFilter, prevFormat := debug, currentTemplateFilter, outStoreFormat
+	t.Cleanup(func() { debug, currentTemplateFilter, outStoreFormat = prevDebug, prevFilter, prevFormat })
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	spec := filepath.Join(t.TempDir(), "goss.yaml")
+	assert.NoError(t, os.WriteFile(spec, []byte("file:\n  {{ \"/etc/rendered-marker\" }}:\n    exists: true\n"), 0o600))
+
+	for _, tc := range []struct {
+		level    string
+		wantDump bool
+	}{
+		{"INFO", true},
+		{"DEBUG", true},
+		{"WARN", false},
+		{"ERROR", false},
+	} {
+		t.Run(tc.level, func(t *testing.T) {
+			cfg, err := util.NewConfig(util.WithSpecFile(spec))
+			assert.NoError(t, err)
+			cfg.Debug = true
+			cfg.LogLevel = tc.level
+
+			var rendered string
+			var renderErr error
+			stdout, stderr := captureStdoutStderr(t, func() { rendered, renderErr = RenderJSON(cfg) })
+
+			assert.NoError(t, renderErr)
+			assert.Contains(t, rendered, "/etc/rendered-marker")
+			assert.Empty(t, stdout, "the debug dump must not be written to stdout")
+			if tc.wantDump {
+				assert.Contains(t, stderr, "[INFO] file after text/template render")
+				assert.Contains(t, stderr, "/etc/rendered-marker")
+			} else {
+				assert.NotContains(t, stderr, "file after text/template render")
+			}
+		})
+	}
+}
+
+// captureStdoutStderr runs fn with os.Stdout and os.Stderr redirected to
+// pipes and returns what each received. Both are read concurrently so a
+// large write cannot block on a full pipe.
+func captureStdoutStderr(t *testing.T, fn func()) (string, string) {
+	t.Helper()
+	read := func(r *os.File, into *string, done chan<- struct{}) {
+		b, _ := io.ReadAll(r)
+		*into = string(b)
+		close(done)
+	}
+	outR, outW, err := os.Pipe()
+	assert.NoError(t, err)
+	errR, errW, err := os.Pipe()
+	assert.NoError(t, err)
+	var stdout, stderr string
+	outDone, errDone := make(chan struct{}), make(chan struct{})
+	go read(outR, &stdout, outDone)
+	go read(errR, &stderr, errDone)
+
+	prevOut, prevErr := os.Stdout, os.Stderr
+	os.Stdout, os.Stderr = outW, errW
+	// Point the logger at the pipe too, so a run that never installs the
+	// level filter is still captured and an unfiltered dump is visible.
+	log.SetOutput(os.Stderr)
+	fn()
+	os.Stdout, os.Stderr = prevOut, prevErr
+	log.SetOutput(os.Stderr) // setLogLevel bound the logger to the pipe
+
+	assert.NoError(t, outW.Close())
+	assert.NoError(t, errW.Close())
+	<-outDone
+	<-errDone
+	return stdout, stderr
 }

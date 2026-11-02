@@ -73,10 +73,8 @@ var (
 	descriptors   = map[string]Descriptor{}
 )
 
-// Register adds a Descriptor to the registry. Mirrors the one working
-// registry already in this tree, outputs.RegisterOutputer
-// (outputs/outputs.go): mutex-guarded, panics on a nil New or on a
-// duplicate key (including alias keys).
+// Register adds a Descriptor to the registry: mutex-guarded, panics on a nil
+// New or on a duplicate key (including alias keys).
 func Register(d Descriptor) {
 	descriptorsMu.Lock()
 	defer descriptorsMu.Unlock()
@@ -151,25 +149,5 @@ func AutoAddDescriptors() []Descriptor {
 		out = append(out, d)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].AutoAdd.Order < out[j].AutoAdd.Order })
-	return out
-}
-
-// --- Deprecated shim ---------------------------------------------------
-//
-// Resources() is kept, exported, for any library embedder (util/config.go
-// documents embedding as supported) that might call it directly. There is
-// no unexported registerResource() shim alongside it: every internal
-// resource/<type>.go call site was converted to Register(Descriptor{...})
-// in the same change that added this file (FEAT-007 task 3), and
-// registerResource was never exported, so no embedder could have called it
-// either -- keeping it around would just be dead code.
-
-// Resources returns the deprecated key->Resource map. Deprecated: use
-// Descriptors() and Descriptor.New() instead.
-func Resources() map[string]Resource {
-	out := map[string]Resource{}
-	for key, d := range Descriptors() {
-		out[key] = d.New()
-	}
 	return out
 }

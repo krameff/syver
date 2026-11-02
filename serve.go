@@ -109,6 +109,7 @@ func newHealthHandler(ctx context.Context, c *util.Config) (*healthHandler, erro
 		return nil, err
 	}
 
+	checkFormatOptions(c, false)
 	output, err := getOutputer(c.NoColor, c.OutputFormat)
 	if err != nil {
 		return nil, err
