@@ -41,7 +41,9 @@ func TestOutputFormatOptions(t *testing.T) {
 	assert.Contains(t, list, foPerfData)
 	assert.Contains(t, list, foPretty)
 	assert.Contains(t, list, foVerbose)
-	assert.Len(t, list, 4)
+	assert.Contains(t, list, foSort)
+	assert.Contains(t, list, foExcludeRaw)
+	assert.Len(t, list, 5)
 }
 
 func TestOptionsRegistration(t *testing.T) {

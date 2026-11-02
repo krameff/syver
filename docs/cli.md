@@ -19,21 +19,51 @@ COMMANDS:
 
 GLOBAL OPTIONS:
    --log-level string, --loglevel string, -L string, -l string  Log verbosity level (default: "INFO") [$SYVER_LOGLEVEL, $GOSS_LOGLEVEL]
-   --syverfile string, --gossfile string, -g string              Syver file to read from / write to [$SYVER_FILE, $GOSS_FILE]
-   --vars string [ --vars string ]                               json/yaml file containing variables for template. Can be specified multiple times. Later files override overlapping keys. [$SYVER_VARS, $GOSS_VARS]
-   --vars-inline string                                          json/yaml string containing variables for template (overwrites vars) [$SYVER_VARS_INLINE, $GOSS_VARS_INLINE]
-   --package string                                              Package type to use [apk, dpkg, pacman, rpm]
-   --help, -h                                                    show help
-   --version, -v                                                 print the version
+   --syverfile string, --gossfile string, -g string             Syver file to read from / write to [$SYVER_FILE, $GOSS_FILE]
+   --vars string [ --vars string ]                              json/yaml file containing variables for template. Can be specified multiple times. Later files override overlapping keys. [$SYVER_VARS, $GOSS_VARS]
+   --vars-inline string                                         json/yaml string containing variables for template (overwrites vars) [$SYVER_VARS_INLINE, $GOSS_VARS_INLINE]
+   --package string                                             Package type to use [apk, dpkg, pacman, rpm]
+   --help, -h                                                   show help
+   --version, -v                                                print the version
 ```
 
+!!! note "`--version` needs a version-stamped binary"
+    `--version`/`-v` exists only when the binary was built with a version
+    stamp: release binaries, `make build` and GoReleaser builds all have one. A
+    binary from a plain `go build ./cmd/syver` or `go install` has no version
+    set, so the flag is not registered, does not appear in `--help`, and
+    `syver --version` fails with `flag provided but not defined: -version`.
+
 !!! note
-    Most flags can be set by using environment variables, see `--help` for more info.
-    `SYVER_*` variables are checked first; the legacy `GOSS_*` variables are
-    still honored as a fallback, under the
+    Many flags can also be set with an environment variable, but not all of
+    them: [Environment variables](#environment-variables) lists every flag,
+    its variables and its default. `SYVER_*` variables are checked first; the
+    legacy `GOSS_*` variables are still honored as a fallback, under the
     [compatibility policy](goss-vs-syver.md#compatibility-policy).
 
 ## Global options
+
+Global options go before the command name, for example
+`syver -L DEBUG --vars vars.yaml validate`. `validate`, `render`, `add` and
+`autoadd` also accept them after the command name, and so does `serve`, with one
+difference: under `serve` the `-l` alias belongs to
+[`--listen-addr`](#serve), so the log level there is `--log-level`,
+`--loglevel` or `-L`.
+
+`--log-level <level>`, `--loglevel <level>`, `-L <level>`, `-l <level>`
+:   Syver logging verbosity level (default: `INFO`), not case-sensitive.
+    Lower levels of tracing include all upper levels also (ie. `INFO` includes `WARN` and `ERROR`).
+    `level` can be one of:
+
+    * `ERROR` - Critical errors that halt syver or significantly affect its functionality.
+    * `WARN` - Non-critical issues, such as overwritten keys, an unrecognised top-level key, or deprecated features.
+    * `INFO` - General operational messages, useful for tasks where a more structured output is needed
+      (e.g. syver serve).
+    * `DEBUG` - Information useful for the syver user to debug.
+    * `TRACE` - Detailed internal system activities useful for syver developers to debug.
+
+    After `serve`, use `--log-level`, `--loglevel` or `-L`: there `-l` means
+    `--listen-addr`.
 
 `--syverfile/--gossfile/-g <syverfile>`
 :   The file to use when reading/writing tests. This flag controls the
@@ -61,6 +91,14 @@ GLOBAL OPTIONS:
 
     * `yaml` *(default)*
     * `json`
+
+`--vars-inline <vars>`
+:   Variables for [templates](gossfile.md#templates) given as a YAML or JSON
+    string, for example `--vars-inline '{"package": "nginx"}'`. Keys set here
+    override the same keys from `--vars` files; other keys from the files are
+    kept. A value that cannot be parsed is rejected when the flag is read, and
+    the error quotes what syver received, which shows when a shell has split
+    the argument (see [Windows](windows.md)).
 
 `--package <type>`
 :   The package type to check for.
@@ -135,6 +173,9 @@ A sub-command *resource type* has to be provided when running `add`.
     ```
 
 Automatically [adds](#add) all **existing** resources matching the provided argument.
+Several names can be given at once. If any name matches nothing, `autoadd` says
+which one and exits non-zero; the resources found for the other names are still
+written.
 
 Will automatically add the following matching resources:
 * `file` - only if argument contains `/`
@@ -159,7 +200,7 @@ Will **NOT** automatically add:
     syver autoadd sshd
     ```
 
-    Generates the following `goss.yaml`
+    Generates the following `syver.yaml` (or adds to whichever spec file it finds)
 
     ```yaml
     port:
@@ -266,7 +307,7 @@ by including them with the `gossfile` directive.
     ```
 
 `serve` exposes the syver test suite as a health endpoint on your server.
-The end-point will return the stest results in the format requested and an http status of 200 or 503.
+The end-point will return the test results in the format requested and an http status of 200 or 503.
 
 `serve` will look for a test suite in the same order as [validate](#validate)
 
@@ -282,7 +323,8 @@ The end-point will return the stest results in the format requested and an http 
     keep secrets out of command output.
 
 `--cache <duration>`, `-c <duration>`
-:   Time to cache the results (default: 5s)
+:   Time to cache the results (default: 5s). A value of `0` or less disables
+    the cache, so the checks run on every request.
 
 `--endpoint <endpoint>`, `-e <endpoint>`
 :   Endpoint to expose (default: `/healthz`)
@@ -290,18 +332,19 @@ The end-point will return the stest results in the format requested and an http 
 `--format <format>`, `-f <format>`
 :   Output format, same as [validate](#validate)
 
+`--format-options <option>`, `-o <option>`
+:   Output format options, same as [validate](#validate). May be given more than once.
+    An option name that no format knows logs a warning naming the option and listing
+    the valid ones; `serve` still starts. An option the configured format ignores
+    is accepted without a warning, because a request's `Accept` header can select
+    a different format that uses it.
+
 `--listen-addr [ip]:port`, `-l [ip]:port`
 :   Address to listen on (default: `:8080`)
 
-`--loglevel <level>`, `-L <level>`
-:   Syver logging verbosity level (default: `INFO`).
-    Lower levels of tracing include all upper levels traces also (ie. `INFO` include `WARN` and `ERROR`).
-    `level` can be one of:
-    - `ERROR` - Critical errors that halt syver or significantly affect its functionality, requiring immediate intervention.
-    - `WARN` - Non-critical issues, such as overwritten keys, an unrecognised top-level key, or deprecated features.
-    - `INFO` - General operational messages, useful for tasks where a more structured output is needed (e.g. syver serve).
-    - `DEBUG` - Information useful for the syver user to debug.
-    - `TRACE` - Detailed internal system activities useful for syver developers to debug.
+`--log-level <level>`, `--loglevel <level>`, `-L <level>`
+:   The [global log level](#global-options), also accepted after `serve`
+    (default: `INFO`). Under `serve`, `-l` is `--listen-addr`, not the log level.
 
 `--max-concurrent <num>`
 :   Max number of tests to run concurrently, at least 1. A lower value is
@@ -370,22 +413,26 @@ Exits with status 0 on success, non-0 otherwise.
     - `silent` - No output. Avoids exposing system information (e.g. when serving tests as a healthcheck endpoint)
     - `discovery` - JSON vars output from [discovery tests](gossfile.md#discovery); always exits 0 on successful execution
 
-`--format-options`, `-o`
-:   Output format option:
+`--format-options <option>`, `-o <option>`
+:   Output format option, may be given more than once (`-o pretty -o sort`):
     - `perfdata` - Outputs Nagios "performance data". Applies to `nagios` output
     - `verbose`  - Gives verbose output. Applies to `nagios` and `prometheus` output
-    - `pretty`   - Pretty printing for the `json` output
-    - `sort`     - Sorts the results
+    - `pretty`   - Pretty printing. Applies to `json`, `structured` and `discovery` output
+    - `sort`     - Sorts the results. Applies to `documentation`, `json`, `junit`, `rspecish`,
+      `structured` and `tap` output
+    - `exclude_raw` - Drops the "the raw value was" lines from the human-readable message of a
+      [transformed](gossfile.md#transforms) test. Applies to `documentation`, `junit`, `nagios`,
+      `rspecish` and `tap` output, and to the `summary-line` and `summary-line-compact` strings
+      of `json` and `structured` output. Those two formats still carry the raw value in each
+      result's `matcher-result.untransformed-value` field
 
-`--loglevel <level>`, `-L <level>`
-:   Syver logging verbosity level (default: `INFO`).
-    Lower levels of tracing include all upper levels also (ie. `INFO` includes `WARN` and `ERROR`).
-    `level` can be one of:
-    - `ERROR` - Critical errors that halt syver or significantly affect its functionality.
-    - `WARN` - Non-critical issues, such as overwritten keys, an unrecognised top-level key, or deprecated features.
-    - `INFO` - General operational messages.
-    - `DEBUG` - Information useful for the syver user to debug.
-    - `TRACE` - Detailed internal system activities useful for syver developers to debug.
+    An option name that no format knows logs a warning naming the option and listing
+    the valid ones; the run continues. An option that another format uses but
+    the chosen one ignores, such as `-o pretty` with `rspecish`, logs a `WARN` line
+    and the run continues.
+
+The [global `--log-level`](#global-options) can also be given after `validate`,
+as in `syver validate -L DEBUG`.
 
 `--max-concurrent <num>`
 :   Max number of tests to run concurrently, at least 1. A lower value is
@@ -468,3 +515,55 @@ picture, including the two cases that are deliberately exempt.
     $ echo $?
     2
     ```
+
+## Environment variables
+
+Every flag syver defines, with its environment variables and default, as
+registered in the binary. Where a flag has variables, the `SYVER_*` name is
+checked first and the `GOSS_*` name is the fallback. An exported but empty
+`SYVER_*` variable counts as unset, so it never hides a real `GOSS_*` value. A
+command line flag beats both variables. Flags marked "none" can only be set on
+the command line.
+
+| Command | Flag | `SYVER_*` variable | `GOSS_*` variable | Default |
+| --- | --- | --- | --- | --- |
+| global | `--log-level`, `--loglevel`, `-L`, `-l` | `SYVER_LOGLEVEL` | `GOSS_LOGLEVEL` | `INFO` |
+| global | `--syverfile`, `--gossfile`, `-g` | `SYVER_FILE` | `GOSS_FILE` | first of `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml`, else `./syver.yaml` |
+| global | `--vars` | `SYVER_VARS` | `GOSS_VARS` | unset |
+| global | `--vars-inline` | `SYVER_VARS_INLINE` | `GOSS_VARS_INLINE` | unset |
+| global | `--package` | none | none | detected from the system |
+| global | `--use-alpha` (macOS and Windows builds only) | `SYVER_USE_ALPHA` | `GOSS_USE_ALPHA` | `0` |
+| global | `--version`, `-v` (version-stamped builds only) | none | none | |
+| `validate` | `--format`, `-f` | `SYVER_FMT` | `GOSS_FMT` | `rspecish` |
+| `validate` | `--format-options`, `-o` | `SYVER_FMT_OPTIONS` | `GOSS_FMT_OPTIONS` | unset |
+| `validate` | `--color` | `SYVER_COLOR` | `GOSS_COLOR` | `false` |
+| `validate` | `--no-color` | `SYVER_NOCOLOR` | `GOSS_NOCOLOR` | `false` |
+| `validate` | `--sleep`, `-s` | `SYVER_SLEEP` | `GOSS_SLEEP` | `1s` |
+| `validate` | `--retry-timeout`, `-r` | `SYVER_RETRY_TIMEOUT` | `GOSS_RETRY_TIMEOUT` | `0s` (no retry) |
+| `validate` | `--max-concurrent` | `SYVER_MAX_CONCURRENT` | `GOSS_MAX_CONCURRENT` | `50` |
+| `validate` | `--discover` | `SYVER_DISCOVER` | `GOSS_DISCOVER` | unset |
+| `serve` | `--format`, `-f` | `SYVER_FMT` | `GOSS_FMT` | `rspecish` |
+| `serve` | `--format-options`, `-o` | `SYVER_FMT_OPTIONS` | `GOSS_FMT_OPTIONS` | unset |
+| `serve` | `--cache`, `-c` | `SYVER_CACHE` | `GOSS_CACHE` | `5s` |
+| `serve` | `--log-level`, `--loglevel`, `-L` (not `-l`, which is `--listen-addr` here) | `SYVER_LOGLEVEL` | `GOSS_LOGLEVEL` | `INFO` |
+| `serve` | `--listen-addr`, `-l` | `SYVER_LISTEN` | `GOSS_LISTEN` | `:8080` |
+| `serve` | `--endpoint`, `-e` | `SYVER_ENDPOINT` | `GOSS_ENDPOINT` | `/healthz` |
+| `serve` | `--max-concurrent` | `SYVER_MAX_CONCURRENT` | `GOSS_MAX_CONCURRENT` | `50` |
+| `render` | `--debug`, `-d` | none | none | `false` |
+| `autoadd` | (no options of its own) | | | |
+| `add` | `--exclude-attr` | none | none | unset |
+| `add addr` | `--timeout` | none | none | `500ms` |
+| `add command` | `--timeout` | none | none | `10s` |
+| `add dns` | `--timeout` | none | none | `500ms` |
+| `add dns` | `--server` | none | none | unset |
+| `add http` | `--insecure`, `-k` | none | none | `false` |
+| `add http` | `--no-follow-redirects`, `-r` | none | none | `false` |
+| `add http` | `--timeout` | none | none | `5s` |
+| `add http` | `--username`, `-u` | none | none | unset |
+| `add http` | `--password`, `-p` | none | none | unset |
+| `add http` | `--proxy`, `-x` | none | none | unset |
+| `add mount` | `--timeout` | none | none | `1s` |
+
+The other `add` resource types take no options of their own. Each command's
+`--help` prints the same information for the binary in front of you, for
+example `syver serve --help`.

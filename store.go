@@ -270,9 +270,13 @@ func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, err
 		if err != nil {
 			return SyverConfig{}, err
 		}
+		// Logged, not printed: stdout carries the rendered spec, and a dump
+		// written there would corrupt it for anything parsing the output. INFO
+		// rather than DEBUG because --debug is an explicit request for it: at
+		// DEBUG the default log level would hide what the flag asked for, while
+		// -L WARN or -L ERROR still silences it.
 		if debug {
-			fmt.Println("DEBUG: file after text/template render")
-			fmt.Println(string(data))
+			log.Printf("[INFO] file after text/template render:\n%s", data)
 		}
 	}
 
@@ -324,7 +328,10 @@ func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, err
 
 // RenderJSON reads json file recursively returning string
 func RenderJSON(c *util.Config) (string, error) {
-	var err error
+	err := setLogLevel(c)
+	if err != nil {
+		return "", err
+	}
 	debug = c.Debug
 	currentTemplateFilter, err = NewTemplateFilter(c.VarsFiles, c.VarsInline, nil)
 	if err != nil {
@@ -420,8 +427,7 @@ func WriteJSON(filePath string, syverConfig SyverConfig) error {
 	}
 
 	if string(emptyData) == string(jsonData) {
-		log.Printf("Can't write empty configuration file. Please check resource name(s).")
-		return nil
+		return fmt.Errorf("can't write empty configuration file %s, please check resource name(s)", filePath)
 	}
 
 	if err := os.WriteFile(filePath, jsonData, 0644); err != nil {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"sync/atomic"
 	"time"
 
 	"github.com/krameff/syver/util"
@@ -114,20 +115,13 @@ func (c *DefCommand) setup() error {
 	c.exitStatus = cmd.Status
 	stdoutB := cmd.Stdout.Bytes()
 	stderrB := cmd.Stderr.Bytes()
-	// Read from the local ctx, not c.Ctx: the nil guard above puts the fallback
-	// in ctx, so dereferencing c.Ctx here would panic on exactly the zero-value
-	// DefCommand that guard exists for -- and a nil-interface method call is a
-	// process kill, since nothing in non-test code recovers.
-	//
-	// The value has never actually been found: producers set it under
-	// resource.idKey{} (an unexported struct type) while this looks up the
-	// string "id". Different key types never match, so this has always logged
-	// <nil>. idKey is unexported, so system structurally cannot read it; leaving
-	// the lookup in place keeps the log line's shape until the key is made
-	// reachable, rather than pretending it works.
-	id := ctx.Value("id")
-	logBytes(stdoutB, fmt.Sprintf("[Command][%s][stdout] ", id))
-	logBytes(stderrB, fmt.Sprintf("[Command][%s][stderr] ", id))
+	// Labelled with a per-run sequence number, not the command text: a
+	// command line can carry credentials (curl -u user:pass, TOKEN=... cmd),
+	// and the label must not put them in the log. The number ties a run's
+	// stdout and stderr lines together.
+	run := commandRunSeq.Add(1)
+	logBytes(forLog(stdoutB), fmt.Sprintf("[Command][#%d][stdout]", run))
+	logBytes(forLog(stderrB), fmt.Sprintf("[Command][#%d][stderr]", run))
 	c.stdout = bytes.NewReader(stdoutB)
 	c.stderr = bytes.NewReader(stderrB)
 
@@ -216,4 +210,16 @@ func runCommand(cmd *util.Command, timeout int) error {
 	// budget below it.
 	cmd.Cmd.WaitDelay = time.Duration(timeout) * time.Millisecond
 	return cmd.Run()
+}
+
+// commandRunSeq numbers command runs for the DEBUG output lines.
+var commandRunSeq atomic.Uint64
+
+// forLog prepares command output for logBytes, which logs one line per "\n":
+// Windows "\r\n" endings become "\n" so no line carries a stray "\r", and
+// the final line ending is dropped so the output is not followed by an empty
+// log line.
+func forLog(b []byte) []byte {
+	b = bytes.ReplaceAll(b, []byte("\r\n"), []byte("\n"))
+	return bytes.TrimSuffix(b, []byte("\n"))
 }

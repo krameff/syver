@@ -33,8 +33,10 @@ error() {
 info "kgoss is maintained for compatibility but gets no new features; use ksyver"
 
 usage() {
+# The heredoc below stays quoted because its text holds backticks and $(...)
+# meant to be printed, not run; only the script name is expanded, here.
+>&2 echo "Usage: $(basename "$0") [command] [options]"
 >&2 cat <<-'EOF'
-Usage: $(basename $0) [command] [options]
 
 ## Commands:
 
@@ -154,7 +156,9 @@ parse() {
 
 parse_internal() {
   info "Parsing command line"
-  kgoss_cmd=$1; shift
+  # With no arguments a bare `shift` fails and set -e exits silently, so fall
+  # through to the command check and print the usage instead.
+  kgoss_cmd=${1:-}; shift || true
   if [[ ( ! "${kgoss_cmd}" == "run" ) && ( ! "${kgoss_cmd}" == 'edit' ) ]]; then usage; fi
   envs_array=()
   while getopts 'i:pc::a::d::e::' arg; do

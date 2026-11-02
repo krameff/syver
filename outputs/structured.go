@@ -88,12 +88,19 @@ func (r Structured) Output(w io.Writer, results <-chan []resource.TestResult, ou
 	result.Summary.TotalDuration = endTime.Sub(startTime)
 	result.SummaryLine = result.Summary.String()
 
-	var j []byte
-
+	marshal := json.Marshal
 	if util.IsValueInList(foPretty, outConfig.FormatOptions) {
-		j, _ = json.MarshalIndent(result, "", "  ")
-	} else {
-		j, _ = json.Marshal(result)
+		marshal = func(v any) ([]byte, error) { return json.MarshalIndent(v, "", "  ") }
+	}
+	j, err := marshalJSONSafe(marshal, result, func() any {
+		for i := range result.Results {
+			result.Results[i].TestResult = jsonSafeResult(result.Results[i].TestResult)
+		}
+		return result
+	})
+	if err != nil {
+		log.Printf("[ERROR] structured output: %v", err)
+		return 1
 	}
 
 	fmt.Fprintln(w, string(j))

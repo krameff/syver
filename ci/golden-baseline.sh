@@ -229,7 +229,8 @@ cp "$OUT/work/aa.yaml" "$OUT/add/autoadd.yaml" 2>/dev/null || true
 find "$OUT/validate" "$OUT/render" "$OUT/add" -type f -print0 | xargs -0 sed -i -E \
   -e "s#${OUT}#<OUT>#g" \
   -e "s#${BASE:-__nomatch__}#<OUT>#g" \
-  -e 's#[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}#<TS>#g'
+  -e 's#[0-9]{4}/[0-9]{2}/[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}#<TS>#g' \
+  -e 's#[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?([+-][0-9]{2}:[0-9]{2}|Z)#<TS>#g'
 
 # ---- manifest ----------------------------------------------------------------
 # render-vars is in this list deliberately. It was added 2026-09-01 and omitting

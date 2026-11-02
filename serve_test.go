@@ -267,7 +267,9 @@ func TestServeNegotiatingContent(t *testing.T) {
 func TestServeCacheWithNoContentNegotiation(t *testing.T) {
 	var logOutput bytes.Buffer
 	log.SetOutput(&logOutput)
-	const cache = time.Duration(time.Millisecond * 100)
+	// Long enough that the "warm" re-request lands inside the TTL even on a
+	// slow runner under -race; the expiry subtest polls rather than sleeping.
+	const cache = 500 * time.Millisecond
 	config, err := util.NewConfig(
 		util.WithSpecFile(filepath.Join("testdata", "passing.goss.yaml")),
 		util.WithCache(cache),
@@ -301,7 +303,7 @@ func TestServeCacheWithNoContentNegotiation(t *testing.T) {
 	})
 
 	t.Run("allow cache to expire, cache should be cold", func(t *testing.T) {
-		time.Sleep(cache + 5*time.Millisecond)
+		waitForCacheExpiry(t, hh)
 		handler.ServeHTTP(rr, req)
 
 		assert.Equal(t, http.StatusOK, rr.Result().StatusCode)
@@ -314,7 +316,9 @@ func TestServeCacheWithNoContentNegotiation(t *testing.T) {
 func TestServeCacheNegotiatingContent(t *testing.T) {
 	var logOutput bytes.Buffer
 	log.SetOutput(&logOutput)
-	const cache = time.Duration(time.Millisecond * 100)
+	// Long enough that the "warm" re-request lands inside the TTL even on a
+	// slow runner under -race; the expiry subtest polls rather than sleeping.
+	const cache = 500 * time.Millisecond
 	config, err := util.NewConfig(
 		util.WithSpecFile(filepath.Join("testdata", "passing.goss.yaml")),
 		util.WithCache(cache),
@@ -366,7 +370,7 @@ func TestServeCacheNegotiatingContent(t *testing.T) {
 	})
 
 	t.Run("allow cache to expire, cache should be cold", func(t *testing.T) {
-		time.Sleep(cache + 5*time.Millisecond)
+		waitForCacheExpiry(t, hh)
 		req := makeRequest(t, config, map[string][]string{
 			"accept": {"application/json"},
 		})
@@ -377,6 +381,16 @@ func TestServeCacheNegotiatingContent(t *testing.T) {
 		t.Log(logOutput.String())
 		logOutput.Reset()
 	})
+}
+
+// waitForCacheExpiry polls until the handler's cached result has expired,
+// rather than sleeping for the TTL and hoping the clock agrees.
+func waitForCacheExpiry(t *testing.T, hh *healthHandler) {
+	t.Helper()
+	require.Eventually(t, func() bool {
+		_, found := hh.cache.Get("res")
+		return !found
+	}, 10*time.Second, 5*time.Millisecond, "cached result never expired")
 }
 
 func makeRequest(t *testing.T, config *util.Config, headers map[string][]string) *http.Request {

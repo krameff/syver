@@ -12,12 +12,12 @@ import (
 // ConfigOption manipulates Config
 type ConfigOption func(c *Config) error
 
-// Config is the runtime configuration for the goss system, the cli.Command gets
-// converted to this and it allows other packages to embed goss by creating this
-// structure and using it when adding, validating etc.
+// Config is the runtime configuration for syver. The CLI converts its
+// cli.Command into a Config, which the add, validate, serve and render paths
+// then read.
 //
-// NewConfig can be used to create this which will default to what the CLI assumes
-// and allow manipulation via ConfigOption functions
+// NewConfig creates one with defaults modeled on the CLI's, adjusted by
+// ConfigOption functions.
 type Config struct {
 	AllowInsecure         bool
 	AnnounceToCLI         bool
@@ -94,8 +94,7 @@ func NewConfig(opts ...ConfigOption) (rc *Config, err error) {
 		VarsInline:            "",
 	}
 
-	// NewConfig() is likely to be used when embedding goss or using as a package
-	// so assuming no color seems like a sane departure from CLI defaults
+	// Unlike the CLI, NewConfig defaults to no color.
 	WithNoColor()(rc)
 
 	for _, opt := range opts {
@@ -141,22 +140,6 @@ func WithResultWriter(w io.Writer) ConfigOption {
 	}
 }
 
-// WithSleep sets the time to sleep between retries when WithRetryTimeout is set
-func WithSleep(d time.Duration) ConfigOption {
-	return func(c *Config) error {
-		c.Sleep = d
-		return nil
-	}
-}
-
-// WithRetryTimeout sets the maximum amount of time checks can be retried, it's runtime + WithSleep
-func WithRetryTimeout(d time.Duration) ConfigOption {
-	return func(c *Config) error {
-		c.RetryTimeout = d
-		return nil
-	}
-}
-
 // WithCache sets how long results may be cached for
 func WithCache(d time.Duration) ConfigOption {
 	return func(c *Config) error {
@@ -189,23 +172,6 @@ func WithNoColor() ConfigOption {
 func WithColor() ConfigOption {
 	return func(c *Config) error {
 		c.NoColor = func(b bool) *bool { return &b }(false)
-		return nil
-	}
-}
-
-// WithPackageManager overrides the package manager to use
-func WithPackageManager(p string) ConfigOption {
-	return func(c *Config) error {
-		c.PackageManager = p
-
-		return nil
-	}
-}
-
-// WithDebug enables debug output
-func WithDebug() ConfigOption {
-	return func(c *Config) error {
-		c.Debug = true
 		return nil
 	}
 }

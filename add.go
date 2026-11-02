@@ -1,8 +1,10 @@
 package syver
 
 import (
+	"fmt"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 
 	"github.com/krameff/syver/resource"
@@ -112,13 +114,38 @@ func AutoAddResources(fileName string, keys []string, c *util.Config) error {
 
 	sys := system.New(c.PackageManager)
 
+	var unmatched []string
 	for _, key := range keys {
-		if err := AutoAddResource(fileName, syverConfig, key, c, sys); err != nil {
+		found, err := autoAddResource(fileName, syverConfig, key, c, sys)
+		if err != nil {
 			return err
+		}
+		if !found {
+			unmatched = append(unmatched, key)
 		}
 	}
 
-	return WriteJSON(fileName, syverConfig)
+	// Nothing matched: there is nothing to write, and the caller asked for
+	// something that does not exist. Some matched: keep what was found, and
+	// still fail so a script learns that part of its request was not met.
+	if len(keys) > 0 && len(unmatched) == len(keys) {
+		return fmt.Errorf("autoadd found no resource matching %s; check the resource name(s)", quoteList(unmatched))
+	}
+	if err := WriteJSON(fileName, syverConfig); err != nil {
+		return err
+	}
+	if len(unmatched) > 0 {
+		return fmt.Errorf("autoadd found no resource matching %s; the other names were added to %s", quoteList(unmatched), fileName)
+	}
+	return nil
+}
+
+func quoteList(items []string) string {
+	quoted := make([]string, len(items))
+	for i, s := range items {
+		quoted[i] = strconv.Quote(s)
+	}
+	return strings.Join(quoted, ", ")
 }
 
 // appendIfExistsGeneric reflectively calls field's AppendSysResourceIfExists
@@ -143,6 +170,13 @@ func appendIfExistsGeneric(field any, key string, sys *system.System) (resource.
 
 // AutoAddResource adds a single resource to fileName with automatic detection of the type of resource
 func AutoAddResource(fileName string, syverConfig SyverConfig, key string, c *util.Config, sys *system.System) error {
+	_, err := autoAddResource(fileName, syverConfig, key, c, sys)
+	return err
+}
+
+// autoAddResource is AutoAddResource that also reports whether key matched
+// any resource type.
+func autoAddResource(fileName string, syverConfig SyverConfig, key string, c *util.Config, sys *system.System) (found bool, err error) {
 	for _, desc := range resource.AutoAddDescriptors() {
 		switch desc.Key {
 		case "file":
@@ -153,9 +187,10 @@ func AutoAddResource(fileName string, syverConfig SyverConfig, key string, c *ut
 			}
 			res, _, ok, err := syverConfig.Files.AppendSysResourceIfExists(key, sys)
 			if err != nil {
-				return err
+				return found, err
 			}
 			if ok {
+				found = true
 				resourcePrint(fileName, res, c.AnnounceToCLI)
 			}
 
@@ -164,15 +199,16 @@ func AutoAddResource(fileName string, syverConfig SyverConfig, key string, c *ut
 			// listening port owned by that process's PIDs.
 			res, sysres, ok, err := syverConfig.Processes.AppendSysResourceIfExists(key, sys)
 			if err != nil {
-				return err
+				return found, err
 			}
 			if !ok {
 				continue
 			}
+			found = true
 			resourcePrint(fileName, res, c.AnnounceToCLI)
 			ports, err := system.GetPorts()
 			if err != nil {
-				return err
+				return found, err
 			}
 			pids, _ := sysres.Pids()
 			for _, pid := range pids {
@@ -180,7 +216,7 @@ func AutoAddResource(fileName string, syverConfig SyverConfig, key string, c *ut
 					for _, entry := range entries {
 						if entry.Pid == int32(pid) {
 							if res, _, ok, err := syverConfig.Ports.AppendSysResourceIfExists(port, sys); err != nil {
-								return err
+								return found, err
 							} else if ok {
 								resourcePrint(fileName, res, c.AnnounceToCLI)
 							}
@@ -193,13 +229,14 @@ func AutoAddResource(fileName string, syverConfig SyverConfig, key string, c *ut
 			field := configAccessors[desc.Key].Field(&syverConfig)
 			res, ok, err := appendIfExistsGeneric(field, key, sys)
 			if err != nil {
-				return err
+				return found, err
 			}
 			if ok {
+				found = true
 				resourcePrint(fileName, res, c.AnnounceToCLI)
 			}
 		}
 	}
 
-	return nil
+	return found, nil
 }

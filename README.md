@@ -39,7 +39,13 @@ container ordering examples, see the
 
 Syver is a YAML based [serverspec](http://serverspec.org/) alternative tool for validating a server's configuration.
 It eases the process of writing tests by allowing the user to generate tests from the current system state.
-Once the test suite is written they can be executed, waited-on, or served as a health endpoint.
+Once the test suite is written it can be run once, retried until it passes or times out, or served as a health
+endpoint.
+
+See it running: the [demo videos](https://krameff.com/syver.html#demos) show `autoadd` catching drift, `dsyver`
+testing a Docker image and `dcsyver` checking a Docker Compose service.
+
+Syver is maintained by [Krameff Solutions](https://krameff.com).
 
 ### Why use Syver?
 
@@ -152,7 +158,9 @@ at. [CHANGELOG.md](CHANGELOG.md) has the detail of what changed in each.
 An initial set of tests can be derived from the system state by using the [add](https://github.com/krameff/syver/blob/main/docs/cli.md#add)
 or [autoadd](https://github.com/krameff/syver/blob/main/docs/cli.md#autoadd) commands.
 
-Let's write a simple sshd test using autoadd.
+Let's write a simple sshd test using autoadd. To see the same workflow catch a
+real change, watch
+[Catching drift with an auto-generated spec](https://krameff.com/videos/syver/autoadd-drift.mp4).
 
 ```txt
 # Running it as root will allow it to also detect ports
@@ -257,7 +265,7 @@ A [Json draft 7 schema](https://github.com/json-schema-org/json-schema-spec/blob
 makes it easier to edit simple `syver.yaml` /
 `goss.yaml` files in IDEs,
 providing usual coding assistance such as inline documentation, completion and static analysis.
-See #793 for screenshots.
+See [goss-org/goss#793](https://github.com/goss-org/goss/issues/793) for screenshots.
 
 For example, to configure the Json schema in JetBrains intellij IDEA,
 follow [documented instructions](https://www.jetbrains.com/help/idea/json.html#ws_json_schema_add_custom),

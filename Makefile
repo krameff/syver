@@ -6,7 +6,19 @@ VENV := $(shell echo $${VIRTUAL_ENV-.venv})
 PYTHON := $(VENV)/bin/python
 DOCS_DEPS := $(VENV)/.docs.dependencies
 
-.PHONY: all build install test release bench fmt lint vet test-int-all
+# Every target that does not produce a file of its own name. The *-sha256
+# targets write extras/*/*.sha256, not a file called e.g. dgoss-sha256, so they
+# belong here too. Pattern rules (test-int-validate-%, test-int-serve-%) cannot
+# be declared phony and are left out.
+.PHONY: all test-short-all install test cov funcov htmlcov lint lint-cross \
+	test-security-cross vet vet-cross fmt bench release build clean build-images \
+	update-matcher-tests test-darwin-all test-linux-all test-windows-all \
+	test-int-64 test-int-darwin-all test-int-windows-all test-int-all \
+	rockylinux9 almalinux10 jammy alpine3 arch \
+	dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 \
+	ksyver-sha256 sbxsyver-sha256 lint-yaml lint-markdown test-discovery-e2e \
+	test-depends-on-e2e test-dcsyver-e2e test-security check pre-commit pre-push \
+	docs/setup docs/serve docs
 
 all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256 sbxsyver-sha256
 
@@ -210,7 +222,9 @@ test-security:
 .PHONY: lint-cross test-security-cross
 
 .PHONY: check
-check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security vet-cross
+# vet runs the host build; vet-cross adds the windows and darwin builds the
+# host never compiles. Both are needed: vet-cross alone never vets the host.
+check: test test-discovery-e2e test-depends-on-e2e lint-markdown test-security vet vet-cross
 	$(info INFO: Starting $@)
 
 # Fast checks to run before every commit: formatting, vet, unit tests.

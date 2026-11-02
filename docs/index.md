@@ -11,21 +11,26 @@
 
 ## Documentation
 
-* [goss vs Syver](goss-vs-syver.md) — what this project is, and exactly how it
+* [goss vs Syver](goss-vs-syver.md): what this project is, and exactly how it
   differs from the upstream it continues
-* [Installation](installation.md) — install syver, dgoss, and the other wrappers
-* [Quickstart](quickstart.md) — write and run your first gossfile
-* [Container image](container_image.md) — run syver from the published container image
-* [Command reference](cli.md) — CLI flags for `validate`, `serve`, `add`, and friends
-* [The gossfile](gossfile.md) — full resource and matcher reference, including
+* [Installation](installation.md): install syver, dgoss, and the other wrappers
+* [Quickstart](quickstart.md): write and run your first gossfile
+* [Container image](container_image.md): run syver from the published container image
+* [Command reference](cli.md): CLI flags for `validate`, `serve`, `add`, and friends
+* [The gossfile](gossfile.md): full resource and matcher reference, including
   [discovery](gossfile.md#discovery) and
   [test dependencies (`depends-on`)](gossfile.md#test-dependencies)
-* [Platforms](platforms.md) — per-platform support notes and caveats
-* [Windows](windows.md) — opt-in alpha support: what works, what does not, and
-  what reports honestly rather than guessing
-* Containers — [Docker](containers/docker.md), [Docker Compose](containers/docker-compose.md), [Kubernetes](containers/kubernetes.md)
-* [Contributing](contributing.md) — development setup and contribution guidelines
-* [Testing](testing.md) — running the test suite locally, and how those checks
+* [Platforms](platforms.md): per-platform support notes and caveats
+* [Windows](windows.md): opt-in alpha support, covering what works, what does
+  not, and what reports honestly rather than guessing
+* Containers:
+    * [Testing container images](containers/testing-images.md): a walkthrough of checking an image with `dsyver`
+    * [Docker](containers/docker.md), [Docker Compose](containers/docker-compose.md) and
+      [Kubernetes](containers/kubernetes.md): the `dsyver`, `dcsyver` and `ksyver` wrapper references
+    * [Checking an agent sandbox](containers/agent-sandboxes.md): verifying a coding agent's container before it starts
+    * [Docker Sandboxes](containers/docker-sandboxes.md): the `sbxsyver` wrapper for `sbx` microVMs
+* [Contributing](contributing.md): development setup and contribution guidelines
+* [Testing](testing.md): running the test suite locally, and how those checks
   map to CI
-* [Changelog](changelog.md) — release history
+* [Changelog](changelog.md): release history
 * [License](license.md)

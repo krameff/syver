@@ -57,11 +57,21 @@ func NewDefHTTP(_ context.Context, httpStr string, system *System, config util.C
 		config.RequestHeader = append(config.RequestHeader, fmt.Sprintf("%s %s%s", USER_AGENT_HEADER_PREFIX, DEFAULT_USER_AGENT_PREFIX, util.Version))
 	}
 
-	for _, r := range config.RequestHeader {
-		str := strings.SplitN(r, ": ", 2)
-		headers.Add(str[0], str[1])
+	var headerErr error
+	for i, r := range config.RequestHeader {
+		name, value, ok := strings.Cut(r, ":")
+		name = strings.TrimSpace(name)
+		if !ok || name == "" {
+			// Reported when the check runs, as the resource's error. This
+			// used to split on ": " and index the result, which panicked on
+			// a header written without the space, such as "X-Foo:bar".
+			headerErr = invalidHeaderError(i, ok)
+			break
+		}
+		headers.Add(name, strings.TrimSpace(value))
 	}
 	return &DefHTTP{
+		err:                headerErr,
 		http:               httpStr,
 		allowInsecure:      config.AllowInsecure,
 		Method:             config.Method,
@@ -79,6 +89,17 @@ func NewDefHTTP(_ context.Context, httpStr string, system *System, config util.C
 	}
 }
 
+// invalidHeaderError describes a malformed request header by its position
+// only. The entry may be or contain a credential, and the error lands in
+// results and logs, so no part of it is echoed.
+func invalidHeaderError(index int, hasColon bool) error {
+	reason := "no colon"
+	if hasColon {
+		reason = "empty name"
+	}
+	return fmt.Errorf(`invalid request header %d: %s, want "Name: value"`, index+1, reason)
+}
+
 func HeaderToArray(header http.Header) (res []string) {
 	for name, values := range header {
 		for _, value := range values {
@@ -94,6 +115,9 @@ func (u *DefHTTP) setup() error {
 		return u.err
 	}
 	u.loaded = true
+	if u.err != nil {
+		return u.err
+	}
 	if err := u.setupReal(); err != nil {
 		u.err = err
 	}

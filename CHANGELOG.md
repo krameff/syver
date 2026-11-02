@@ -1,5 +1,122 @@
 # Changelog
 
+## 0.15.3 based on krameff/goss v0.6.0 - fixes
+
+- crashes
+  - a reverse DNS check answered with a CNAME, as classless reverse delegation
+    does, crashed Syver, including a running `syver serve`. CNAME answers are
+    now skipped, and a panic inside a DNS or mount lookup is reported as that
+    check's error instead of stopping the process
+  - an `http:` check with a `request-headers` entry that has no space after the
+    colon, such as `X-Foo:bar`, crashed under `discovery:` and failed
+    elsewhere. It now works. An entry with no colon at all is reported as an
+    error that gives its position but never its value
+  - a check under `discovery:` that panics now fails like any other check
+    instead of crashing the run
+
+- wrong results
+  - `serve --cache 0s` cached the first result forever, so `/healthz` never
+    changed. A cache of 0 or less now runs the checks on every request
+  - the `prometheus` output could report a run with failures as `pass` when
+    its results arrived in several groups. It now reports `fail` whenever any
+    check fails
+  - `udp4://` and `udp6://` addresses always reported unreachable. They now
+    behave like `udp://`: reachable once the address can be dialled, since UDP
+    has no connection to refuse. A `reachable: false` check on one of these
+    will now fail
+  - mount `usage` on a filesystem with no blocks, such as `/proc` or sysfs, was
+    a huge negative number that let `lt:` checks pass. It is now 0
+  - json and structured output lost a result whose value was NaN or infinite.
+    Those values are now written as `NaN`, `+Inf` or `-Inf`
+  - every `file:` `contents` check left a file open, which a long-running
+    `serve` could eventually run out of
+
+- behaviour changes
+  - a DNS check whose resolver fails is now an error instead of passing as
+    `resolvable: false`. That covers a timeout, an unreachable resolver and,
+    with `server:` set, an answer of SERVFAIL, REFUSED or any other error
+    code. A name that does not exist is still `resolvable: false` with no
+    error. A `resolvable: false` check on a host with no working resolver, such
+    as an air-gapped one, will now fail. The check's `timeout` now covers the
+    whole lookup including its retries, so a dead resolver fails within the
+    timeout rather than up to three times it
+  - an `addr:` that can never be dialled as written, such as one with no port,
+    is still `reachable: false` but now logs a warning naming the address and
+    the reason
+  - `syver autoadd` now exits non-zero when a name matches nothing. Any names
+    that did match are still written
+  - an unknown `--format-options` name was silently ignored. It now logs a
+    warning listing the valid options, and the run continues. Under
+    `validate`, an option that the chosen format ignores also logs a warning.
+    Spaces around options, as in `SYVER_FMT_OPTIONS="pretty, sort"`, are now
+    trimmed, so the padded option takes effect. `--help` now lists
+    `exclude_raw`
+  - `syver render --debug` printed the rendered template on stdout, mixed into
+    the rendered spec. It now logs it to stderr at INFO level, so `-L WARN`
+    silences it. `render` now honours `-L` like the other commands, including
+    rejecting an unknown level
+  - on v0.15.1 and v0.15.2, `syver serve` rejected `--log-level`, `--loglevel`
+    and `-L` with "flag provided but not defined". They work again. Under
+    `serve`, `-l` still means `--listen-addr`
+  - the DEBUG log of a command's output labelled each line `%!s(<nil>)`. It now
+    carries a run number, and never the command text, which can hold
+    credentials
+
+- installation
+  - `install.sh` now checks the downloaded binary against the release's
+    `SHA256SUMS` file and refuses one that does not match or is not listed.
+    This proves the download is complete and unaltered since publication, not
+    who published it; the installation docs cover GPG verification. Set
+    `SYVER_SKIP_CHECKSUM=1` to install without the check
+  - a failed download, such as a mistyped `SYVER_VER`, installed the server's
+    error page as `syver`. It now stops with an error, and nothing is moved
+    into place until it has downloaded completely, so a failed upgrade keeps
+    the previous binary. An install path that is a symlink is now replaced by
+    the binary rather than written through
+  - `dsyver` and `dgoss` with several directories in
+    `SYVER_ADDITIONAL_COPY_PATH` copied them but did not make their files
+    readable in the container. Each directory is now copied and made
+    readable, and a path containing spaces works. Each entry is now taken
+    literally, so an undocumented glob such as `/x/*.yaml` no longer expands
+  - `ksyver` and `kgoss` printed `$(basename $0)` literally in their usage
+    text, and exited silently when run with no arguments. Both now print their
+    own name and the usage
+
+- Go API
+  - exported functions that nothing in Syver called have been removed:
+    `util.NewCommand`, `NewCommandForWindowsCmd`,
+    `NewCommandForWindowsPowershell` and `NewCommandForWindowsPowershellContext`,
+    `util.WithSleep`, `WithRetryTimeout`, `WithPackageManager` and `WithDebug`,
+    `outputs.RegisterOutputer` and `resource.Resources`. This is a breaking
+    change only for code that imports Syver as a Go library; the CLI is
+    unchanged
+
+- documentation
+  - the command reference now covers `--log-level`, `--vars-inline`,
+    `serve --format-options` and what `exclude_raw` removes in each format, and
+    has a table of every flag with its `SYVER_*` and `GOSS_*` variable and
+    default
+  - corrected statements that were wrong: `serve`'s log level flags, the `addr`
+    `timeout` being required in the schema, the DNS `timeout` applying only
+    with `server:`, every flag having an environment variable, `--version`
+    existing in every build, the `ksyver` container path, and several gossfile
+    examples that were invalid YAML or did not do what they said
+  - the `have-patterns` matcher is documented, the JSON schema accepts every
+    resource type under `discovery:` along with `skip`, `depends-on` and the
+    per-type name fields, and the quickstart is a full walkthrough
+  - the README, quickstart and container wrapper pages link to the demo videos
+
+- development
+  - the distro, package manager and service manager detection is tested
+    against fixture trees for Ubuntu, Debian, RHEL family, Amazon, Alpine and
+    Arch; the old tests accepted an empty answer and could not fail. Matcher
+    failure messages, `to-numeric`'s whitespace trimming and the autoadd
+    helpers are now pinned by tests, and several timing-dependent tests wait
+    on a condition instead of sleeping
+  - `make check` also vets the host build, every GitHub Actions step is pinned
+    to a commit SHA, and the golden-output harness masks RFC3339 timestamps in
+    error output
+
 ## 0.15.2 based on krameff/goss v0.6.0 - Go 1.27.3 security update
 
 - installation

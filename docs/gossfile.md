@@ -106,7 +106,7 @@ A [Json draft 7 schema](https://github.com/json-schema-org/json-schema-spec/blob
 available at <https://raw.githubusercontent.com/krameff/syver/main/docs/schema.yaml>
 makes it easier to edit simple goss.yaml files in IDEs, providing usual coding assistance
 such as inline documentation, completion and static analysis.
-See #793 for screenshots.
+See [goss-org/goss#793](https://github.com/goss-org/goss/issues/793) for screenshots.
 
 For example, to configure the Json schema in JetBrains intellij IDEA,
 follow [documented instructions](https://www.jetbrains.com/help/idea/json.html#ws_json_schema_add_custom),
@@ -196,6 +196,7 @@ warns, and a legitimate anchor-carrying block next to it that does not.
 * [package](#package)
 * [port](#port)
 * [process](#process)
+* [registry](#registry) (Windows only)
 * [service](#service)
 * [user](#user)
 
@@ -307,8 +308,21 @@ dns:
     - 127.0.0.1
     - ::1
     server: 8.8.8.8 # Also supports server:port
-    timeout: 500 # in milliseconds (Only used when server attribute is provided)
+    timeout: 500 # in milliseconds, for the whole lookup including retries
 ```
+
+`timeout` (default 500 milliseconds) bounds the whole lookup, with or without
+`server`. A failed lookup is tried up to three times, all within that one
+budget: a resolver that hangs uses it up on the first attempt, and only failures
+that come back quickly are retried in what is left.
+
+A name that does not exist is an answer, not a failure: NXDOMAIN, or a
+successful response with no records of the requested type, reports
+`resolvable: false` with no error. Anything else that stops the question being
+answered is reported as an error on the test after the retries, rather than as
+`resolvable: false`: a timeout, an unreachable resolver, or a server failure
+such as SERVFAIL or REFUSED, whose error names the response code. This is the
+same with or without `server`.
 
 It is possible to validate the following types of DNS records, but requires the ```server``` attribute be set:
 
@@ -375,8 +389,10 @@ file:
     mode: "0644"
     size: 2118 # in bytes
     owner: root
+    uid: 0
     group: root
-    filetype: file # file, symlink, directory, socket
+    gid: 0
+    filetype: file # file, symlink, directory, socket, character-device, block-device
     contents: [] # Check file content for these patterns
     md5: 7c9bb14b3bf178e82c00c2a4398c93cd # md5 checksum of file
     # A stronger checksum alternatives to md5 (recommended)
@@ -463,7 +479,7 @@ gossfile:
   myapplication:
     file: myapp_gossfile.yaml
     skip: false
-  *.yaml:
+  "*.yaml": # quoted: a YAML key cannot start with a bare *
     skip: true
   goss_httpd.yaml: {}
   /etc/goss.d/*.yaml: {}
@@ -488,7 +504,7 @@ group:
     exists: true
     # optional attributes
     # defaults to hash key
-    groupname: /etc/passwd
+    groupname: nfsnobody
     gid: 65534
     skip: false
 ```
@@ -1035,26 +1051,35 @@ Each pattern is checked against the attribute output, the type of patterns are:
 !!! example
     ```yaml
     file:
-    /tmp/test.txt:
+      /tmp/test.txt:
         exists: true
         contents:
-        - "foo"
-        - "!bar"
-        - "/[Gg]oss/"
+          - "foo"
+          - "!bar"
+          - "/[Gg]oss/"
     ```
 
     The above can be expressed as:
 
     ```yaml
     file:
-    /tmp/test.txt:
+      /tmp/test.txt:
         exists: true
         contents:
-        and:
-            - contain-element: "foo"
-            - not: {contain-element: "bar"}
+          and:
+            - contain-element: {contain-substring: "foo"}
+            - not: {contain-element: {contain-substring: "bar"}}
             - contain-element: {match-regexp: "[Gg]oss"}
+    ```
 
+    or, keeping the pattern syntax, with [`have-patterns`](#have-patterns):
+
+    ```yaml
+    file:
+      /tmp/test.txt:
+        exists: true
+        contents:
+          have-patterns: ["foo", "!bar", "/[Gg]oss/"]
     ```
 
 ### Transforms
@@ -1067,21 +1092,23 @@ For example, kernel-param attribute returns a string, however, it can be tested 
 !!! example "kernel-param test"
     ```yaml
     kernel-param:
-    net.core.somaxconn:
+      net.core.somaxconn:
         value: "128"
     ```
 
 !!! example "(failing) kernel-param test with transform"
     ```yaml
     kernel-param:
-    net.core.somaxconn:
+      net.core.somaxconn:
         value: {gt: 200}
     ```
 
-When a transformed test fails, it will detail the transformers used,
-the `-o exclude_raw` option can be used to exclude the raw, untransformed attribute value:
+When a transformed test fails, it will detail the transformers used. The
+`-o exclude_raw` option drops the raw, untransformed attribute value from that
+message. In `json` and `structured` output it only affects the `summary-line`
+strings; the value stays in `matcher-result.untransformed-value`:
 
-```coonsole
+```console
 $ syver v
 F
 
@@ -1090,7 +1117,7 @@ Failures/Skipped:
 KernelParam: net.core.somaxconn: value:
 Expected
     128
-to be >
+to be numerically gt
     200
 the transform chain was
     [{"to-numeric":{}}]
@@ -1108,7 +1135,7 @@ Failures/Skipped:
 KernelParam: net.core.somaxconn: value:
 Expected
     128
-to be >
+to be numerically gt
     200
 the transform chain was
     [{"to-numeric":{}}]
@@ -1148,19 +1175,13 @@ These will convert the system attribute to a string prior to matching.
 * `match-regexp: '.*'` - Checks if string matches regexp
 * `contain-substring: '2'` - Checks if string contains "2"
 
-* `'55'` - Checks that the numeric is "55" when converted to string
-* `have-prefix: pre` - Checks if string starts with "pre"
-* `have-suffix: suf` - Checks if string ends with "suf"
-* `match-regexp: '.*'` - Checks if string matches regexp
-* `contain-substring: '2'` - Checks if string contains "2"
-
 !!! example
     ```yaml
     matching:
-    example:
+      example:
         content: 42
         matches:
-        and:
+          and:
             - '42'
             - have-prefix: '4'
             - have-suffix: '2'
@@ -1178,10 +1199,10 @@ These will convert the system attribute to a numeric prior to matching.
 !!! example
     ```yaml
     matching:
-    example:
+      example:
         content: "42"
         matches:
-        and:
+          and:
             - 42
             - 42.0
             - gt: 40
@@ -1201,10 +1222,10 @@ These will convert the system attribute to an array prior to matching. Strings a
 !!! example
     ```yaml
     matching:
-    example:
+      example:
         content: [foo, bar, moo]
         matches:
-        and:
+          and:
             - contain-elements: [foo, bar]
             - [foo, bar] # same as above
             - equal: [foo, bar, moo] # order matters, exact match
@@ -1223,9 +1244,45 @@ These matchers don't really fall into any of the above categories, or span multi
 * `not: matcher` - Checks that a matcher does not match
 * `and: [matcher, ..]` - Checks that all matchers match
 * `or: [matcher, ..]` - Checks that any matchers match
+* `have-patterns: [pattern, ...]` - Checks the value line by line against
+  [io.Reader patterns](#ioreaders); see [have-patterns](#have-patterns)
 
 !!! note
     When system returns a string it is converted into a one element array and matched
+
+##### have-patterns
+
+Applies the same patterns as the [io.Readers](#ioreaders) default matcher, but
+explicitly, so they can be used on any attribute and combined with other
+matchers. The value is converted to a string and read line by line; a list of
+strings is joined with newlines first. The argument must be a list of strings,
+and the check passes only when every pattern is satisfied:
+
+* `"foo"` - some line contains `foo`
+* `"!foo"` - no line contains `foo`
+* `"/[Rr]egex/"` - some line matches the regex
+* `"!/[Rr]egex/"` - no line matches the regex
+
+!!! example
+    ```yaml
+    matching:
+      log_lines:
+        content: |
+          INFO started
+          WARN disk 81% full
+        matches:
+          have-patterns:
+            - "started"
+            - "!ERROR"
+            - "/disk [0-9]+% full/"
+            - "!/panic/"
+      not_permitted:
+        content: "PermitRootLogin no"
+        matches:
+          and:
+            - have-patterns: ["PermitRootLogin"]
+            - not: {have-patterns: ["yes"]}
+    ```
 
 ##### semver-constraint
 
@@ -1236,24 +1293,24 @@ This uses [semver](https://github.com/blang/semver) under the hood, however, wil
 !!! example
     ```yaml
     matching:
-    semver:
+      semver:
         content:
-        - 1.0.1
-        - 1.9.9
+          - 1.0.1
+          - 1.9.9
         matches:
-        semver-constraint: ">1.0.0 <2.0.0 !=1.5.0"
-    semver2:
+          semver-constraint: ">1.0.0 <2.0.0 !=1.5.0"
+      semver2:
         content:
-        - 1.0.1
-        - 1.5.0
-        - 1.9.9
+          - 1.0.1
+          - 1.5.0
+          - 1.9.9
         matches:
-        not:
+          not:
             semver-constraint: ">1.0.0 <2.0.0 !=1.5.0"
-    semver3:
+      semver3:
         content: 1.0.1
         matches:
-        semver-constraint: ">5.0.0 || < 1.5.0"
+          semver-constraint: ">5.0.0 || < 1.5.0"
     ```
 
 ##### gjson
@@ -1265,7 +1322,7 @@ Example:
 ```yaml
 matching:
   example:
-    content: '{"foo": "bar", "moo" {"nested": "cow"}, "count": "15"}'
+    content: '{"foo": "bar", "moo": {"nested": "cow"}, "count": "15"}'
     matches:
       gjson:
         moo.nested: cow
