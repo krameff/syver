@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -65,7 +66,7 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 		AnnounceToCLI:     true,
 		Cache:             c.Duration("cache"),
 		Debug:             c.Bool("debug"),
-		LogLevel:          c.String("log-level"),
+		LogLevel:          logLevelFromCLI(c),
 		Endpoint:          c.String("endpoint"),
 		FormatOptions:     c.StringSlice("format-options"),
 		IgnoreList:        c.StringSlice("exclude-attr"),
@@ -174,6 +175,33 @@ func addSubcommands() []*cli.Command {
 	return cmds
 }
 
+// logLevelFlag builds the log-level flag. The root declares it for every
+// subcommand, and serve declares its own copy with different aliases.
+func logLevelFlag(aliases ...string) *cli.StringFlag {
+	return &cli.StringFlag{
+		Name:    "log-level",
+		Aliases: aliases,
+		Value:   "INFO",
+		Usage:   "Log verbosity level",
+		Sources: nonEmptyEnvVars("SYVER_LOGLEVEL", "GOSS_LOGLEVEL"),
+	}
+}
+
+// logLevelFromCLI returns the log level set closest to the running command,
+// on the command line or through the environment. A plain c.String would
+// return serve's own unset copy of the flag, whose default would hide a level
+// given before the subcommand, as in `syver -L DEBUG serve`.
+func logLevelFromCLI(c *cli.Command) string {
+	for _, cmd := range c.Lineage() {
+		for _, f := range cmd.Flags {
+			if slices.Contains(f.Names(), "log-level") && f.IsSet() {
+				return fmt.Sprint(f.Get())
+			}
+		}
+	}
+	return c.Root().String("log-level")
+}
+
 // newApp builds the syver CLI command tree. Split out from main() so
 // tests can inspect the command tree (Name, flags, subcommand aliases)
 // without invoking app.Run / os.Exit.
@@ -184,13 +212,7 @@ func newApp() *cli.Command {
 		Name:                  "syver",
 		Usage:                 "Quick and Easy server validation",
 		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:    "log-level",
-				Aliases: []string{"loglevel", "L", "l"},
-				Value:   "INFO",
-				Usage:   "Log verbosity level",
-				Sources: nonEmptyEnvVars("SYVER_LOGLEVEL", "GOSS_LOGLEVEL"),
-			},
+			logLevelFlag("loglevel", "L", "l"),
 			&cli.StringFlag{
 				Name:    "syverfile",
 				Aliases: []string{"gossfile", "g"},
@@ -311,6 +333,12 @@ func newApp() *cli.Command {
 						Value:   5 * time.Second,
 						Sources: nonEmptyEnvVars("SYVER_CACHE", "GOSS_CACHE"),
 					},
+					// serve redeclares log-level without the root's "l"
+					// alias, which belongs to listen-addr here. urfave/cli
+					// does not apply an inherited flag that shares any name
+					// with a local one, so without this serve accepted no
+					// form of log-level at all. See logLevelFromCLI.
+					logLevelFlag("loglevel", "L"),
 					&cli.StringFlag{
 						Name:    "listen-addr",
 						Aliases: []string{"l"},

@@ -150,7 +150,7 @@ type healthHandler struct {
 func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	outputFormat, outputer, matchedPrefix, err := h.negotiateResponseContentType(r)
 	if err != nil {
-		log.Printf("[DEBUG] Warn: Using process-level output-format. %s", err)
+		log.Printf("[DEBUG] Using process-level output-format: %s", err)
 		outputFormat = h.c.OutputFormat
 		outputer = h.outputer
 		// matchedPrefix is preserved from negotiateResponseContentType's
@@ -170,7 +170,7 @@ func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (h healthHandler) processAndEnsureCached(negotiatedContentType string, outputer outputs.Outputer) res {
 	var tra [][]resource.TestResult
 	cacheKey := "res"
-	tmp, found := h.cache.Get(cacheKey)
+	tmp, found := h.cachedResults(cacheKey)
 	if found {
 		log.Printf("[TRACE] Returning cached[%s].", cacheKey)
 		tra = tmp.([][]resource.TestResult)
@@ -210,6 +210,10 @@ func anyFailed(tra [][]resource.TestResult) bool {
 // and `-L` could not silence it.
 const cacheMissLogFormat = "[DEBUG] Stale cache[%s], running tests"
 
+// cacheDisabledLog replaces it when --cache is zero or less, where there is no
+// cache to be stale.
+const cacheDisabledLog = "[DEBUG] Cache disabled, running tests"
+
 // fillCache runs the validation and stores the result, serializing concurrent
 // misses so that a burst of probes arriving on a cold or just-expired cache
 // triggers one sweep of the system rather than one per request.
@@ -226,15 +230,37 @@ func (h healthHandler) fillCache(cacheKey string) [][]resource.TestResult {
 	// Re-check under the lock. Whichever request won the race has already
 	// stored its result, and the rest should return it rather than redo the
 	// work they queued for.
-	if tmp, found := h.cache.Get(cacheKey); found {
+	if tmp, found := h.cachedResults(cacheKey); found {
 		log.Printf("[TRACE] Returning cached[%s], filled while waiting.", cacheKey)
 		return tmp.([][]resource.TestResult)
 	}
 
-	log.Printf(cacheMissLogFormat, cacheKey)
+	if h.cacheEnabled() {
+		log.Printf(cacheMissLogFormat, cacheKey)
+	} else {
+		log.Print(cacheDisabledLog)
+	}
 	tra := h.validate(h.baseCtx)
-	h.cache.SetDefault(cacheKey, tra)
+	if h.cacheEnabled() {
+		h.cache.SetDefault(cacheKey, tra)
+	}
 	return tra
+}
+
+// cacheEnabled reports whether results are cached at all. go-cache reads a
+// zero or negative default expiration as "never expire", so storing under
+// `--cache 0s` would have served the first result for the life of the
+// process. A duration of zero or less instead means every request runs the
+// checks.
+func (h healthHandler) cacheEnabled() bool {
+	return h.c.Cache > 0
+}
+
+func (h healthHandler) cachedResults(cacheKey string) (any, bool) {
+	if !h.cacheEnabled() {
+		return nil, false
+	}
+	return h.cache.Get(cacheKey)
 }
 
 func (h healthHandler) output(trc <-chan []resource.TestResult, outputer outputs.Outputer, failed bool) res {
