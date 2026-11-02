@@ -17,7 +17,7 @@ import (
 func TestAutoAddFailsWhenNothingMatches(t *testing.T) {
 	t.Cleanup(func() { log.SetOutput(os.Stderr) })
 	spec := filepath.Join(t.TempDir(), "goss.yaml")
-	skipAutoAddOnWindows(t)
+	skipAutoAddOffLinux(t)
 	cfg, err := util.NewConfig()
 	require.NoError(t, err)
 
@@ -34,7 +34,7 @@ func TestAutoAddWritesMatchesAndFailsOnTheRest(t *testing.T) {
 	spec := filepath.Join(dir, "goss.yaml")
 	present := filepath.Join(dir, "present")
 	require.NoError(t, os.WriteFile(present, []byte("x"), 0o600))
-	skipAutoAddOnWindows(t)
+	skipAutoAddOffLinux(t)
 	cfg, err := util.NewConfig()
 	require.NoError(t, err)
 
@@ -58,9 +58,12 @@ func TestWriteJSONRejectsAnEmptyConfig(t *testing.T) {
 	assert.NoFileExists(t, spec)
 }
 
-func skipAutoAddOnWindows(t *testing.T) {
+// Off Linux, autoadd's service and package lookups fail on their own before
+// the no-match handling is reached: macOS has no `service` command, and on
+// Windows the lookups and path-shaped keys return their own errors.
+func skipAutoAddOffLinux(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("Windows autoadd lookups (service, package, path-shaped keys) return their own errors before the no-match handling is reached")
+	if runtime.GOOS != "linux" {
+		t.Skipf("autoadd lookups on %s return their own errors before the no-match handling is reached", runtime.GOOS)
 	}
 }
