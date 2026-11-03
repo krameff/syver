@@ -96,8 +96,8 @@ The legacy `GOSS_*` names are still honoured, and an exported-but-empty
 
 `file:` (existence, contents, size, `owner`, `group`, `acl`, `acl-sid`),
 `command:`, `http:`, `dns:`, `addr:`, `process:` (`running` and `user`, but not
-`status`), `service:`, `registry:`, `mount:` (drive letters), and `exists` on
-`user:`, `group:` and `interface:`.
+`status`), `service:`, `registry:`, `mount:` (drive letters), `exists` on
+`user:`, `group:` and `interface:`, and `groups` on `user:`.
 
 **`file:` reports permissions through `acl` and `acl-sid`, not `mode`.** Each
 element is one ACE spelled as `icacls` prints it, so a failure can be compared
@@ -134,12 +134,46 @@ attributes: `start-type`, `delayed-start`, `run-as`, `dependencies`,
 fixes a service name containing a space -- that never worked through the old
 command line. See [gossfile](gossfile.md#windows-only-service-attributes).
 
+`masked:` is systemd-only. A Windows spec that sets it fails with an error rather
+than passing; assert `start-type: disabled` instead, which is the nearest
+equivalent.
+
 `command:` timeouts are also **stronger** here than on Linux and macOS. A
 timed-out command's whole process tree is terminated through a Job Object, which
 a process cannot leave unless it was built to break away. On POSIX a process that
 calls `setsid` escapes the process group and survives. A command that *succeeds*
 is never touched, so a check that deliberately starts a background process and
 exits zero leaves it running.
+
+**`user:` `groups` lists the local groups an account belongs to, plus its
+primary group.** Membership through a nested group counts. The primary group is
+`None` for a local account and `Domain Users` for a domain account. Names have
+no domain prefix, are sorted, and are in the host's language (`Administrators`,
+`Users`, `Guests`).
+
+The list is the same for every account, including the one running syver, and it
+does not change with how syver was started: elevated or not, over WinRM, from a
+scheduled task, as a service or at the console. Groups that describe a logon
+rather than a membership, such as `Everyone`, `Authenticated Users`,
+`INTERACTIVE`, `NETWORK`, `BATCH` or `NTLM Authentication`, are never reported.
+Other domain groups are not reported either: the only one in the list is a
+domain account's primary group, `Domain Users`. Assert any other domain group
+through the local group it is nested in.
+
+On a domain-joined host, listing a domain account's groups asks the domain
+controller, and that call is not bounded by syver's timeouts: with the domain
+controller unreachable, a `groups` check can block until Windows gives up.
+
+A plain list is an exact match, which suits a spec written by `syver add user`.
+To assert one membership without listing the rest, use `contain-element`:
+
+```yaml
+user:
+  Guest:
+    exists: true
+    groups:
+      contain-element: Guests
+```
 
 **Mind the trailing backslash.** The last path segment is read as a *value*
 name, so a key check needs a trailing `\`:
@@ -172,6 +206,11 @@ exists, and a key that exists but could not be read. That last case used to be
 reported as "does not exist", which is backwards for the hardening specs
 registry checks are usually written for.
 
+**The `glob` template function matches case-sensitively** even though NTFS is
+not, and treats `\` as a separator rather than an escape. See
+[gossfile](gossfile.md#glob) for how to write a Windows pattern inside a
+template string.
+
 ## What does not, and why
 
 Some of these are permanent. Knowing which is which saves you filing a bug or
@@ -196,16 +235,12 @@ unsupported error permanently rather than guessing.
 
 **`kernel-param:`.** There is no Windows equivalent of `/proc/sys`.
 
-### Broken, with a known cause
+**`user:` `shell`.** Not supported on Windows, and it will not be: a Windows
+account has no login shell, so there is nothing to report. The assertion fails
+with the error `unsupported operating system`, and `syver add user` does not
+write `shell`.
 
-**`user:` `groups`.** Fails for every user, not just unusual ones. Listing a
-user's groups calls Go's `user.LookupGroupId` once per SID in the account's
-token, and every Windows token carries a mandatory integrity label
-(`Mandatory Label\High Mandatory Level`), which is `SID_NAME_USE` 10
-(`SidTypeLabel`) and not a group. Go rejects it with
-`lookupGroupId: should be group account type, not 10`. It fails loudly rather
-than returning a wrong or empty list, so it will not mislead you, but do not use
-`groups:` in a Windows spec.
+### Broken, with a known cause
 
 **`process:` `status`.** Every assertion errors, because gopsutil has no
 Windows implementation for this field and every matching process therefore
@@ -262,7 +297,7 @@ that three fixtures assert nothing at all.
 
 | Fixture | Live entries | Assertions | Notes |
 | --- | --- | --- | --- |
-| `gossfile` | 13 of 13 | 61 | aggregate of the others, so its count is the sum of theirs |
+| `gossfile` | 13 of 13 | 62 | aggregate of the others, so its count is the sum of theirs |
 | `command` | 6 of 6 | 18 | |
 | `registry` | 12 of 15 | 20 | 3 skipped: one GPO-delivered, two Defender view-difference |
 | `file` | 3 of 3 | 11 | includes an absent-file case, and owner plus `acl`/`acl-sid` on a system path |
@@ -274,7 +309,7 @@ that three fixtures assert nothing at all.
 | `process` | 2 of 2 | 2 | |
 | `mount` | 1 of 1 | 3 | drive letter `c:` |
 | `service` | 2 of 2 | 9 | the six SCM attributes, and a real MULTI_SZ dependency list |
-| `user` | 2 of 2 | 2 | includes an absent-account case |
+| `user` | 2 of 2 | 3 | includes an absent-account case, and `groups` on `Guest` |
 | `add`, `help`, `validate` | 1 of 1 each | 2 each | CLI command fixtures |
 | `autoadd` | **0 of 1** | 2 | asserts nothing |
 | `package` | **0 of 1** | 2 | asserts nothing |
@@ -353,6 +388,10 @@ being checked.
   nothing" from "the lookup could not run". The first is unchanged; the second
   now errors. On a domain-joined host, an unreachable domain controller is the
   case that changes.
+* `user: <name>: {groups: ...}` now works for the account running syver.
+  Before 0.16.0 it failed for that account with `lookupGroupId: should be group
+  account type, not 10`, and `syver add user` left `groups` out. Other accounts
+  report the same list as before.
 
 Re-run your Windows specs after upgrading. A spec that passed before may have
 been checking less than it claimed.

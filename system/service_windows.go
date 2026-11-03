@@ -272,6 +272,13 @@ func (s *ServiceWindows) RunLevels() ([]string, error) {
 	return nil, ErrServiceRunLevelsUnsupported
 }
 
+// Masked has no Windows equivalent: masking is a systemd concept. It returns
+// ErrServiceMaskedUnsupported, wrapped with the nearest Windows equivalent so the
+// failure says what to assert instead. FEAT-019.
+func (s *ServiceWindows) Masked() (bool, error) {
+	return false, fmt.Errorf("%w; on Windows the nearest equivalent is start-type: disabled", ErrServiceMaskedUnsupported)
+}
+
 func (s *ServiceWindows) StartType() (string, error) {
 	var name string
 	err := s.withConfig(func(cfg *windows.QUERY_SERVICE_CONFIG) error {

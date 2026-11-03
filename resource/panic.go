@@ -49,7 +49,7 @@ func ValidateSafe(ctx context.Context, res Resource, sys *system.System) (result
 			results = panicResults(res, rec, startTime)
 		}
 	}()
-	return res.Validate(ctx, sys)
+	return annotateSkipReasons(res, res.Validate(ctx, sys))
 }
 
 // resourceIDFor names the spec entry that panicked, as precisely as the

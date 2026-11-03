@@ -38,9 +38,15 @@
 #              the highest-value check: `syver add` writes YAML, and marshal field
 #              order comes from SyverConfig's *struct declaration order*. Collapsing
 #              those typed fields into a map would silently reorder every generated
-#              gossfile. Empirically confirmed: `autoadd root` emits service/user/group,
-#              which is struct field order (5,6,7), not alphabetical and not map order.
-#   validate/  both fixtures x all 9 output formats, INCLUDING the exit code.
+#              gossfile. Empirically confirmed: `autoadd root` emits user/group,
+#              which is struct field order, not alphabetical and not map order. It
+#              also emitted a `service: root` entry until 0.16.0, but only because
+#              the systemd existence check matched `root.service` as a substring of
+#              units such as `initrd-switch-root.service`; no `root` service exists.
+#   validate/  three fixtures x all 9 output formats, INCLUDING the exit code.
+#              meta is the only fixture carrying meta:, so it is what shows
+#              meta reaching the json, structured, documentation and junit
+#              output; passing and failing carry none.
 #              The exit code is the primary contract of a validation CLI -- it is
 #              what CI steps and `dgoss run` actually consume -- and for a long
 #              time this harness recorded a constant 0 for every case, so it was
@@ -119,9 +125,9 @@ sanitize() {
     -e 's/(duration_milliseconds\{[^}]*\}) [0-9]+/\1 <DUR>/g'
 }
 
-# ---- validate: both fixtures x every registered output format -----------------
+# ---- validate: every fixture x every registered output format ----------------
 mkdir -p "$OUT/validate"
-for spec in passing failing; do
+for spec in passing failing meta; do
   for fmt in documentation json junit nagios prometheus rspecish structured tap silent; do
     f="$OUT/validate/${spec}.${fmt}"
     set +e

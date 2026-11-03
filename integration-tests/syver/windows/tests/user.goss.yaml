@@ -1,4 +1,4 @@
-# expect-count: 2
+# expect-count: 3
 # expect-skipped is deliberately absent: these fixtures skip a
 # different number of assertions on a real Windows host than when
 # driven from another platform. Seed it from a Windows run only.
@@ -23,16 +23,17 @@
 #                 system/user.go does strconv.Atoi on the value, which can
 #                 never succeed. This is a category mismatch, not a missing
 #                 feature: there is no integer uid to report.
-#   groups     -- BROKEN on Windows, and structurally so. Groups() calls
-#                 user.LookupGroupId for every SID in the token, and every
-#                 Windows token carries a mandatory integrity label
-#                 ("Mandatory Label\High Mandatory Level", SID_NAME_USE 10 =
-#                 SidTypeLabel). Go rejects it with "lookupGroupId: should be
-#                 group account type, not 10", so the attribute fails for
-#                 EVERY user, not just unusual ones. Measured on Server 2025,
-#                 2026-09-02. It fails loudly rather than silently, which is
-#                 FEAT-010-correct behaviour, but the attribute is unusable.
-#   home/shell -- no meaningful Windows equivalent.
+#   home/shell -- no meaningful Windows equivalent. `shell` is permanently
+#                 unsupported: a Windows account has no login shell.
+#
+# groups is local group membership plus the primary group, read the same way
+# for every account. The running account, which before 0.16.0 failed on its
+# token's integrity label, is covered by TestGroupsCurrentUser in
+# system/user_group_windows_test.go, since no account name is the running one
+# on both hosts. `Guests` is a localised name, so this is English-Windows-only;
+# both the go-builder guest and the CI runner are English. contain-element
+# rather than an exact list: the primary group (`None`) is reported too, and a
+# host may add memberships.
 #
 # The absent-account cases are the point of this file. They are the
 # integration-level guard for the regression FEAT-010 shipped and the Windows
@@ -43,5 +44,7 @@
 user:
   Guest:
     exists: true
+    groups:
+      contain-element: Guests
   syver-no-such-user-ffffffff:
     exists: false

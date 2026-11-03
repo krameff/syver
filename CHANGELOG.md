@@ -1,5 +1,116 @@
 # Changelog
 
+## 0.16.0 based on krameff/goss v0.6.0 - skip reasons, masked services, glob
+
+- new in spec files
+  - `skip-reason:` explains a `skip: true`, on every resource type and on a
+    `gossfile:` include. The reason is shown on each of the resource's skipped
+    results. Pairing `skip: {{ not .Discovered.x }}` with a reason keeps a
+    discovery-gated test visible as a skip instead of a silent gap
+  - `service:` gains `masked:` on systemd, true when the unit is masked,
+    including a runtime mask. A masked unit can now be told apart from a
+    disabled one, which `enabled: false` cannot do. `masked:` on any other
+    service manager (sysv init, OpenRC, upstart, macOS, Windows) is an error
+    and never passes; on Windows the error suggests `start-type: disabled`.
+    `syver add service` writes `masked: true` for a masked unit and otherwise
+    leaves the key out. Name a template unit by its instance, such as
+    `getty@tty1`; a bare template name makes `masked:` report an error. The
+    docs now also say that on systemd `enabled: true` is true for static
+    units, which is unchanged
+  - a `glob` template function, as requested in
+    [goss-org/goss#1141](https://github.com/goss-org/goss/issues/1141):
+    `{{ range glob "/etc/cron.d/*" "/etc/crontab" }}` gives the sorted,
+    de-duplicated paths matching each pattern. A pattern that matches nothing,
+    including a plain path that does not exist, logs one warning naming it and
+    the render continues; a malformed pattern, or `glob` with no pattern, fails
+    the render. It reads the filesystem where the template is rendered: inside
+    the container under `dsyver` and `dcsyver`, and once at startup under
+    `serve`
+
+- output changes
+  - a skipped result now says why whenever there is a reason: `skipped
+    (<reason>)` in documentation, rspecish and TAP, a `skip-reason` field in
+    json and structured, and a `message` on JUnit's `<skipped>`. Syver gives
+    its own reasons for the skips it makes: a `depends-on` skip shows
+    `dependency "<ref>" failed`, or `dependency "<ref>" was skipped` when the
+    prerequisite was itself skipped because one of its own prerequisites did
+    not pass, naming the first listed prerequisite that did not pass (a
+    prerequisite turned off with `skip: true` still counts as passing, and its
+    dependents run, as before); and when a resource's first check fails the checks skipped
+    after it show `<attr> did not pass`, or `<attr> is false` when that check
+    passed with a false value. A reason written over several lines is shown on
+    one. nagios, prometheus and silent are unchanged
+  - `--format junit` carries a resource's `meta:` as `<properties>` on each of
+    its test cases, one `<property>` per value in sorted order, with nested
+    values flattened to names such as `owner.team` and `tags[0]`. Tests without
+    `meta:` produce the same output as before. Parsers that validate strictly
+    against the Ant JUnit schema reject properties inside a test case, and some
+    CI systems ignore them
+
+- behaviour changes
+  - skipped lines in documentation, rspecish and TAP, json and structured's
+    `summary-line` and JUnit's `<system-out>` now end in ` (<reason>)` whenever
+    a reason exists, which includes every `depends-on` skip and every check
+    skipped after a failing first check. Anything that matches a line ending
+    exactly in `: skipped` needs updating. Passing and failing results are
+    unchanged in every format, and a skip with no reason looks as before
+  - in a `depends-on` chain, where one check depends on another that was
+    skipped because its own prerequisite failed, the last check was sometimes
+    reported as an unsatisfied dependency, depending on the order of the spec.
+    It is now always skipped with an accurate reason. Pass and fail results
+    and the counts were already right and are unchanged
+  - `--vars <(command)` now works, as the docs have always shown, including
+    `--vars <(syver validate --format discovery)`, `<(ohai)` and
+    `<(facter -j)`. The vars file was read more than once per run and a pipe
+    can only be read once, so templates using `.Vars` failed with `map has no
+    entry for key`. A pipe or other non-regular vars file is now read once per
+    run; regular files are read as before
+  - `syver autoadd` on systemd now matches service names exactly. It used to
+    match a name that was only the end of another unit's name: `autoadd cron`
+    found `anacron.service`, and `autoadd root` wrote a `service: root` entry
+    on most systemd hosts. Those entries are no longer written, and where
+    nothing else matched, autoadd exits non-zero. Aliases still match, and
+    `syver add` is not affected
+  - an unknown `-o`/`--format-options` value now warns once per run however
+    often it is repeated, under both `validate` and `serve`. Under `validate`,
+    a repeated option that the format ignores is also reported once. It is
+    still a warning, not an error
+  - the `prometheus` format exits 0 even when checks fail, as it always has;
+    this is now documented. The outcome is in the metrics, and a non-zero
+    status would break collectors that read it as a failed write
+
+- Windows
+  - `user:` `groups` now works for the account running Syver. Before, `syver
+    add user` silently left groups out for that account and a `groups:` check
+    on it failed with `lookupGroupId: should be group account type, not 10`.
+    Every account now reports its local group memberships, nested ones
+    included, plus its primary group, without a domain prefix, and the list is
+    the same whether Syver runs elevated or not. Domain groups and logon
+    groups such as Everyone are not reported
+  - `user:` `shell` is documented as unsupported on Windows, which has no
+    login shell. It still fails with `unsupported operating system`
+  - `glob` treats `\` as a separator rather than an escape, matches wildcards
+    case-sensitively even on NTFS, and returns paths with `\` separators
+
+- content that needs 0.16.0. Each of these fails on 0.15.x and earlier, so
+  content using them should require 0.16.0
+  - `skip-reason:`, rejected with `invalid Attribute` and exit 78
+  - `masked:` on a service
+  - `glob` in a template, which fails to render with `function "glob" not
+    defined`
+  - a Windows spec from `syver add user` for the running account, which now
+    includes `groups`
+
+- Go API, for code that imports Syver as a library
+  - breaking for out-of-tree implementations only: the `system.Service`
+    interface gains `Masked() (bool, error)`; return
+    `system.ErrServiceMaskedUnsupported` where masking has no meaning
+  - additive: `resource.Service` gains `Masked`, `system` gains
+    `ErrServiceMaskedUnsupported`, `resource.TestResult` gains `SkipReason`,
+    and `resource.DiscoveryMeta` gains `SkipReason` and `GetSkipReason()`.
+    Reasons are filled in by `resource.ValidateSafe`, not by a bare
+    `Validate()`
+
 ## 0.15.3 based on krameff/goss v0.6.0 - fixes
 
 - crashes

@@ -1,0 +1,22 @@
+---
+command:
+  hello world:
+    title: echo prints its argument
+    meta:
+      control: SC-12
+      framework: 800-53r5
+      owner:
+        team: security
+        contact: ops@example.com
+      tags:
+        - pci
+        - cis
+      refs:
+        - id: AC-2
+        - id: AC-3
+          rev: 5
+    exit-status: 0
+    exec: "echo hello world"
+    stdout:
+      - hello world
+    timeout: 10000

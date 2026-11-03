@@ -335,7 +335,8 @@ The end-point will return the test results in the format requested and an http s
 `--format-options <option>`, `-o <option>`
 :   Output format options, same as [validate](#validate). May be given more than once.
     An option name that no format knows logs a warning naming the option and listing
-    the valid ones; `serve` still starts. An option the configured format ignores
+    the valid ones, once per option however often it is repeated; `serve` still
+    starts. An option the configured format ignores
     is accepted without a warning, because a request's `Accept` header can select
     a different format that uses it.
 
@@ -393,7 +394,8 @@ You can also `Accept: application/json` to get back `application/json`.
     ```
 
 `validate` runs the syver test suite on your server. Prints an rspec-like (by default) output of test results.
-Exits with status 0 on success, non-0 otherwise.
+Exits with status 0 on success, non-0 otherwise, except with the `prometheus` and `discovery`
+formats described below.
 
 `--format <format>`, `-f <format>`
 :   Output format. Can be one of:
@@ -405,11 +407,26 @@ Exits with status 0 on success, non-0 otherwise.
       top-level `summary-line`. Useful when the same output has to be both
       machine-parsed and read by a person. Supports the `pretty` and `sort`
       format options
-    - `junit`
+    - `junit` - JUnit XML. A test whose resource has a `meta:` block carries it as a
+      `<properties>` element inside its `<testcase>`, one `<property>` per value, in sorted
+      key order. Nested maps flatten to dotted names (`owner.team`) and lists to indexed
+      names (`tags[0]`, `refs[1].id`); an empty nested map or list keeps its name with an
+      empty value. A key that itself contains a dot can produce the same name as a nested
+      path: `owner.team: a` alongside `owner: {team: b}` gives two `<property>` elements
+      both named `owner.team`. Names and values are XML-escaped, and a control character that XML
+      cannot represent becomes U+FFFD. Nesting deeper than 10 levels is cut off with the
+      value `[truncated: nested deeper than 10 levels]`. A test without `meta:` has no
+      `<properties>` element. Properties inside `<testcase>` are a widely used extension:
+      parsers that validate strictly against the Ant JUnit schema, which allows
+      `<properties>` only under `<testsuite>`, reject them, and some CI systems (GitLab
+      among them) accept the file but ignore the properties. `json` and `structured`
+      carry `meta:` unflattened
     - `nagios` - Nagios/Sensu compatible output /w exit code 2 for failures
     - `rspecish` **(default)** - Similar to rspec output
     - `tap`
-    - `prometheus` - Prometheus compatible output.
+    - `prometheus` - Prometheus compatible output. Exits 0 even when checks fail: the
+      outcome is carried in the metrics, and a non-zero status would break collectors such as
+      the node_exporter textfile collector that read it as a failed write
     - `silent` - No output. Avoids exposing system information (e.g. when serving tests as a healthcheck endpoint)
     - `discovery` - JSON vars output from [discovery tests](gossfile.md#discovery); always exits 0 on successful execution
 
@@ -427,7 +444,8 @@ Exits with status 0 on success, non-0 otherwise.
       result's `matcher-result.untransformed-value` field
 
     An option name that no format knows logs a warning naming the option and listing
-    the valid ones; the run continues. An option that another format uses but
+    the valid ones; the run continues. Each option is reported once per run, however
+    often it is repeated (`-o bogus -o bogus,BOGUS` warns once). An option that another format uses but
     the chosen one ignores, such as `-o pretty` with `rspecish`, logs a `WARN` line
     and the run continues.
 

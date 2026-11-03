@@ -120,6 +120,15 @@ func TestCheckFormatOptions(t *testing.T) {
 		assert.Empty(t, unknown)
 		assert.Empty(t, ignored)
 	})
+	t.Run("a repeated option is reported once", func(t *testing.T) {
+		unknown, ignored := CheckFormatOptions("rspecish", []string{"bogus", "bogus", "BOGUS", " bogus", "pretty", "Pretty", "pretty"})
+		assert.Equal(t, []string{"bogus"}, unknown)
+		assert.Equal(t, []string{"pretty"}, ignored)
+	})
+	t.Run("distinct unknown options are each reported", func(t *testing.T) {
+		unknown, _ := CheckFormatOptions("json", []string{"bogus", "nope", "bogus"})
+		assert.Equal(t, []string{"bogus", "nope"}, unknown)
+	})
 	t.Run("unknown format reports unknown names only", func(t *testing.T) {
 		unknown, ignored := CheckFormatOptions("nope", []string{"pretty", "bogus"})
 		assert.Equal(t, []string{"bogus"}, unknown)

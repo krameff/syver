@@ -16,5 +16,9 @@ file:
   "/foo":
     exists: true
     filetype: symlink
+service:
+  # Masked at image build time in Dockerfile_arch.
+  systemd-timedated:
+    masked: true
 gossfile:
   "../goss-shared.yaml": {}

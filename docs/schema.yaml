@@ -27,6 +27,9 @@ definitions:
     items:
       type: string
     description: "Prerequisite resource keys; this test is skipped when a dependency fails."
+  skipReason:
+    type: string
+    description: "Why this test is skipped. Shown on its skipped results when skip is true; ignored otherwise. Requires syver 0.16.0 or later."
   fileDiscoveryTest:
     allOf:
       - $ref: "#/definitions/fileTest"
@@ -69,6 +72,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   commandTest:
@@ -99,6 +103,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
     required:
@@ -134,6 +139,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   fileTest:
@@ -236,6 +242,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   gossfileTest:
@@ -248,6 +255,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
   groupTest:
     required:
       - exists
@@ -266,6 +274,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   httpTest:
@@ -353,6 +362,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
       method:
@@ -395,6 +405,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   kernelParamTest:
@@ -414,6 +425,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   matchingTest:
@@ -432,6 +444,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   mountTest:
@@ -483,6 +496,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   packageTest:
@@ -508,6 +522,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   portTest:
@@ -537,6 +552,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   processTest:
@@ -572,6 +588,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   registryTest:
@@ -626,6 +643,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
 
@@ -651,6 +669,12 @@ definitions:
         description: >-
           The runlevels the service is enabled in. Supported on Alpine init,
           sysv init and upstart.
+      masked:
+        type: boolean
+        description: >-
+          systemd only. Whether the unit is masked (LoadState or UnitFileState
+          is masked or masked-runtime). A missing unit is not masked. Every
+          other platform reports an error rather than a value.
       start-type:
         type: string
         description: >-
@@ -698,6 +722,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
   userTest:
@@ -743,6 +768,7 @@ definitions:
       skip:
         type: boolean
         default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
 

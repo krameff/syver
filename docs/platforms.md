@@ -163,6 +163,7 @@ This matrix attempts to track parity across platforms.
 |                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | runlevels           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | masked              | {{ work_partially }}    | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | start-type          | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | delayed-start       | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | run-as              | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
@@ -173,24 +174,29 @@ This matrix attempts to track parity across platforms.
 |                     | exists              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | uid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | gid                 | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
-|                     | groups              | {{ fully_supported }}   | {{ not_implemented }}  | {{ broken }}            |
+|                     | groups              | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | home                | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
-|                     | shell               | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | shell               | {{ fully_supported }}   | {{ not_implemented }}  | {{ n_a }}               |
 
-**`user:` `groups:` on Windows is broken, for every user.** Reporting a user's
-groups calls Go's `user.LookupGroupId` once per SID in the account's token, and
-every Windows token carries a mandatory integrity label -- `Mandatory Label\High
-Mandatory Level`, which is `SID_NAME_USE` 10 (`SidTypeLabel`), not a group. Go
-rejects it with `lookupGroupId: should be group account type, not 10`, so the
-attribute fails for any user at all rather than for unusual ones. It fails
-loudly with that message rather than reporting an empty or wrong list, so it
-will not silently mislead you, but do not use `groups:` in a Windows spec.
+**`user:` `groups:` on Windows** lists the local groups the account belongs to,
+plus its primary group, without a domain prefix. Other domain groups and logon
+groups such as `Everyone` or `NETWORK` are not reported, so the list is the same
+however syver is run. See [Windows](windows.md#what-works). Before 0.16.0 it failed for
+the account running syver with `lookupGroupId: should be group account type, not
+10`.
+
+**`user:` `shell:` on Windows is not applicable.** A Windows account has no
+login shell. The assertion fails with `unsupported operating system`, and that
+will not change.
 
 **`uid:` and `gid:` on Windows, on `file`, `user` and `group`, are not a missing
 feature.** Windows identifies accounts and groups by SID (`S-1-5-21-...`), and
 syver parses these attributes as integers. There is no integer to report, so no implementation could satisfy
 them. They are listed as not implemented because that is the closest available
 status, not because the work is pending.
+
+`service:` `masked:` is systemd-only. On Linux hosts running sysv init, OpenRC
+or upstart, and on every other platform, a spec that sets it fails with an error.
 
 **`kernel-param:` on Windows.** There is no Windows equivalent -- no `/proc/sys`.
 `exists` and `value` both return an explicit `kernel-param is not supported on

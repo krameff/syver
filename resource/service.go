@@ -18,6 +18,10 @@ type Service struct {
 	Running       matcher `json:"running" yaml:"running"`
 	Skip          bool    `json:"skip,omitempty" yaml:"skip,omitempty"`
 	RunLevels     matcher `json:"runlevels,omitempty" yaml:"runlevels,omitempty"`
+	// FEAT-019, systemd only. Every other backend reports
+	// ErrServiceMaskedUnsupported. Placed after RunLevels because field order is
+	// the generated YAML key order under yaml.v2.
+	Masked matcher `json:"masked,omitempty" yaml:"masked,omitempty"`
 	// FEAT-014, Windows only. Every other platform reports
 	// ErrServiceWindowsAttrUnsupported for these, so a spec that sets one on Linux
 	// fails rather than comparing against a zero value.
@@ -86,6 +90,9 @@ func (s *Service) Validate(ctx context.Context, sys *system.System) []TestResult
 	if isSetWarnEmpty(s.RunLevels, fmt.Sprintf("%s: service.runlevels", s.ID()), s.Skip) {
 		results = append(results, ValidateValue(s, "runlevels", s.RunLevels, sysservice.RunLevels, skip))
 	}
+	if isSet(s.Masked) {
+		results = append(results, ValidateValue(s, "masked", s.Masked, sysservice.Masked, skip))
+	}
 	if isSet(s.StartType) {
 		results = append(results, ValidateValue(s, "start-type", s.StartType, sysservice.StartType, skip))
 	}
@@ -122,6 +129,12 @@ func NewService(sysService system.Service, config util.Config) (*Service, error)
 		id:      service,
 		Enabled: enabled,
 		Running: running,
+	}
+	// masked is emitted only when true. matcher is an interface, so yaml.v2's
+	// omitempty would not omit a boxed false, and `masked: false` on every
+	// discovered service says nothing. An error (any non-systemd host) omits it.
+	if masked, err := sysService.Masked(); err == nil && masked {
+		svc.Masked = masked
 	}
 	// The Windows-only attributes, emitted only where the platform can report
 	// them: everywhere else these return ErrServiceWindowsAttrUnsupported and the

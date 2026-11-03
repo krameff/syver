@@ -11,6 +11,9 @@ type Service interface {
 	Enabled() (bool, error)
 	Running() (bool, error)
 	RunLevels() ([]string, error)
+	// Masked is systemd-only. Every other backend gets it from noMaskConcept,
+	// which returns ErrServiceMaskedUnsupported. FEAT-019.
+	Masked() (bool, error)
 	// The six below are FEAT-014 and describe a Windows service. Every non-Windows
 	// backend gets them from windowsOnlyServiceAttrs, which returns
 	// ErrServiceWindowsAttrUnsupported -- see that type.
@@ -45,6 +48,24 @@ var ErrServiceRunLevelsUnsupported = errors.New("service runlevels is not suppor
 // gossfile that sets a Windows-only attribute on Linux is a spec bug, and the
 // tool's job is to say so.
 var ErrServiceWindowsAttrUnsupported = errors.New("service start-type/delayed-start/run-as/dependencies/display-name/pid are Windows-only")
+
+// ErrServiceMaskedUnsupported is returned by Masked on every backend except
+// systemd. Masking is a systemd concept; init, OpenRC, upstart and the Windows
+// Service Control Manager have no equivalent, so `masked:` there must fail
+// rather than compare against false and pass. FEAT-019.
+var ErrServiceMaskedUnsupported = errors.New("service masked is only supported on systemd")
+
+// noMaskConcept supplies Masked for the non-Windows backends that have no mask
+// concept: ServiceInit (which also serves Alpine and darwin) and ServiceUpstart.
+// ServiceWindows has its own Masked, which wraps the same sentinel with a hint
+// that only makes sense there. Kept separate from windowsOnlyServiceAttrs, which is
+// Windows-attributes-only by name and is deliberately not given to
+// ServiceWindows.
+type noMaskConcept struct{}
+
+func (noMaskConcept) Masked() (bool, error) {
+	return false, ErrServiceMaskedUnsupported
+}
 
 // windowsOnlyServiceAttrs supplies those six accessors for ServiceInit,
 // ServiceUpstart and ServiceSystemd by embedding, rather than repeating eighteen

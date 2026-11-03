@@ -492,6 +492,8 @@ If the filename is a glob pattern, then none of the matching files are processed
 Note that this is not the same as skipping the contained resources;
 any overrides in the referenced gossfile will not be processed, and the resource count will not be incremented.
 Skipping a gossfile include is the same as omitting the gossfile resource entirely.
+A gossfile include accepts [`skip-reason`](#skipping-tests), but it has no effect there:
+a skipped include produces no results to carry it.
 
 ### group
 
@@ -880,9 +882,26 @@ service:
     running: true
     runlevels: ["3", "4", "5"]  # Alpine example, runlevels: ["default"]
     skip: false
+  alsa-utils:
+    masked: true                # systemd only
 ```
 
 `runlevels` is only supported on Alpine init, sysv init, and upstart
+
+On systemd, `enabled` is the exit status of `systemctl is-enabled`, so it is
+also true for `static` units (and for `indirect`, `alias`, `generated` and
+`transient` ones), and it is false for both a disabled and a masked unit.
+
+`masked` tells those last two apart. It is true when the unit's `LoadState` or
+`UnitFileState` is `masked` (including `masked-runtime`), as reported by
+`systemctl show`. A unit that does not exist is not masked. A masked unit cannot
+be started at all, by hand, by a dependency or by socket activation, whereas a
+disabled one can. `masked` is **systemd only**: on every other platform a spec
+that sets it fails with an error rather than comparing against `false`. On
+Windows the nearest equivalent is `start-type: disabled`. `syver add service`
+writes `masked: true` for a masked unit and omits the key otherwise. Name a
+template unit by an instance (`getty@tty1`): `systemctl show` rejects a bare
+template name such as `getty@`, so `masked` reports an error for one.
 
 #### Windows-only service attributes
 
@@ -951,6 +970,11 @@ user:
 !!! note
     This check is inspecting the contents of local passwd file `/etc/passwd`, this does not validate remote users
     (e.g. LDAP).
+
+!!! note "Windows"
+    `groups` lists the account's local groups and its primary group, without a domain prefix, and is the same
+    however syver is run. `uid`, `gid` and `shell` are not supported: Windows accounts have SIDs rather than
+    integer ids, and no login shell. See [Windows](windows.md#what-works).
 
 ## Matchers
 
@@ -1511,6 +1535,86 @@ command:
 References use the gossfile map key, or `type:key` when ambiguous across resource types.
 Independent dependency chains still run in parallel; only declared dependencies are serialized.
 
+A dependent skipped this way carries a [skip reason](#skipping-tests) naming the prerequisite:
+`dependency "file:prereq" failed` when it failed, or `dependency "file:prereq" was skipped` when it
+was itself skipped, as in a chain where `c` depends on `b` and `b` depends on a failing `a`. With
+several prerequisites, the reason names the first one, in the order listed under `depends-on`,
+that did not pass. The JSON and structured outputs also keep the same text in the result's `err`
+field. A prerequisite you turn off with `skip: true` does not count as not passing: its dependents
+run as normal.
+
+## Skipping tests
+
+Every resource type accepts `skip: true`, which reports each of the resource's attributes as
+skipped instead of checking it. Add `skip-reason:` to say why. The text is shown on each of
+that resource's skipped results:
+
+```yaml
+service:
+  auditd:
+    enabled: true
+    running: true
+    skip: true
+    skip-reason: auditd does not run in containers
+```
+
+```console
+Service: auditd: enabled: skipped (auditd does not run in containers)
+Service: auditd: running: skipped (auditd does not run in containers)
+```
+
+`skip-reason:` explains `skip: true` only. Without `skip: true` it is accepted and has no
+effect: any skip the resource still gets is one Syver makes itself, and shows Syver's reason
+(see below). A skip with no reason renders exactly as it did before
+the attribute existed. The reason is printed on one line, so any run of whitespace in it,
+including the line breaks of a `|` or `>` block, becomes a single space in every output format.
+
+!!! warning "Requires syver 0.16.0"
+    Syver 0.15.x and earlier reject the key, because resource attributes are checked strictly:
+    `Error: invalid Attribute for File:/etc/hostname: skip-reason`, with exit code 78. Content
+    that uses `skip-reason:` must require syver 0.16.0 or later.
+
+### Skips syver reports itself
+
+Syver also skips tests on its own in two cases, and fills in the reason for both. An author's
+`skip-reason:` does not replace these, since it explains a different skip.
+
+* **A [dependency](#test-dependencies) that did not pass.** The reason is
+  `dependency "<ref>" failed` or `dependency "<ref>" was skipped`.
+* **A failed first check.** For most resource types the first check decides whether the rest
+  can mean anything: a missing file has no mode, a package that is not installed has no
+  version. When it does not pass, the remaining attributes are skipped with the reason
+  `<attribute> did not pass`, for example `exists did not pass`. When it passes with a false
+  value, as `exists: false` does on an absent file, the reason is `<attribute> is false`.
+  The first check is `exists` on `file`, `group`, `user`, `interface`, `mount` and `registry`;
+  `installed` on `package`; `listening` on `port`; `running` on `process`; `resolvable` on
+  `dns`; and `status` on `http`.
+
+### Where the reason appears
+
+| Output format | Skipped result with a reason |
+| --- | --- |
+| `documentation`, `rspecish` | `File: /etc/x: mode: skipped (exists did not pass)` |
+| `json`, `structured` | a `"skip-reason"` field on the result, and the same text in `summary-line` and `summary-line-compact`. The field is omitted from every result without a reason, so passing and failing results are unchanged |
+| `junit` | `<skipped message="exists did not pass"/>`, XML-escaped. A skip with no reason is still `<skipped/>` |
+| `tap` | `ok 3 - # SKIP File: /etc/x: mode: skipped (exists did not pass)` |
+| `nagios`, `prometheus`, `silent` | not shown. These report counts, not individual skipped results |
+
+### Skipping on a discovered fact
+
+[Discovery](#discovery) does not skip tests itself. Gating a block with `{{ if .Discovered.x }}`
+removes the test from the run, so it produces no result at all. To keep the test in the report
+as a skipped result with an explanation, render `skip:` from the discovered value instead:
+
+```yaml
+service:
+  auditd:
+    enabled: true
+    running: true
+    skip: {{ not .Discovered.auditd_installed }}
+    skip-reason: auditd is not installed
+```
+
 ## Templates
 
 Syver test files can leverage golang's [text/template](https://golang.org/pkg/text/template/)
@@ -1553,6 +1657,15 @@ Available functions:
     :   Reads file content into a string, trims whitespace. Useful when a file contains a token.
         !!! note
             Goss will error out during the parsing phase if the file does not exist, no tests will be executed.
+
+    `glob "PATTERN" ["PATTERN" ...]`
+    :   Returns the sorted list of paths matching one or more
+        [Go file name patterns](https://pkg.go.dev/path/filepath#Match)
+        (`*`, `?`, `[a-z]`), so one check can range over every file a pattern
+        finds. Give each pattern as its own argument; a path may contain spaces,
+        so a single string is never split. The matches of every pattern are
+        merged, duplicates removed, and the result sorted. See
+        [`glob`](#glob) below for warnings, errors and Windows.
 
     `regexMatch "(some)?reg[eE]xp"`
     :   Tests the piped input against the regular expression argument.
@@ -1601,6 +1714,92 @@ Available functions:
     template error naming the line. A check that silently renders nothing is
     worse than one that stops, so the stricter behaviour is deliberate.
 
+### `glob`
+
+`glob` returns the paths matching each pattern it is given, merged, sorted and
+without duplicates, so one check can range over them. There is an example
+[below](#examples). Each path is returned cleaned, with doubled separators and
+`.` elements removed, so the same file reached two ways (`/etc//hosts` and
+`/etc/*`) appears once.
+
+* A pattern that matches nothing logs one warning naming it, and the
+  render carries on with no paths from that pattern. A plain path with
+  no wildcard that does not exist counts as matching nothing. The
+  warning is printed once per pattern per run, however many times the
+  pattern is used, and is hidden by `--log-level ERROR`:
+  `[WARN] glob pattern "/etc/cron.d/*" matched no files`.
+* A malformed pattern, such as an unclosed `[`, fails the render with an
+  error naming it, and no tests run:
+  `error in expanding glob pattern "/etc/[ab": syntax error in pattern`.
+* Calling `glob` with no pattern at all fails the render.
+* `*` and `?` never match a path separator, and there is no recursive
+  `**`: `/etc/*/*.conf` reaches exactly one directory level down.
+* Unlike a shell, `*` also matches names starting with a dot, so
+  `/etc/cron.d/*` returns `/etc/cron.d/.placeholder` where that file exists
+  (Debian and Ubuntu ship one). See below for how to leave such names out.
+* Results are every matching name: directories and symlinks, including
+  symlinks whose target does not exist, as well as regular files.
+* A relative pattern is resolved against the current working directory of
+  the `syver` process, not the directory holding the spec file.
+
+To skip names starting with a dot, test each result with Sprout's `base` and
+`hasPrefix`:
+
+```yaml+jinja
+file:
+{{- range glob "/etc/cron.d/*" }}
+{{- if not (hasPrefix "." (base .)) }}
+  {{ . }}:
+    exists: true
+{{- end }}
+{{- end }}
+```
+
+`glob` reads the filesystem of the machine and at the moment the
+template **renders**, like `readFile`. Under `dsyver` and `dcsyver` that
+is inside the container. Under `syver serve` the spec renders once, at
+startup, so the list is fixed for as long as `serve` runs: a file added
+later is not checked until `serve` restarts. If you use `syver render`
+and run the output on another host, the paths are those of the host
+that rendered it.
+
+!!! note "Windows"
+    `\` is the path separator, so it is not an escape character and a
+    wildcard cannot be escaped. Inside a template string, write a
+    Windows path with doubled backslashes, with forward slashes, or as a
+    backquoted raw string; `"C:\Windows\*.log"` is a template syntax
+    error.
+
+    ```text
+    {{ range glob "C:\\Windows\\*.log" }}
+    {{ range glob "C:/Windows/*.log" }}
+    {{ range glob `C:\Windows\*.log` }}
+    ```
+
+    Results come back cleaned with `\` separators, whether the pattern
+    used `/` or `\`, so `"C:/x/a.txt"` and `"C:\\x\\*.txt"` give
+    `C:\x\a.txt` once. Letter case is kept as written in the pattern
+    for the parts before the first wildcard, and as on disk after it.
+    Because of that, one file reached through patterns whose fixed
+    parts differ only in case, such as `"c:\\Data\\*.log"` and
+    `"C:/data/a.log"`, appears twice.
+
+    Wildcard matching is **case-sensitive**, even though NTFS is not.
+    Every part of the pattern from the first wildcard onwards is
+    compared character for character, so `C:\Windows\*.LOG` does not
+    find `setupact.log`, and in `C:\Users\*\NTUSER.DAT` the
+    `NTUSER.DAT` must match the file's own case. The parts before the
+    first wildcard are looked up by the filesystem and so are not
+    case-sensitive. The same applies on macOS, whose default volume
+    format is also case-insensitive.
+
+    A UNC pattern such as `"\\\\server\\share\\*"` connects to that
+    server with the credentials of the account running `syver`, as
+    `readFile` does with a UNC path.
+
+On Linux and macOS, `\` escapes the character after it, so `\*` matches a
+literal `*`. In a template string that is written `"\\*"`.
+
 ### Examples
 
 Using [puppetlabs/facter](https://github.com/puppetlabs/facter) or [chef/ohai](https://github.com/chef/ohai)
@@ -1623,6 +1822,18 @@ file:
     group: root
     filetype: file
 {{end}}
+```
+
+Using `glob` to check every file a pattern finds, plus one fixed path.
+
+```yaml+jinja
+file:
+{{- range glob "/etc/cron.d/*" "/etc/crontab" }}
+  {{ . }}:
+    exists: true
+    owner: root
+    group: root
+{{- end }}
 ```
 
 Using `upper` function from Sprout.
