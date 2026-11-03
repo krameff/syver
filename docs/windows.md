@@ -206,6 +206,11 @@ exists, and a key that exists but could not be read. That last case used to be
 reported as "does not exist", which is backwards for the hardening specs
 registry checks are usually written for.
 
+**The `glob` template function matches case-sensitively** even though NTFS is
+not, and treats `\` as a separator rather than an escape. See
+[gossfile](gossfile.md#glob) for how to write a Windows pattern inside a
+template string.
+
 ## What does not, and why
 
 Some of these are permanent. Knowing which is which saves you filing a bug or

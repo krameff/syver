@@ -2,9 +2,14 @@ package syver
 
 import (
 	"bytes"
+	"log"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 	"text/template"
@@ -12,6 +17,8 @@ import (
 	"github.com/go-sprout/sprout/sprigin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/krameff/syver/util"
 )
 
 // This file did not exist before FEAT-009 (the sprig -> sprout migration).
@@ -300,4 +307,227 @@ func TestUpperEmitsNoDeprecationNotice(t *testing.T) {
 		assert.Equal(t, "HELLO!HELLO!HELLO!HELLO!HELLO!", string(out))
 		assert.Empty(t, buf.String(), "render #%d of a deprecated-but-silent \"upper\" call must emit nothing", i)
 	}
+}
+
+// --- glob ------------------------------------------------------------------
+
+// resetGlobWarned clears the process-level "already warned" set so each test
+// starts from a fresh process's state, and again afterwards so a test cannot
+// leak a recorded pattern into the next one.
+func resetGlobWarned(t *testing.T) {
+	t.Helper()
+	clear := func() {
+		globWarned.Lock()
+		globWarned.seen = map[string]bool{}
+		globWarned.Unlock()
+	}
+	clear()
+	t.Cleanup(clear)
+}
+
+// cliDefaultLogLevel is the CLI's --log-level default. util.NewConfig defaults
+// to ERROR, which would hide every WARN these tests look for.
+const cliDefaultLogLevel = "INFO"
+
+// globFixture creates dir/{a.conf,b.conf,c.txt} and returns dir.
+func globFixture(t *testing.T) string {
+	t.Helper()
+	dir := t.TempDir()
+	for _, n := range []string{"b.conf", "a.conf", "c.txt"} {
+		require.NoError(t, os.WriteFile(filepath.Join(dir, n), []byte(n), 0o644))
+	}
+	return dir
+}
+
+// q quotes a path as a template string literal, escaping the backslashes a
+// Windows path contains.
+func q(s string) string { return strconv.Quote(s) }
+
+func TestGlob_MergesDedupesAndSorts(t *testing.T) {
+	resetGlobWarned(t)
+	dir := globFixture(t)
+	// The second pattern repeats a.conf as a plain path and the third adds
+	// c.txt: a.conf must appear once, and the result must be sorted across
+	// patterns rather than concatenated in argument order.
+	src := `{{ range glob ` + q(filepath.Join(dir, "*.txt")) + " " + q(filepath.Join(dir, "*.conf")) +
+		" " + q(filepath.Join(dir, "a.conf")) + ` }}{{ . }}|{{ end }}`
+	got := render(t, "", src)
+	want := filepath.Join(dir, "a.conf") + "|" + filepath.Join(dir, "b.conf") + "|" + filepath.Join(dir, "c.txt") + "|"
+	assert.Equal(t, want, got)
+}
+
+// TestGlob_DedupesAcrossSpellings: a literal path spelled with a doubled
+// separator and the same file found through a wildcard are one path, and the
+// result is the cleaned spelling.
+func TestGlob_DedupesAcrossSpellings(t *testing.T) {
+	resetGlobWarned(t)
+	dir := globFixture(t)
+	doubled := dir + string(filepath.Separator) + string(filepath.Separator) + "c.txt"
+	src := `{{ range glob ` + q(doubled) + " " + q(filepath.Join(dir, "*.txt")) + ` }}{{ . }}|{{ end }}`
+	assert.Equal(t, filepath.Join(dir, "c.txt")+"|", render(t, "", src))
+}
+
+func TestGlob_NoPatternsErrors(t *testing.T) {
+	_, err := templateGlob()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one pattern")
+
+	filter, err := NewTemplateFilter(nil, "", nil)
+	require.NoError(t, err)
+	_, err = filter([]byte(`{{ range glob }}{{ . }}{{ end }}`))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "at least one pattern")
+}
+
+func TestGlob_MalformedPatternFailsNamingIt(t *testing.T) {
+	resetGlobWarned(t)
+	dir := globFixture(t)
+	bad := filepath.Join(dir, "[ab")
+	filter, err := NewTemplateFilter(nil, "", nil)
+	require.NoError(t, err)
+	// A good pattern before the bad one must not rescue the render.
+	_, err = filter([]byte(`{{ range glob ` + q(filepath.Join(dir, "*")) + " " + q(bad) + ` }}{{ . }}{{ end }}`))
+	require.Error(t, err)
+	assert.ErrorIs(t, err, filepath.ErrBadPattern)
+	assert.Contains(t, err.Error(), `error in expanding glob pattern `+q(bad))
+}
+
+// TestGlob_NoMatchWarnsOncePerPatternAndRenders checks the WARN goes through
+// the leveled logger in the RFC3339 format, names each pattern once even when
+// the pattern is evaluated twice, and that the render still succeeds.
+func TestGlob_NoMatchWarnsOncePerPatternAndRenders(t *testing.T) {
+	resetGlobWarned(t)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	dir := globFixture(t)
+	missingGlob := filepath.Join(dir, "*.nope")
+	missingPlain := filepath.Join(dir, "absent")
+
+	var buf bytes.Buffer
+	cfg, err := util.NewConfig()
+	require.NoError(t, err)
+	cfg.LogLevel = cliDefaultLogLevel
+	require.NoError(t, setLogLevelTo(cfg, &buf))
+
+	src := `{{ range glob ` + q(missingGlob) + " " + q(missingPlain) + ` }}{{ . }}{{ end }}` +
+		`{{ range glob ` + q(missingGlob) + " " + q(filepath.Join(dir, "a.conf")) + ` }}{{ . }}{{ end }}`
+	got := render(t, "", src)
+	assert.Equal(t, filepath.Join(dir, "a.conf"), got)
+
+	out := buf.String()
+	assert.Equal(t, 2, strings.Count(out, "[WARN]"), out)
+	assert.Equal(t, 1, strings.Count(out, q(missingGlob)), out)
+	assert.Equal(t, 1, strings.Count(out, q(missingPlain)), out)
+	assert.Regexp(t, `(?m)^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ \[WARN\] glob pattern ".*" matched no files$`, out)
+}
+
+func TestGlob_NoMatchWarnRespectsLogLevel(t *testing.T) {
+	resetGlobWarned(t)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	var buf bytes.Buffer
+	cfg, err := util.NewConfig()
+	require.NoError(t, err)
+	cfg.LogLevel = "ERROR"
+	require.NoError(t, setLogLevelTo(cfg, &buf))
+
+	render(t, "", `{{ range glob `+q(filepath.Join(t.TempDir(), "*"))+` }}{{ end }}`)
+	assert.Empty(t, buf.String())
+}
+
+// globSpec writes a spec whose only content is a glob of a missing pattern and
+// returns the spec path and the pattern.
+func globSpec(t *testing.T) (string, string) {
+	t.Helper()
+	dir := t.TempDir()
+	missing := filepath.Join(dir, "*.nope")
+	spec := filepath.Join(dir, "syver.yaml")
+	content := `{{ range glob ` + q(missing) + ` }}{{ end }}
+file:
+  ` + q(dir) + `:
+    exists: true
+`
+	require.NoError(t, os.WriteFile(spec, []byte(content), 0o644))
+	return spec, missing
+}
+
+// TestGlob_ValidateWarnsExactlyOnce goes through Validate, which renders the
+// spec twice (peek, then the real load). The WARN must appear once.
+func TestGlob_ValidateWarnsExactlyOnce(t *testing.T) {
+	resetGlobWarned(t)
+	spec, missing := globSpec(t)
+	var results bytes.Buffer
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor(), util.WithResultWriter(&results))
+	require.NoError(t, err)
+	cfg.LogLevel = cliDefaultLogLevel
+
+	var code int
+	_, stderr := captureStdoutStderr(t, func() { code, err = Validate(t.Context(), cfg) })
+	require.NoError(t, err)
+	require.Equal(t, 0, code, results.String())
+	assert.Equal(t, 1, strings.Count(stderr, "[WARN] glob pattern "+q(missing)+" matched no files"), stderr)
+}
+
+// TestGlob_PeekOnlyGlobDoesNotWarn proves the peek render is silent rather than
+// merely de-duplicated: a glob reached only in the peek pass (where
+// .Discovered is empty) and not in the real load must not warn at all.
+func TestGlob_PeekOnlyGlobDoesNotWarn(t *testing.T) {
+	resetGlobWarned(t)
+	dir := globFixture(t)
+	peekOnly := filepath.Join(dir, "*.peek-only")
+	spec := filepath.Join(dir, "syver.yaml")
+	content := `discovery:
+  file:
+    ` + q(filepath.Join(dir, "a.conf")) + `:
+      register: present
+      exists: true
+{{ if not .Discovered.present }}{{ range glob ` + q(peekOnly) + ` }}{{ end }}{{ end }}
+file:
+  ` + q(dir) + `:
+    exists: true
+`
+	require.NoError(t, os.WriteFile(spec, []byte(content), 0o644))
+	var results bytes.Buffer
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor(), util.WithResultWriter(&results))
+	require.NoError(t, err)
+	cfg.LogLevel = cliDefaultLogLevel
+
+	var code int
+	_, stderr := captureStdoutStderr(t, func() { code, err = Validate(t.Context(), cfg) })
+	require.NoError(t, err)
+	require.Equal(t, 0, code, results.String())
+	assert.NotContains(t, stderr, "glob pattern", stderr)
+}
+
+func TestGlob_RenderWarnsExactlyOnce(t *testing.T) {
+	resetGlobWarned(t)
+	spec, missing := globSpec(t)
+	cfg, err := util.NewConfig(util.WithSpecFile(spec))
+	require.NoError(t, err)
+	cfg.LogLevel = cliDefaultLogLevel
+
+	var renderErr error
+	_, stderr := captureStdoutStderr(t, func() { _, renderErr = RenderJSON(cfg) })
+	require.NoError(t, renderErr)
+	assert.Equal(t, 1, strings.Count(stderr, "[WARN] glob pattern "+q(missing)+" matched no files"), stderr)
+}
+
+// TestGlob_ServeWarnsOnceAtStartup: serve renders the spec once, when the
+// health handler is built, and not per request.
+func TestGlob_ServeWarnsOnceAtStartup(t *testing.T) {
+	resetGlobWarned(t)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+	spec, missing := globSpec(t)
+	var buf bytes.Buffer
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithOutputFormat("json"))
+	require.NoError(t, err)
+	cfg.LogLevel = cliDefaultLogLevel
+	require.NoError(t, setLogLevelTo(cfg, &buf))
+
+	hh, err := newHealthHandler(t.Context(), cfg)
+	require.NoError(t, err)
+	for range 2 {
+		rr := httptest.NewRecorder()
+		http.HandlerFunc(hh.ServeHTTP).ServeHTTP(rr, makeRequest(t, cfg, nil))
+		require.Equal(t, http.StatusOK, rr.Code, rr.Body.String())
+	}
+	assert.Equal(t, 1, strings.Count(buf.String(), "[WARN] glob pattern "+q(missing)+" matched no files"), buf.String())
 }

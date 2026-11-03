@@ -1658,6 +1658,15 @@ Available functions:
         !!! note
             Goss will error out during the parsing phase if the file does not exist, no tests will be executed.
 
+    `glob "PATTERN" ["PATTERN" ...]`
+    :   Returns the sorted list of paths matching one or more
+        [Go file name patterns](https://pkg.go.dev/path/filepath#Match)
+        (`*`, `?`, `[a-z]`), so one check can range over every file a pattern
+        finds. Give each pattern as its own argument; a path may contain spaces,
+        so a single string is never split. The matches of every pattern are
+        merged, duplicates removed, and the result sorted. See
+        [`glob`](#glob) below for warnings, errors and Windows.
+
     `regexMatch "(some)?reg[eE]xp"`
     :   Tests the piped input against the regular expression argument.
 
@@ -1705,6 +1714,92 @@ Available functions:
     template error naming the line. A check that silently renders nothing is
     worse than one that stops, so the stricter behaviour is deliberate.
 
+### `glob`
+
+`glob` returns the paths matching each pattern it is given, merged, sorted and
+without duplicates, so one check can range over them. There is an example
+[below](#examples). Each path is returned cleaned, with doubled separators and
+`.` elements removed, so the same file reached two ways (`/etc//hosts` and
+`/etc/*`) appears once.
+
+* A pattern that matches nothing logs one warning naming it, and the
+  render carries on with no paths from that pattern. A plain path with
+  no wildcard that does not exist counts as matching nothing. The
+  warning is printed once per pattern per run, however many times the
+  pattern is used, and is hidden by `--log-level ERROR`:
+  `[WARN] glob pattern "/etc/cron.d/*" matched no files`.
+* A malformed pattern, such as an unclosed `[`, fails the render with an
+  error naming it, and no tests run:
+  `error in expanding glob pattern "/etc/[ab": syntax error in pattern`.
+* Calling `glob` with no pattern at all fails the render.
+* `*` and `?` never match a path separator, and there is no recursive
+  `**`: `/etc/*/*.conf` reaches exactly one directory level down.
+* Unlike a shell, `*` also matches names starting with a dot, so
+  `/etc/cron.d/*` returns `/etc/cron.d/.placeholder` where that file exists
+  (Debian and Ubuntu ship one). See below for how to leave such names out.
+* Results are every matching name: directories and symlinks, including
+  symlinks whose target does not exist, as well as regular files.
+* A relative pattern is resolved against the current working directory of
+  the `syver` process, not the directory holding the spec file.
+
+To skip names starting with a dot, test each result with Sprout's `base` and
+`hasPrefix`:
+
+```yaml+jinja
+file:
+{{- range glob "/etc/cron.d/*" }}
+{{- if not (hasPrefix "." (base .)) }}
+  {{ . }}:
+    exists: true
+{{- end }}
+{{- end }}
+```
+
+`glob` reads the filesystem of the machine and at the moment the
+template **renders**, like `readFile`. Under `dsyver` and `dcsyver` that
+is inside the container. Under `syver serve` the spec renders once, at
+startup, so the list is fixed for as long as `serve` runs: a file added
+later is not checked until `serve` restarts. If you use `syver render`
+and run the output on another host, the paths are those of the host
+that rendered it.
+
+!!! note "Windows"
+    `\` is the path separator, so it is not an escape character and a
+    wildcard cannot be escaped. Inside a template string, write a
+    Windows path with doubled backslashes, with forward slashes, or as a
+    backquoted raw string; `"C:\Windows\*.log"` is a template syntax
+    error.
+
+    ```text
+    {{ range glob "C:\\Windows\\*.log" }}
+    {{ range glob "C:/Windows/*.log" }}
+    {{ range glob `C:\Windows\*.log` }}
+    ```
+
+    Results come back cleaned with `\` separators, whether the pattern
+    used `/` or `\`, so `"C:/x/a.txt"` and `"C:\\x\\*.txt"` give
+    `C:\x\a.txt` once. Letter case is kept as written in the pattern
+    for the parts before the first wildcard, and as on disk after it.
+    Because of that, one file reached through patterns whose fixed
+    parts differ only in case, such as `"c:\\Data\\*.log"` and
+    `"C:/data/a.log"`, appears twice.
+
+    Wildcard matching is **case-sensitive**, even though NTFS is not.
+    Every part of the pattern from the first wildcard onwards is
+    compared character for character, so `C:\Windows\*.LOG` does not
+    find `setupact.log`, and in `C:\Users\*\NTUSER.DAT` the
+    `NTUSER.DAT` must match the file's own case. The parts before the
+    first wildcard are looked up by the filesystem and so are not
+    case-sensitive. The same applies on macOS, whose default volume
+    format is also case-insensitive.
+
+    A UNC pattern such as `"\\\\server\\share\\*"` connects to that
+    server with the credentials of the account running `syver`, as
+    `readFile` does with a UNC path.
+
+On Linux and macOS, `\` escapes the character after it, so `\*` matches a
+literal `*`. In a template string that is written `"\\*"`.
+
 ### Examples
 
 Using [puppetlabs/facter](https://github.com/puppetlabs/facter) or [chef/ohai](https://github.com/chef/ohai)
@@ -1727,6 +1822,18 @@ file:
     group: root
     filetype: file
 {{end}}
+```
+
+Using `glob` to check every file a pattern finds, plus one fixed path.
+
+```yaml+jinja
+file:
+{{- range glob "/etc/cron.d/*" "/etc/crontab" }}
+  {{ . }}:
+    exists: true
+    owner: root
+    group: root
+{{- end }}
 ```
 
 Using `upper` function from Sprout.

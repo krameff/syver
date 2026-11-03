@@ -2,11 +2,16 @@ package syver
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"log"
 	"os"
+	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 
 	"github.com/go-sprout/sprout/sprigin"
@@ -83,6 +88,68 @@ func readFile(f string) (string, error) {
 	return strings.TrimSpace(string(b)), nil
 }
 
+// globWarned records each pattern that has already produced a "matched no
+// files" WARN, so a pattern warns once per process however many times it is
+// evaluated: twice in one template, in several included gossfiles, or in both
+// the --discover spec and the main one.
+var globWarned = struct {
+	sync.Mutex
+	seen map[string]bool
+}{seen: map[string]bool{}}
+
+// warnGlobNoMatch logs the no-match WARN for pattern, at most once per
+// process. During a peek pass (quietDecode, see store.go) it does nothing and
+// records nothing: the peek render is discarded, and the real load that
+// follows is the one that should warn.
+func warnGlobNoMatch(pattern string) {
+	if quietDecode {
+		return
+	}
+	globWarned.Lock()
+	defer globWarned.Unlock()
+	if globWarned.seen[pattern] {
+		return
+	}
+	globWarned.seen[pattern] = true
+	log.Printf("[WARN] glob pattern %q matched no files", pattern)
+}
+
+// templateGlob is the "glob" template function. Each argument is one
+// filepath.Glob pattern; the matches of every pattern are cleaned, merged,
+// de-duplicated and returned sorted. A pattern that matches nothing (including
+// a plain path that does not exist) WARNs and contributes no paths. A
+// malformed pattern fails the render, naming it.
+func templateGlob(patterns ...string) ([]string, error) {
+	if len(patterns) == 0 {
+		return nil, errors.New("glob: at least one pattern is required")
+	}
+
+	seen := make(map[string]bool)
+	matches := []string{}
+	for _, p := range patterns {
+		m, err := filepath.Glob(p)
+		if err != nil {
+			return nil, fmt.Errorf("error in expanding glob pattern %q: %w", p, err)
+		}
+		if len(m) == 0 {
+			warnGlobNoMatch(p)
+			continue
+		}
+		for _, f := range m {
+			// A plain path comes back exactly as written; Clean it so two
+			// spellings of one file ("/etc//hosts", "C:/x" vs "C:\x") dedupe.
+			f = filepath.Clean(f)
+			if !seen[f] {
+				seen[f] = true
+				matches = append(matches, f)
+			}
+		}
+	}
+	slices.Sort(matches)
+
+	return matches, nil
+}
+
 func getEnv(key string, def ...string) string {
 	val := os.Getenv(key)
 	if val == "" && len(def) > 0 {
@@ -129,6 +196,7 @@ func findStringSubmatch(pattern, input string) map[string]interface{} {
 var funcMap = template.FuncMap{
 	"mkSlice":            mkSlice,
 	"readFile":           readFile,
+	"glob":               templateGlob,
 	"getEnv":             getEnv,
 	"regexMatch":         regexMatch,
 	"toUpper":            strings.ToUpper,
