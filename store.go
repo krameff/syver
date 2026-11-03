@@ -205,12 +205,47 @@ func discoveredFromVars(vars map[string]any) map[string]any {
 	return discovered
 }
 
+type varsFileEntry struct {
+	data []byte
+	err  error
+}
+
+var (
+	varsFileCacheMu sync.Mutex
+	varsFileCache   = map[string]varsFileEntry{}
+)
+
+// readVarsFile reads a --vars file. A regular file is read fresh on every
+// call. Anything else (a pipe, a FIFO, the /dev/fd/N a shell passes for
+// `--vars <(command)`, a character device) is read at most once per process,
+// keyed by the path as given, and the same bytes (or the same error) are
+// returned on every later call. validate loads the spec more than once per run
+// (peek, then the real load, plus the discover spec with --discover), and each
+// load renders templates with the vars; a pipe returns its data to the first
+// read only. Same idea as readStdinOnce.
+//
+// If Stat fails the path is read as before, uncached, so a missing or
+// unreadable file reports the same error it always did.
+func readVarsFile(path string) ([]byte, error) {
+	varsFileCacheMu.Lock()
+	defer varsFileCacheMu.Unlock()
+	if e, ok := varsFileCache[path]; ok {
+		return e.data, e.err
+	}
+	if fi, statErr := os.Stat(path); statErr != nil || fi.Mode().IsRegular() {
+		return os.ReadFile(path)
+	}
+	data, err := os.ReadFile(path)
+	varsFileCache[path] = varsFileEntry{data: data, err: err}
+	return data, err
+}
+
 func varsFromFile(varsFile string) (map[string]any, error) {
 	vars := make(map[string]any)
 	if varsFile == "" {
 		return vars, nil
 	}
-	data, err := os.ReadFile(varsFile)
+	data, err := readVarsFile(varsFile)
 	if err != nil {
 		return vars, err
 	}

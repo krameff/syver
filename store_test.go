@@ -571,3 +571,21 @@ func captureStdoutStderr(t *testing.T, fn func()) (string, string) {
 	<-errDone
 	return stdout, stderr
 }
+
+// TestVarsFromFile_RegularFileReadFreshEachCall: only pipes and other
+// non-regular files are read once per process. A regular vars file is read
+// again on every call, so a program calling Validate more than once sees a
+// file that changed in between.
+func TestVarsFromFile_RegularFileReadFreshEachCall(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "vars.json")
+
+	assert.NoError(t, os.WriteFile(path, []byte(`{"want": "first"}`), 0o644))
+	vars, err := varsFromFile(path)
+	assert.NoError(t, err)
+	assert.Equal(t, "first", vars["want"])
+
+	assert.NoError(t, os.WriteFile(path, []byte(`{"want": "second"}`), 0o644))
+	vars, err = varsFromFile(path)
+	assert.NoError(t, err)
+	assert.Equal(t, "second", vars["want"], "a regular vars file must be re-read, not served from a cache")
+}
