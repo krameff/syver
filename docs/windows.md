@@ -134,6 +134,10 @@ attributes: `start-type`, `delayed-start`, `run-as`, `dependencies`,
 fixes a service name containing a space -- that never worked through the old
 command line. See [gossfile](gossfile.md#windows-only-service-attributes).
 
+`masked:` is systemd-only. A Windows spec that sets it fails with an error rather
+than passing; assert `start-type: disabled` instead, which is the nearest
+equivalent.
+
 `command:` timeouts are also **stronger** here than on Linux and macOS. A
 timed-out command's whole process tree is terminated through a Job Object, which
 a process cannot leave unless it was built to break away. On POSIX a process that

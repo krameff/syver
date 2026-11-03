@@ -179,3 +179,18 @@ func TestServiceRunLevelsStillUnsupported(t *testing.T) {
 		t.Errorf("RunLevels() error = %v, want ErrServiceRunLevelsUnsupported", err)
 	}
 }
+
+// FEAT-019. Windows has no mask concept, so `masked:` must fail with the
+// sentinel rather than compare against false and pass. No SCM handle is opened.
+func TestServiceMaskedIsUnsupportedOnWindows(t *testing.T) {
+	masked, err := newTestService("EventLog").Masked()
+	if !errors.Is(err, ErrServiceMaskedUnsupported) {
+		t.Fatalf("Masked() error = %v, want ErrServiceMaskedUnsupported", err)
+	}
+	if masked {
+		t.Error("Masked() = true alongside the sentinel")
+	}
+	if !strings.Contains(err.Error(), "start-type: disabled") {
+		t.Errorf("Masked() error %q does not point at start-type: disabled", err)
+	}
+}

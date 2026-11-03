@@ -78,9 +78,9 @@ echo "$out"
 #           an empty list means "nothing to assert" everywhere now, so it
 #           no longer contributes a vacuous passing test
 case $os in
-  arch)    want='Count: 106, Failed: 0, Skipped: 3' ;;
+  arch)    want='Count: 107, Failed: 0, Skipped: 3' ;;
   alpine3) want='Count: 127, Failed: 0, Skipped: 5' ;;
-  *)       want='Count: 126, Failed: 0, Skipped: 5' ;;
+  *)       want='Count: 128, Failed: 0, Skipped: 5' ;;
 esac
 
 # Reported rather than asserted silently. This was `egrep -q`, which under
