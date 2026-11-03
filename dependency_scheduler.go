@@ -143,44 +143,61 @@ func validateWithDependencies(ctx context.Context, sys *system.System, resources
 		for len(pending) > 0 {
 			var runnable []scheduledResource
 			var nextPending []scheduledResource
+			progressed := false
 
+			// An item is decided only once every prerequisite has completed, and
+			// its skip reason names the first prerequisite, in declared order,
+			// that did not pass. Deciding as soon as any one prerequisite failed
+			// would make the reason depend on which of the others happened to be
+			// complete in this pass, and so on pending order.
 			for _, item := range pending {
 				if completed[item.ref] {
 					continue
 				}
 
-				blocked := false
-				skip := false
+				ready := true
 				skipReason := ""
 				for _, dep := range item.deps {
 					if !completed[dep] {
-						blocked = true
-						break
+						ready = false
+						continue
+					}
+					if skipReason != "" {
+						continue
 					}
 					switch status[dep] {
-					case resource.SUCCESS:
-					case resource.FAIL, resource.SKIP:
-						skip = true
+					case resource.FAIL:
 						skipReason = fmt.Sprintf("dependency %q failed", dep)
-					default:
-						blocked = true
+					case resource.SKIP:
+						skipReason = fmt.Sprintf("dependency %q was skipped", dep)
 					}
 				}
 
-				if skip {
+				if !ready {
+					nextPending = append(nextPending, item)
+					continue
+				}
+				if skipReason != "" {
 					out <- resource.SkipResourceResults(item.resource, skipReason)
 					status[item.ref] = resource.SKIP
 					completed[item.ref] = true
-					continue
-				}
-				if blocked {
-					nextPending = append(nextPending, item)
+					progressed = true
 					continue
 				}
 				runnable = append(runnable, item)
 			}
 
 			if len(runnable) == 0 {
+				// A skip in this pass can complete a prerequisite of something
+				// still pending (a chain a -> b -> c, with c listed before b), so
+				// go round again before concluding nothing can run.
+				if progressed {
+					pending = nextPending
+					continue
+				}
+				// buildSchedule rejects missing references and cycles, so this is
+				// defensive: nothing pending can ever have all its prerequisites
+				// complete.
 				for _, item := range nextPending {
 					out <- resource.SkipResourceResults(item.resource, "unsatisfied dependency")
 				}

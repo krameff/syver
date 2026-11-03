@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/krameff/syver/util"
@@ -105,4 +106,45 @@ func TestServeChecksFormatOptions(t *testing.T) {
 	_, err = newHealthHandler(t.Context(), padded)
 	require.NoError(t, err)
 	assert.Equal(t, []string{"pretty", "sort"}, padded.FormatOptions)
+}
+
+// A repeated unknown option, however it was repeated (-o twice, a comma list,
+// differing case), warns once per run rather than once per repeat, under both
+// validate and serve. Distinct unknown options still warn once each.
+func TestRepeatedUnknownFormatOptionWarnsOnce(t *testing.T) {
+	const warn = `[WARN] unknown format option `
+	repeated := []string{"bogus", "bogus", "BOGUS", " bogus", "nope", "nope"}
+
+	t.Run("validate", func(t *testing.T) {
+		dir := t.TempDir()
+		spec := filepath.Join(dir, "goss.yaml")
+		require.NoError(t, os.WriteFile(spec, []byte("file:\n  "+filepath.ToSlash(spec)+":\n    exists: true\n"), 0o600))
+		cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithFormatOptions(repeated...), util.WithResultWriter(io.Discard))
+		require.NoError(t, err)
+		cfg.LogLevel = "WARN"
+
+		var code int
+		_, stderr := captureStdoutStderr(t, func() { code, err = Validate(t.Context(), cfg) })
+		assert.NoError(t, err)
+		assert.Equal(t, 0, code)
+		assert.Equal(t, 2, strings.Count(stderr, warn), stderr)
+		assert.Equal(t, 1, strings.Count(stderr, warn+`"bogus"`), stderr)
+		assert.Equal(t, 1, strings.Count(stderr, warn+`"nope"`), stderr)
+	})
+
+	t.Run("serve", func(t *testing.T) {
+		var logOutput bytes.Buffer
+		log.SetOutput(&logOutput)
+		t.Cleanup(func() { log.SetOutput(os.Stderr) })
+		c, err := util.NewConfig(
+			util.WithSpecFile(filepath.Join("testdata", "passing.goss.yaml")),
+			util.WithOutputFormat("rspecish"),
+			util.WithFormatOptions(repeated...),
+		)
+		require.NoError(t, err)
+		_, err = newHealthHandler(t.Context(), c)
+		require.NoError(t, err)
+		assert.Equal(t, 2, strings.Count(logOutput.String(), warn), logOutput.String())
+		assert.Equal(t, 1, strings.Count(logOutput.String(), warn+`"bogus"`), logOutput.String())
+	})
 }

@@ -80,6 +80,9 @@ func humanizeResult(r resource.TestResult, compact bool, includeRaw bool) string
 		matcherResult := prettyPrintTestResult(r, compact, includeRaw)
 		return red("%s: %s: %s:%s%s", r.ResourceType, r.ResourceId, r.Property, sep, matcherResult)
 	case resource.SKIP:
+		if r.SkipReason != "" {
+			return yellow("%s: %s: %s: skipped (%s)", r.ResourceType, r.ResourceId, r.Property, r.SkipReason)
+		}
 		return yellow("%s: %s: %s: skipped", r.ResourceType, r.ResourceId, r.Property)
 	default:
 		panic(fmt.Sprintf("Unexpected Result Code: %v\n", r.Result))
@@ -263,11 +266,17 @@ func NormalizeFormatOptions(opts []string) []string {
 // format knows but this one does not honour. Neither is an error: both have
 // always been accepted and had no effect, so the caller warns rather than
 // refusing to run. ignored is empty for an unknown format, which GetOutputer
-// reports.
+// reports. Each name is reported once, under its first spelling, however
+// often and in whatever case it was repeated.
 func CheckFormatOptions(format string, opts []string) (unknown, ignored []string) {
 	all := FormatOptions()
 	own := ValidOptionsFor(format)
+	var seen []string
 	for _, opt := range NormalizeFormatOptions(opts) {
+		if util.IsValueInList(opt, seen) {
+			continue
+		}
+		seen = append(seen, opt)
 		switch {
 		case !util.IsValueInList(opt, all):
 			unknown = append(unknown, opt)
@@ -305,14 +314,8 @@ func header(t resource.TestResult) string {
 		out += fmt.Sprintf("Title: %s\n", t.Title)
 	}
 	if t.Meta != nil {
-		var keys []string
-		for k := range t.Meta {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-
 		out += "Meta:\n"
-		for _, k := range keys {
+		for _, k := range sortedMetaKeys(t.Meta) {
 			out += fmt.Sprintf("    %v: %v\n", k, t.Meta[k])
 		}
 	}
