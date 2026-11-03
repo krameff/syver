@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.15.3 - Fixes](#v0153---fixes)
 * [v0.15.2 - Go 1.27.3 security update](#v0152---go-1273-security-update)
 * [v0.15.1 - Fixes](#v0151---fixes)
 * [v0.15.0 - Agent sandbox profiles and sbxsyver](#v0150---agent-sandbox-profiles-and-sbxsyver)
@@ -83,6 +84,60 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [Lineage](#lineage)
 
 ---
+
+## v0.15.3 - Fixes
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-11-02 |
+| Tag | `v0.15.3`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `1d96cfa`, the `devel` -> `main` merge commit from PR #103 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.15.2 release record (PR #97), `fix/correctness-audit` (PR #98), `fix/hygiene-and-cli` (PR #99), `test/audit-gaps` (PR #100), `fix/install-and-wrappers` (PR #101), then `docs/audit-and-links` (PR #102). Merged to `main` through PR #103 |
+| Scope | 7 commits (excluding merges), 97 files, +4727 / -689, measured at `v0.15.3` against `v0.15.2` |
+| Changelog | [0.15.3](CHANGELOG.md#0153-based-on-krameffgoss-v060---fixes) |
+
+A patch release of fixes. Crashes: a reverse DNS answer containing a CNAME,
+an `http:` request header with no space after the colon under `discovery:`,
+and a panicking check under `discovery:`. Wrong results: `serve --cache 0s`
+cached forever, prometheus output could report a failing run as passing,
+`udp4://` and `udp6://` addresses always reported unreachable, DNS lookup
+errors read as "not resolvable", mount usage on block-less filesystems was a
+large negative number, NaN and infinite values were dropped from json output,
+and `file: contents:` leaked a file descriptor per check. Behaviour changes:
+`syver autoadd` exits 1 when a name matches nothing, unknown `-o` options
+warn, and `serve --log-level` works again. `install.sh` now verifies the
+binary against `SHA256SUMS`. Unused exported Go functions were removed, which
+affects only code importing Syver as a library. The set of published binaries
+is unchanged.
+
+**Suites run on 2026-11-01**, on the union of the five branches before they
+were committed: Linux unit tests under `-race`, `make check`, golangci-lint
+for linux and windows, yamllint, actionlint, markdown lint, and the goldens
+(227 of 228 byte-identical; the one difference is a line number in
+`render/docs__schema.yaml.err`, which moved because `docs/schema.yaml` grew).
+The Docker suite on the remote builder passed (rockylinux9, almalinux10 and
+jammy 126, alpine3 127, arch 106, all `Failed: 0`, serve, discovery,
+depends-on and `dcsyver` passed). The Windows Server 2025 guest passed unit
+tests under `-race`, 19 validate fixtures and the serve tests. Each branch was
+green in CI before merge, including `macos-latest` and `windows-latest`; the
+macOS run of PR #99 found that two new autoadd tests assumed Linux, and they
+now skip elsewhere. `devel` at `8c39de4`, whose tree is the one tagged, was
+green in CI.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `1d96cfa` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`8c39de4`. The release carries 38 assets, the same names as 0.15.2.
+`syver_0.15.3_SHA256SUMS` and the `syver-linux-amd64` SBOM verify against the
+project key alone, imported into an empty keyring. The checksum for
+`syver-linux-amd64` matches, its embedded build information shows go1.27.3
+and revision `1d96cfa` with no local modifications, and it reports
+`syver version 0.15.3`. `install.sh` from `main` installed v0.15.3, printed
+its checksum verification, and left no temporary directory behind.
+`ghcr.io/krameff/syver:v0.15.3` and `:latest` resolve to the same image, for
+linux/amd64 and linux/arm64, labelled with revision `1d96cfa` and version
+`0.15.3`. The goldens were re-captured on `v0.15.3`: 228 of 228.
 
 ## v0.15.2 - Go 1.27.3 security update
 
