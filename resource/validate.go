@@ -44,6 +44,9 @@ func toValidateError(err error) *ValidateError {
 type TestResult struct {
 	Successful bool `json:"successful" yaml:"successful"`
 	Skipped    bool `json:"skipped" yaml:"skipped"`
+	// SkipReason says why a skipped result was skipped. Empty, and omitted
+	// from serialised output, on every result that was not skipped.
+	SkipReason string `json:"skip-reason,omitempty" yaml:"skip-reason,omitempty"`
 	// Resource data
 	ResourceId   string `json:"resource-id" yaml:"resource-id"`
 	ResourceType string `json:"resource-type" yaml:"resource-type"`

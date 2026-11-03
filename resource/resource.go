@@ -58,6 +58,51 @@ func deprecateAtoI(depr any, desc string) any {
 	return float64(i)
 }
 
+// promotedSkipReason says why shouldSkip promoted the rest of a resource's
+// attributes to skipped, given the first result it inspected. It must cover the
+// same conditions as shouldSkip: a first check that errored or failed, and one
+// that passed with a false value (`exists: false` on an absent file leaves no
+// file to have a mode). Returns "" when shouldSkip would not promote.
+func promotedSkipReason(first TestResult) string {
+	if first.Err != nil || first.Result != SUCCESS {
+		return first.Property + " did not pass"
+	}
+	if first.MatcherResult.Actual == false {
+		return first.Property + " is false"
+	}
+	return ""
+}
+
+// annotateSkipReasons fills SkipReason on a resource's skipped results.
+//
+// Every promotion site inspects results[0] through shouldSkip, so the first
+// result tells the two kinds of skip apart: if it is itself skipped, the whole
+// resource was skipped before anything ran (`skip: true`), and the author's
+// skip-reason applies; otherwise the later skips were promoted by it. A reason
+// already set (by SkipResourceResults) is left alone.
+func annotateSkipReasons(res Resource, results []TestResult) []TestResult {
+	if len(results) == 0 {
+		return results
+	}
+	var reason string
+	if results[0].Skipped {
+		if sr, ok := res.(interface{ GetSkipReason() string }); ok {
+			reason = oneLineSkipReason(sr.GetSkipReason())
+		}
+	} else {
+		reason = promotedSkipReason(results[0])
+	}
+	if reason == "" {
+		return results
+	}
+	for i := range results {
+		if results[i].Skipped && results[i].SkipReason == "" {
+			results[i].SkipReason = reason
+		}
+	}
+	return results
+}
+
 func shouldSkip(results []TestResult) bool {
 	if len(results) < 1 {
 		return false

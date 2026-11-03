@@ -51,6 +51,7 @@ func (r JUnit) Output(w io.Writer, results <-chan []resource.TestResult,
 				escapeString(testResult.ResourceId) + " " +
 				testResult.Property + "\" " +
 				"time=\"" + duration + "\">\n"
+			summary[testCount] += junitProperties(testResult.Meta)
 			if testResult.Result == resource.FAIL {
 				summary[testCount] += "<system-err>" +
 					escapeString(humanizeResult(testResult, true, includeRaw)) +
@@ -62,7 +63,11 @@ func (r JUnit) Output(w io.Writer, results <-chan []resource.TestResult,
 				failed++
 			} else {
 				if testResult.Result == resource.SKIP {
-					summary[testCount] += "<skipped/>"
+					if testResult.SkipReason != "" {
+						summary[testCount] += "<skipped message=\"" + escapeString(testResult.SkipReason) + "\"/>"
+					} else {
+						summary[testCount] += "<skipped/>"
+					}
 					skipped++
 				}
 				summary[testCount] += "<system-out>" +

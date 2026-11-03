@@ -492,6 +492,8 @@ If the filename is a glob pattern, then none of the matching files are processed
 Note that this is not the same as skipping the contained resources;
 any overrides in the referenced gossfile will not be processed, and the resource count will not be incremented.
 Skipping a gossfile include is the same as omitting the gossfile resource entirely.
+A gossfile include accepts [`skip-reason`](#skipping-tests), but it has no effect there:
+a skipped include produces no results to carry it.
 
 ### group
 
@@ -1510,6 +1512,86 @@ command:
 
 References use the gossfile map key, or `type:key` when ambiguous across resource types.
 Independent dependency chains still run in parallel; only declared dependencies are serialized.
+
+A dependent skipped this way carries a [skip reason](#skipping-tests) naming the prerequisite:
+`dependency "file:prereq" failed` when it failed, or `dependency "file:prereq" was skipped` when it
+was itself skipped, as in a chain where `c` depends on `b` and `b` depends on a failing `a`. With
+several prerequisites, the reason names the first one, in the order listed under `depends-on`,
+that did not pass. The JSON and structured outputs also keep the same text in the result's `err`
+field. A prerequisite you turn off with `skip: true` does not count as not passing: its dependents
+run as normal.
+
+## Skipping tests
+
+Every resource type accepts `skip: true`, which reports each of the resource's attributes as
+skipped instead of checking it. Add `skip-reason:` to say why. The text is shown on each of
+that resource's skipped results:
+
+```yaml
+service:
+  auditd:
+    enabled: true
+    running: true
+    skip: true
+    skip-reason: auditd does not run in containers
+```
+
+```console
+Service: auditd: enabled: skipped (auditd does not run in containers)
+Service: auditd: running: skipped (auditd does not run in containers)
+```
+
+`skip-reason:` explains `skip: true` only. Without `skip: true` it is accepted and has no
+effect: any skip the resource still gets is one Syver makes itself, and shows Syver's reason
+(see below). A skip with no reason renders exactly as it did before
+the attribute existed. The reason is printed on one line, so any run of whitespace in it,
+including the line breaks of a `|` or `>` block, becomes a single space in every output format.
+
+!!! warning "Requires syver 0.16.0"
+    Syver 0.15.x and earlier reject the key, because resource attributes are checked strictly:
+    `Error: invalid Attribute for File:/etc/hostname: skip-reason`, with exit code 78. Content
+    that uses `skip-reason:` must require syver 0.16.0 or later.
+
+### Skips syver reports itself
+
+Syver also skips tests on its own in two cases, and fills in the reason for both. An author's
+`skip-reason:` does not replace these, since it explains a different skip.
+
+* **A [dependency](#test-dependencies) that did not pass.** The reason is
+  `dependency "<ref>" failed` or `dependency "<ref>" was skipped`.
+* **A failed first check.** For most resource types the first check decides whether the rest
+  can mean anything: a missing file has no mode, a package that is not installed has no
+  version. When it does not pass, the remaining attributes are skipped with the reason
+  `<attribute> did not pass`, for example `exists did not pass`. When it passes with a false
+  value, as `exists: false` does on an absent file, the reason is `<attribute> is false`.
+  The first check is `exists` on `file`, `group`, `user`, `interface`, `mount` and `registry`;
+  `installed` on `package`; `listening` on `port`; `running` on `process`; `resolvable` on
+  `dns`; and `status` on `http`.
+
+### Where the reason appears
+
+| Output format | Skipped result with a reason |
+| --- | --- |
+| `documentation`, `rspecish` | `File: /etc/x: mode: skipped (exists did not pass)` |
+| `json`, `structured` | a `"skip-reason"` field on the result, and the same text in `summary-line` and `summary-line-compact`. The field is omitted from every result without a reason, so passing and failing results are unchanged |
+| `junit` | `<skipped message="exists did not pass"/>`, XML-escaped. A skip with no reason is still `<skipped/>` |
+| `tap` | `ok 3 - # SKIP File: /etc/x: mode: skipped (exists did not pass)` |
+| `nagios`, `prometheus`, `silent` | not shown. These report counts, not individual skipped results |
+
+### Skipping on a discovered fact
+
+[Discovery](#discovery) does not skip tests itself. Gating a block with `{{ if .Discovered.x }}`
+removes the test from the run, so it produces no result at all. To keep the test in the report
+as a skipped result with an explanation, render `skip:` from the discovered value instead:
+
+```yaml
+service:
+  auditd:
+    enabled: true
+    running: true
+    skip: {{ not .Discovered.auditd_installed }}
+    skip-reason: auditd is not installed
+```
 
 ## Templates
 
