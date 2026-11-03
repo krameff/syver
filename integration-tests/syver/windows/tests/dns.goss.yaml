@@ -9,4 +9,4 @@ dns:
     addrs:
     - "127.0.0.1"
     - ::1
-    timeout: 500
+    timeout: 2000

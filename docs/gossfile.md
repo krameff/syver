@@ -952,6 +952,11 @@ user:
     This check is inspecting the contents of local passwd file `/etc/passwd`, this does not validate remote users
     (e.g. LDAP).
 
+!!! note "Windows"
+    `groups` lists the account's local groups and its primary group, without a domain prefix, and is the same
+    however syver is run. `uid`, `gid` and `shell` are not supported: Windows accounts have SIDs rather than
+    integer ids, and no login shell. See [Windows](windows.md#what-works).
+
 ## Matchers
 
 ### Default Matchers
