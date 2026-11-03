@@ -126,8 +126,17 @@ an elevated and a limited-token session. Each branch was green in CI before
 merge, including `macos-latest` and `windows-latest`. Merged `devel` at
 `f0db34a` was compared file by file with the tested tree; the only difference
 was `RELEASES.md` from PR #104. Golang ci on `7f70c75`, the last `devel`
-commit that changed code, passed every job. The Windows11-CIS-Audit
-comparison against 0.15.3 on a Windows 11 host was not run for this release.
+commit that changed code, passed every job.
+
+**Downstream check, run after the tag on 2026-11-03.** The
+[Windows11-CIS-Audit](https://github.com/ansible-lockdown/Windows11-CIS-Audit)
+content at `4482e08` was run on a Windows 11 Enterprise host (build
+10.0.26200) with the published `v0.15.3` and `v0.16.0` Windows binaries, both
+checked against their `SHA256SUMS`, back to back against the same policy
+snapshot. Both reported 1391 checks, 426 failed and 636 skipped, and no check
+changed outcome. The only differences were the 636 skipped results, which on
+0.16.0 carry the reason `exists did not pass`, and the run timestamp the audit
+records in its own metadata.
 
 **Verified after the push**, against the published release rather than the
 build log. The tag is an annotated tag object on `6d295ad` with a good
