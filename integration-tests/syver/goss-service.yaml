@@ -13,6 +13,12 @@ service:
 {{ if .Env.OS | regexMatch "alpine3" }}
     runlevels: ["sysinit"]
 {{end}}
+{{ if .Env.OS | regexMatch "rockylinux9|almalinux10|jammy" }}
+    masked: false
+  # Masked at image build time in the systemd Dockerfiles.
+  systemd-timedated:
+    masked: true
+{{end}}
   skippable:
     enabled: true
     running: true

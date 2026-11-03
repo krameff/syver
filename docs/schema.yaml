@@ -651,6 +651,12 @@ definitions:
         description: >-
           The runlevels the service is enabled in. Supported on Alpine init,
           sysv init and upstart.
+      masked:
+        type: boolean
+        description: >-
+          systemd only. Whether the unit is masked (LoadState or UnitFileState
+          is masked or masked-runtime). A missing unit is not masked. Every
+          other platform reports an error rather than a value.
       start-type:
         type: string
         description: >-

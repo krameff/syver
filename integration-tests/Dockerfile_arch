@@ -6,3 +6,6 @@ RUN ln -s /does_not_exist /foo && \
     chmod 700 ~root
 RUN systemctl enable httpd dnsmasq tinyproxy
 RUN mkfifo /pipe
+
+# FEAT-019: a masked unit for the service masked: assertion.
+RUN systemctl mask systemd-timedated.service

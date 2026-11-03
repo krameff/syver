@@ -26,3 +26,6 @@ RUN mkdir -p /etc/systemd/system/tinyproxy.service.d && \
 
 RUN systemctl enable apache2 tinyproxy dnsmasq
 RUN mkfifo /pipe
+
+# FEAT-019: a masked unit for the service masked: assertion.
+RUN systemctl mask systemd-timedated.service

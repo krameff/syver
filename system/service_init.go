@@ -12,6 +12,7 @@ import (
 
 type ServiceInit struct {
 	windowsOnlyServiceAttrs // FEAT-014: the six Windows-only attributes, as errors
+	noMaskConcept           // FEAT-019: masked is systemd-only
 	// ctx bounds and cancels the `service ... status` subprocess in Running.
 	// See the matching field on ServiceSystemd.
 	ctx      context.Context

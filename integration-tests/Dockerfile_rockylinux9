@@ -28,3 +28,6 @@ RUN systemctl enable tinyproxy
 RUN systemctl enable dnsmasq
 RUN chmod 700 ~root
 RUN mkfifo /pipe
+
+# FEAT-019: a masked unit for the service masked: assertion.
+RUN systemctl mask systemd-timedated.service

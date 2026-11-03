@@ -163,6 +163,7 @@ This matrix attempts to track parity across platforms.
 |                     | enabled             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | running             | {{ fully_supported }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | runlevels           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+|                     | masked              | {{ work_partially }}    | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | start-type          | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | delayed-start       | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
 |                     | run-as              | {{ not_implemented }}   | {{ not_implemented }}  | {{ work_partially }}    |
@@ -191,6 +192,9 @@ feature.** Windows identifies accounts and groups by SID (`S-1-5-21-...`), and
 syver parses these attributes as integers. There is no integer to report, so no implementation could satisfy
 them. They are listed as not implemented because that is the closest available
 status, not because the work is pending.
+
+`service:` `masked:` is systemd-only. On Linux hosts running sysv init, OpenRC
+or upstart, and on every other platform, a spec that sets it fails with an error.
 
 **`kernel-param:` on Windows.** There is no Windows equivalent -- no `/proc/sys`.
 `exists` and `value` both return an explicit `kernel-param is not supported on

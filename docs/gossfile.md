@@ -880,9 +880,26 @@ service:
     running: true
     runlevels: ["3", "4", "5"]  # Alpine example, runlevels: ["default"]
     skip: false
+  alsa-utils:
+    masked: true                # systemd only
 ```
 
 `runlevels` is only supported on Alpine init, sysv init, and upstart
+
+On systemd, `enabled` is the exit status of `systemctl is-enabled`, so it is
+also true for `static` units (and for `indirect`, `alias`, `generated` and
+`transient` ones), and it is false for both a disabled and a masked unit.
+
+`masked` tells those last two apart. It is true when the unit's `LoadState` or
+`UnitFileState` is `masked` (including `masked-runtime`), as reported by
+`systemctl show`. A unit that does not exist is not masked. A masked unit cannot
+be started at all, by hand, by a dependency or by socket activation, whereas a
+disabled one can. `masked` is **systemd only**: on every other platform a spec
+that sets it fails with an error rather than comparing against `false`. On
+Windows the nearest equivalent is `start-type: disabled`. `syver add service`
+writes `masked: true` for a masked unit and omits the key otherwise. Name a
+template unit by an instance (`getty@tty1`): `systemctl show` rejects a bare
+template name such as `getty@`, so `masked` reports an error for one.
 
 #### Windows-only service attributes
 

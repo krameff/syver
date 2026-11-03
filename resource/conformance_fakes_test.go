@@ -45,6 +45,10 @@ func (conformanceService) Enabled() (bool, error)       { return true, nil }
 func (conformanceService) Running() (bool, error)       { return true, nil }
 func (conformanceService) RunLevels() ([]string, error) { return []string{}, nil }
 
+// FEAT-019. Answered as a non-systemd host would, so generated_empty_test.go also
+// proves a generator does not emit `masked:` for a host that cannot report it.
+func (conformanceService) Masked() (bool, error) { return false, system.ErrServiceMaskedUnsupported }
+
 // FEAT-014's Windows-only attributes. This fake answers them as an unsupported
 // platform would, which is what keeps generated_empty_test.go honest: a generator
 // that emitted `dependencies: []` for a host that cannot report them would be
