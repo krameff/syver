@@ -192,6 +192,23 @@ unchanged in every format, and a skip with no reason looks exactly as it does
 under goss. If anything you run matches a line ending exactly in `: skipped`,
 update it. See [Skipping tests](gossfile.md#skipping-tests).
 
+A fourth: **a text pattern keeps its leading `/`.** goss strips every leading
+`/`, `\` and `!` from a pattern that is not a regex, so `"/tmp"` matches a line
+containing `tmpfs` and `"!/tmp"` fails on it. It also strips the slash from the
+`\/...` lines `goss add command` writes, so those check less than they say.
+Syver drops only the `!` that inverts a pattern and one escaping backslash, so
+`"/tmp"` means `/tmp` and `"\\!foo"` means `!foo`. Regex patterns are
+unchanged. A check that passed only because its slash was ignored will now
+fail. See [io.Readers](gossfile.md#ioreaders).
+
+A fifth: **an unknown port network is an error.** goss records listeners only
+under `tcp`, `tcp6`, `udp` and `udp6`, so a port such as `tpc:22` or `tcp4:80`
+is never found: `listening: false` passes without checking anything, and
+`listening: true` fails without saying why. Syver accepts `tcp4` and `udp4` as
+other names for `tcp` and `udp`, which goss already reads as IPv4 only, and
+fails any other network with an error naming the valid ones. See
+[port](gossfile.md#port).
+
 ## Product identity
 
 | Item | goss | Syver |

@@ -809,9 +809,15 @@ Validates the state of a local port.
     try running `syver add port ..` to see how syver detects it.
     ([explanation](https://github.com/goss-org/goss/issues/149))
 
+The key is `network:port`. The network is one of `tcp`, `tcp6`, `udp` or
+`udp6`, and `tcp4` and `udp4` are accepted as other names for `tcp` and `udp`,
+which already mean IPv4 only. A bare port number means `tcp`. Any other network,
+such as a typo, fails the check with an error naming the valid ones, and
+`syver add port` refuses it.
+
 ```yaml
 port:
-  # {tcp,tcp6,udp,udp6}:port_num
+  # {tcp,tcp4,tcp6,udp,udp4,udp6}:port_num
   tcp:22:
     # required attributes
     listening: true
@@ -1061,7 +1067,12 @@ Each pattern is checked against the attribute output, the type of patterns are:
 
 * `"foo"` - checks if any line contains `foo`
 * `"!foo"` - inverse of above, checks that no line contains `foo`
-* `"\\!foo"` - escape sequence, check if any line contains `!string`
+* `"\\!foo"` - escape sequence, check if any line contains `!foo`
+* `"/tmp"` - a leading `/` is part of the text when the pattern is not a regex,
+  so this checks for `/tmp` and does not match `tmpfs`
+* `"\\/var/lib/mis"` - escape sequence for text that would otherwise read as a
+  regex with flags, check if any line contains `/var/lib/mis`. `syver add`
+  writes command output starting with `/` or `!` this way
 * `"/[Rr]egex/"` - verifies that line matches regex
 * `"!/[Rr]egex/"` - inverse of above, checks that no line matches regex
 
