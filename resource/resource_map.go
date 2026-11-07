@@ -71,7 +71,10 @@ func (r ResourceMap[T, ST, PT]) AppendSysResource(sr string, sys *system.System,
 // which is the defect this whole path exists to remove.
 func isExpectedAbsence(err error) bool {
 	return errors.Is(err, system.ErrMountpointNotFound) ||
-		errors.Is(err, system.ErrServiceNotFound)
+		errors.Is(err, system.ErrServiceNotFound) ||
+		// `syver autoadd foo:bar` tries the name as every type, and "foo" is
+		// not a port network. That says the name is not a port, nothing more.
+		errors.Is(err, system.ErrUnknownPortNetwork)
 }
 
 // AppendSysResourceIfExists is AppendSysResource, but only stores the result

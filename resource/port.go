@@ -2,6 +2,7 @@ package resource
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/krameff/syver/system"
@@ -34,7 +35,15 @@ func init() {
 		InDiscovery:  true,
 		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
 			r := &Port{}
-			if _, err := r.fromSystem(sys, key, config); err != nil {
+			sysRes, err := r.fromSystem(sys, key, config)
+			if err != nil {
+				return nil, err
+			}
+			// NewPort discards the Listening() error so autoadd can carry on,
+			// which on its own would let `syver add port tpc:22` write a
+			// `listening: false` entry that validate then reports as an error.
+			// Refuse it here instead; this closure is reached only by `add`.
+			if _, err := sysRes.Listening(); errors.Is(err, system.ErrUnknownPortNetwork) {
 				return nil, err
 			}
 			return r, nil
