@@ -6,6 +6,8 @@ import (
 
 	"github.com/shirou/gopsutil/v4/net"
 	"gotest.tools/v3/assert"
+
+	"github.com/krameff/syver/util"
 )
 
 // fakeConnections stubs out connectionsByKind so tests never touch the real
@@ -119,7 +121,7 @@ func TestDefPortListening(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := &DefPort{port: tt.port, sysPorts: tt.sysPorts, err: tt.err}
+			p := &DefPort{port: tt.port, key: tt.port, sysPorts: tt.sysPorts, err: tt.err}
 
 			listening, err := p.Listening()
 			if tt.wantErr {
@@ -140,6 +142,7 @@ func TestDefPortIP(t *testing.T) {
 	t.Run("returns all ips for the port", func(t *testing.T) {
 		p := &DefPort{
 			port: "tcp:8080",
+			key:  "tcp:8080",
 			sysPorts: map[string][]net.ConnectionStat{
 				"tcp:8080": {
 					{Laddr: net.Addr{IP: "127.0.0.1"}},
@@ -163,6 +166,7 @@ func TestDefPortPID(t *testing.T) {
 	t.Run("returns the owning pid of every connection on the port", func(t *testing.T) {
 		p := &DefPort{
 			port: "tcp:8080",
+			key:  "tcp:8080",
 			sysPorts: map[string][]net.ConnectionStat{
 				"tcp:8080": {
 					{Pid: 1234},
@@ -178,6 +182,7 @@ func TestDefPortPID(t *testing.T) {
 	t.Run("an unresolved owner (pid 0) is omitted, not reported as pid 0", func(t *testing.T) {
 		p := &DefPort{
 			port: "tcp:8080",
+			key:  "tcp:8080",
 			sysPorts: map[string][]net.ConnectionStat{
 				"tcp:8080": {
 					{Pid: 0},
@@ -210,4 +215,65 @@ func TestNormalizePort(t *testing.T) {
 		got := normalizePort(tt.in)
 		assert.Equal(t, got, tt.want)
 	}
+}
+
+// TestNewDefPortNetworks covers the network half of a port key end to end,
+// through the real GetPorts with a stubbed connection table: the six accepted
+// networks, the tcp4/udp4 aliases finding what tcp/udp find, the bare-port
+// default, and an unknown network failing on every method rather than reading
+// as "not listening" (goss-org/goss#1006).
+func TestNewDefPortNetworks(t *testing.T) {
+	fakeConnections(t, map[string][]net.ConnectionStat{
+		"tcp4": {{Status: "LISTEN", Laddr: net.Addr{IP: "0.0.0.0", Port: 80}, Pid: 10}},
+		"tcp6": {{Status: "LISTEN", Laddr: net.Addr{IP: "::", Port: 443}, Pid: 11}},
+		"udp4": {{Laddr: net.Addr{IP: "0.0.0.0", Port: 53}, Pid: 12}},
+		"udp6": {{Laddr: net.Addr{IP: "::", Port: 5353}, Pid: 13}},
+	}, nil)
+	sys := &System{}
+
+	listening := []struct {
+		port, wantPort string
+		want           bool
+	}{
+		{"80", "tcp:80", true},
+		{"tcp:80", "tcp:80", true},
+		{"tcp4:80", "tcp4:80", true}, // alias keeps the key as written
+		{"tcp6:80", "tcp6:80", false},
+		{"tcp6:443", "tcp6:443", true},
+		{"tcp4:443", "tcp4:443", false},
+		{"udp:53", "udp:53", true},
+		{"udp4:53", "udp4:53", true},
+		{"udp6:5353", "udp6:5353", true},
+		{"udp4:5353", "udp4:5353", false},
+	}
+	for _, tt := range listening {
+		p := NewDefPort(t.Context(), tt.port, sys, util.Config{})
+		got, err := p.Listening()
+		assert.NilError(t, err, tt.port)
+		assert.Equal(t, got, tt.want, tt.port)
+		assert.Equal(t, p.Port(), tt.wantPort, tt.port)
+	}
+	ips, err := NewDefPort(t.Context(), "tcp4:80", sys, util.Config{}).IP()
+	assert.NilError(t, err)
+	assert.DeepEqual(t, ips, []string{"0.0.0.0"})
+
+	for _, port := range []string{"tpc:80", "TCP:80", "tcp46:80", "sctp:80", ":80"} {
+		p := NewDefPort(t.Context(), port, sys, util.Config{})
+		_, lerr := p.Listening()
+		_, eerr := p.Exists()
+		_, ierr := p.IP()
+		_, perr := p.PID()
+		for name, err := range map[string]error{"Listening": lerr, "Exists": eerr, "IP": ierr, "PID": perr} {
+			assert.Assert(t, errors.Is(err, ErrUnknownPortNetwork), "%s(%q) = %v", name, port, err)
+			assert.ErrorContains(t, err, "must be one of tcp, tcp4, tcp6, udp, udp4, udp6")
+		}
+	}
+}
+
+// An unknown network is reported as itself even when the connection table
+// also failed: the spec error is the one the user can act on.
+func TestNewDefPortUnknownNetworkBeatsTableError(t *testing.T) {
+	fakeConnections(t, nil, map[string]error{"tcp4": errors.New("boom")})
+	_, err := NewDefPort(t.Context(), "tpc:22", &System{}, util.Config{}).Listening()
+	assert.Assert(t, errors.Is(err, ErrUnknownPortNetwork), "%v", err)
 }
