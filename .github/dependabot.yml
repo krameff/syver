@@ -19,6 +19,12 @@ updates:
     schedule:
       interval: "weekly"
       day: "saturday"
+    # codeql-action refuses to run when its init, analyze and upload-sarif
+    # steps are on different versions, so they must move in one PR.
+    groups:
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
     assignees:
       - "uk-bolly"
     reviewers:
