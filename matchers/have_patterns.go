@@ -160,10 +160,18 @@ type stringPattern struct {
 
 func newStringPattern(str string) *stringPattern {
 	var inverse bool
-	if strings.HasPrefix(str, "!") {
+	cleanPattern := str
+	if strings.HasPrefix(cleanPattern, "!") {
 		inverse = true
+		cleanPattern = cleanPattern[1:]
 	}
-	cleanPattern := strings.TrimLeft(str, "\\/!")
+	// One leading backslash escapes the next character: "\!foo" is the
+	// literal "!foo" and "\/foo" the literal "/foo" (which is how `syver add`
+	// keeps a line such as "/var/lib/mis" from parsing as a regex). Only that
+	// one backslash goes; every other leading character is part of the text.
+	// This used to be strings.TrimLeft(str, "\\/!"), which also ate a leading
+	// "/" or "!" of the text itself, so "/tmp" matched "tmpfs".
+	cleanPattern = strings.TrimPrefix(cleanPattern, "\\")
 	return &stringPattern{
 		pattern:      str,
 		cleanPattern: cleanPattern,
