@@ -23,7 +23,7 @@ require (
 	github.com/tidwall/gjson v1.20.0
 	github.com/urfave/cli/v3 v3.14.0
 	go.yaml.in/yaml/v2 v2.4.4
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/sys v0.49.0
 	gotest.tools/v3 v3.5.2
 )
