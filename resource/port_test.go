@@ -84,3 +84,41 @@ func TestPortValidate(t *testing.T) {
 		assert.Equal(t, results[0].Result, FAIL)
 	})
 }
+
+// A port key whose network GetPorts never records (here a typo) used to be
+// "not listening", so `listening: false` passed without checking anything and
+// `listening: true` failed without saying why (goss-org/goss#1006). Both must
+// now fail and name the network. Uses the real system.NewDefPort, since the
+// check lives there.
+func TestPortUnknownNetworkFailsInsteadOfPassing(t *testing.T) {
+	sys := &system.System{NewPort: system.NewDefPort}
+	for _, want := range []bool{false, true} {
+		p := &Port{id: "tpc:65535", Listening: want}
+		results := p.Validate(t.Context(), sys)
+		assert.Assert(t, len(results) > 0)
+		r := results[0]
+		assert.Equal(t, r.Result, FAIL, "listening: %v", want)
+		assert.ErrorContains(t, r.Err, `unknown port network "tpc" in port "tpc:65535"`)
+	}
+}
+
+// `syver add port tpc:22` must refuse, not write a `listening: false` entry
+// that validate would then report as an error.
+func TestPortAddRejectsUnknownNetwork(t *testing.T) {
+	desc, ok := DescriptorByKey(PortResourceKey)
+	assert.Assert(t, ok)
+	sys := &system.System{NewPort: system.NewDefPort}
+	_, err := desc.AppendSys(sys, "tpc:22", util.Config{})
+	assert.Assert(t, errors.Is(err, system.ErrUnknownPortNetwork), "err = %v", err)
+}
+
+// autoadd tries a name as every auto-addable type. A name that is not a valid
+// port key is simply not a port: skipped, with no error to abort the run.
+func TestPortAutoaddSkipsUnknownNetwork(t *testing.T) {
+	sys := &system.System{NewPort: system.NewDefPort}
+	ports := PortMap{}
+	_, _, found, err := ports.AppendSysResourceIfExists("foo:bar", sys)
+	assert.NilError(t, err)
+	assert.Assert(t, !found)
+	assert.Equal(t, len(ports), 0)
+}

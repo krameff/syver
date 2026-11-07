@@ -276,3 +276,42 @@ func TestHavePatternsMatcher_CaseInsensitiveFlag(t *testing.T) {
 		})
 	}
 }
+
+// TestHavePatternsMatcher_StringPatternPrefix pins what a string (non-regex)
+// pattern keeps of its leading characters: everything except the "!" inverse
+// marker and one escaping backslash. The old strings.TrimLeft(str, "\\/!")
+// dropped every leading "/", "\" and "!", so "/tmp" matched "tmpfs" and the
+// "\/..." lines `syver add command` writes lost their slash (goss-org/goss#1152).
+func TestHavePatternsMatcher_StringPatternPrefix(t *testing.T) {
+	const fstab = "tmpfs /run tmpfs defaults 0 0\n"
+	tests := []struct {
+		name    string
+		actual  string
+		pattern string
+		wantOK  bool
+	}{
+		{"escaped ! matches the literal", "!foo\n", `\!foo`, true},
+		{"escaped ! needs the !", "foo\n", `\!foo`, false},
+		{"escaped / matches the literal", "/usr/bin/foo\n", `\/usr/bin/foo`, true},
+		{"escaped / needs the /", "usr/bin/foo\n", `\/usr/bin/foo`, false},
+		{"escaped regex-looking path is literal", "/var/lib/mis\n", `\/var/lib/mis`, true},
+		{"leading / is kept", fstab, "/tmp", false},
+		{"leading / still matches when present", "tmpfs /tmp tmpfs\n", "/tmp", true},
+		{"inverse keeps the leading /", fstab, "!/tmp", true},
+		{"inverse fails when present", "tmpfs /tmp tmpfs\n", "!/tmp", false},
+		{"inverse of an escaped /", "usr/bin/foo\n", `!\/usr/bin/foo`, true},
+		{"only one ! is the marker", "!foo\n", "!!foo", false},
+		{"only one backslash is the escape", `\\server` + "\n", `\\server`, true},
+		{"only one backslash is the escape, negative", `\server` + "\n", `\\\server`, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.False(t, isRegexPattern(tt.pattern), "%q must be a string pattern for this test", tt.pattern)
+			m := HavePatterns([]interface{}{tt.pattern})
+			ok, err := m.Match(strings.NewReader(tt.actual))
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantOK, ok,
+				"HavePatterns(%q).Match(%q) = %v, want %v", tt.pattern, tt.actual, ok, tt.wantOK)
+		})
+	}
+}

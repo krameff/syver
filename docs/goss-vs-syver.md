@@ -23,7 +23,8 @@ conversion, because the format did not change.
 
 Nothing that reads or writes a spec file changes. Almost everything that breaks is
 something that referenced the product by name; the exception is the Go library API,
-which changed to carry a `context.Context` (last two rows).
+which changed to carry a `context.Context` and a service's masked state (last
+three rows).
 
 | What | goss | Syver | Affects you if |
 | --- | --- | --- | --- |
@@ -34,6 +35,7 @@ which changed to carry a `context.Context` (last two rows).
 | Go module path | `github.com/krameff/goss` | `github.com/krameff/syver` | You import this as a library, not as a CLI |
 | `Resource` interface | `Validate(sys)` | `Validate(ctx, sys)` | You implement your own resource type against the library |
 | Library entry points | `Validate(c)`, `ValidateResults(c)`, `ValidateConfig(c, cfg)`, `Serve(c)` | same, each taking `ctx` first | You call these directly instead of using the CLI |
+| `system.Service` interface | no `Masked()` | gains `Masked() (bool, error)` | You implement your own service backend; return `system.ErrServiceMaskedUnsupported` where masking has no meaning |
 
 Release binaries are published under the syver name only. The goss-named
 binaries were last published with v0.9.1, so a `goss-<os>-<arch>` download URL
@@ -142,6 +144,10 @@ None of the following are required. Leave them out and nothing changes.
 | [`process.status`](gossfile.md#process) | Catches zombie processes |
 | [`process.user`](gossfile.md#process) | Catches something running as root that shouldn't be |
 | [`port.pid`](gossfile.md#port) | Identifies which process owns a listening socket |
+| [`skip-reason`](gossfile.md#skipping-tests) | Says why a `skip: true` resource was skipped, shown on each of its skipped results |
+| [`service.masked`](gossfile.md#service) | Tells a masked systemd unit apart from a disabled one, which `enabled: false` cannot do |
+| [`glob`](gossfile.md#glob) template function | Ranges over the files matching a pattern, as requested in [goss-org/goss#1141](https://github.com/goss-org/goss/issues/1141) |
+| JUnit [`<properties>`](cli.md#validate) | A resource's `meta:` is carried on each of its JUnit test cases |
 
 Process and port lookups moved from two unmaintained libraries
 (`goss-org/go-ps` and `goss-org/GOnetstat`) to the maintained `gopsutil`. Specs
@@ -174,6 +180,34 @@ including the two patterns -- an `x-`-prefixed key, and a YAML anchor carrier
 -- that are deliberately exempt and never warn. This is worth checking if
 you're migrating a large gossfile collection: a key that validated clean
 under goss may turn out to have been ignored the whole time.
+
+A third: **a skipped result says why.** goss reports a skip as `skipped` and
+nothing more. Syver appends the reason whenever there is one: the
+`skip-reason:` you wrote, `dependency "<ref>" failed` for a `depends-on` skip,
+or `<attr> did not pass` for a check skipped after the resource's first check
+failed. In documentation, rspecish and TAP the line ends in
+` (<reason>)`; json and structured carry a `skip-reason` field, and JUnit puts
+it in the `<skipped>` element's `message`. Passing and failing results are
+unchanged in every format, and a skip with no reason looks exactly as it does
+under goss. If anything you run matches a line ending exactly in `: skipped`,
+update it. See [Skipping tests](gossfile.md#skipping-tests).
+
+A fourth: **a text pattern keeps its leading `/`.** goss strips every leading
+`/`, `\` and `!` from a pattern that is not a regex, so `"/tmp"` matches a line
+containing `tmpfs` and `"!/tmp"` fails on it. It also strips the slash from the
+`\/...` lines `goss add command` writes, so those check less than they say.
+Syver drops only the `!` that inverts a pattern and one escaping backslash, so
+`"/tmp"` means `/tmp` and `"\\!foo"` means `!foo`. Regex patterns are
+unchanged. A check that passed only because its slash was ignored will now
+fail. See [io.Readers](gossfile.md#ioreaders).
+
+A fifth: **an unknown port network is an error.** goss records listeners only
+under `tcp`, `tcp6`, `udp` and `udp6`, so a port such as `tpc:22` or `tcp4:80`
+is never found: `listening: false` passes without checking anything, and
+`listening: true` fails without saying why. Syver accepts `tcp4` and `udp4` as
+other names for `tcp` and `udp`, which goss already reads as IPv4 only, and
+fails any other network with an error naming the valid ones. See
+[port](gossfile.md#port).
 
 ## Product identity
 
@@ -250,7 +284,10 @@ never shadows a real `GOSS_*`.
 | Accept header vendor prefix | `vnd.goss-` | Both prefixes accepted, the client's own is echoed back |
 | Accept header absent | `vnd.goss-` | `vnd.goss-`, since no preference was expressed |
 | `/metrics` endpoint | Served an empty registry, a bug | Serves the real metrics |
-| JUnit, Nagios, TAP, JSON | n/a | Unchanged |
+| Skipped results | `skipped` | `skipped (<reason>)` when a reason exists, in documentation, rspecish, TAP, json and structured |
+| JUnit | n/a | `<skipped>` carries the reason as `message`; a resource's `meta:` becomes `<properties>` on each test case |
+| JSON, structured | n/a | A `skip-reason` field on skipped results |
+| Nagios, Prometheus | n/a | Unchanged |
 
 ---
 

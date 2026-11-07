@@ -49,6 +49,10 @@ func TestIsExpectedAbsenceAcceptsFoundNothing(t *testing.T) {
 		system.ErrServiceNotFound,
 		fmt.Errorf("wrapped: %w", system.ErrMountpointNotFound),
 		fmt.Errorf("wrapped: %w", system.ErrServiceNotFound),
+		// Unlike the two above, this one IS reachable: port has an
+		// AutoAddSpec and DefPort.Exists() returns it for `autoadd foo:bar`.
+		system.ErrUnknownPortNetwork,
+		fmt.Errorf("wrapped: %w", system.ErrUnknownPortNetwork),
 	} {
 		if !isExpectedAbsence(err) {
 			t.Errorf("isExpectedAbsence(%v) = false; this is a lookup that ran and found nothing, and must not warn", err)

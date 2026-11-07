@@ -809,9 +809,15 @@ Validates the state of a local port.
     try running `syver add port ..` to see how syver detects it.
     ([explanation](https://github.com/goss-org/goss/issues/149))
 
+The key is `network:port`. The network is one of `tcp`, `tcp6`, `udp` or
+`udp6`, and `tcp4` and `udp4` are accepted as other names for `tcp` and `udp`,
+which already mean IPv4 only. A bare port number means `tcp`. Any other network,
+such as a typo, fails the check with an error naming the valid ones, and
+`syver add port` refuses it.
+
 ```yaml
 port:
-  # {tcp,tcp6,udp,udp6}:port_num
+  # {tcp,tcp4,tcp6,udp,udp4,udp6}:port_num
   tcp:22:
     # required attributes
     listening: true
@@ -1061,7 +1067,12 @@ Each pattern is checked against the attribute output, the type of patterns are:
 
 * `"foo"` - checks if any line contains `foo`
 * `"!foo"` - inverse of above, checks that no line contains `foo`
-* `"\\!foo"` - escape sequence, check if any line contains `!string`
+* `"\\!foo"` - escape sequence, check if any line contains `!foo`
+* `"/tmp"` - a leading `/` is part of the text when the pattern is not a regex,
+  so this checks for `/tmp` and does not match `tmpfs`
+* `"\\/var/lib/mis"` - escape sequence for text that would otherwise read as a
+  regex with flags, check if any line contains `/var/lib/mis`. `syver add`
+  writes command output starting with `/` or `!` this way
 * `"/[Rr]egex/"` - verifies that line matches regex
 * `"!/[Rr]egex/"` - inverse of above, checks that no line matches regex
 
@@ -1543,6 +1554,41 @@ that did not pass. The JSON and structured outputs also keep the same text in th
 field. A prerequisite you turn off with `skip: true` does not count as not passing: its dependents
 run as normal.
 
+For example, a health check that needs a version check, which in turn needs the binary:
+
+```yaml
+file:
+  /opt/myapp/bin/myapp:
+    exists: true
+
+command:
+  myapp-version:
+    depends-on:
+      - /opt/myapp/bin/myapp
+    exec: /opt/myapp/bin/myapp --version
+    exit-status: 0
+  myapp-health:
+    depends-on:
+      - myapp-version
+    exec: /opt/myapp/bin/myapp health
+    exit-status: 0
+```
+
+On a host without the binary, the file check fails and both commands are skipped rather than
+run. The first names the prerequisite that failed, the second the one that was skipped:
+
+```console
+File: /opt/myapp/bin/myapp: exists:
+Expected
+    false
+to equal
+    true
+Command: myapp-version: depends-on: skipped (dependency "file:/opt/myapp/bin/myapp" failed)
+Command: myapp-health: depends-on: skipped (dependency "command:myapp-version" was skipped)
+
+Count: 3, Failed: 1, Skipped: 2
+```
+
 ## Skipping tests
 
 Every resource type accepts `skip: true`, which reports each of the resource's attributes as
@@ -1599,6 +1645,37 @@ Syver also skips tests on its own in two cases, and fills in the reason for both
 | `junit` | `<skipped message="exists did not pass"/>`, XML-escaped. A skip with no reason is still `<skipped/>` |
 | `tap` | `ok 3 - # SKIP File: /etc/x: mode: skipped (exists did not pass)` |
 | `nagios`, `prometheus`, `silent` | not shown. These report counts, not individual skipped results |
+
+A skipped result in `--format json`, here the `mode` check of a file that does not exist
+(timing and matcher fields left out):
+
+```json
+{
+  "resource-type": "File",
+  "resource-id": "/etc/myapp.conf",
+  "property": "mode",
+  "result": 2,
+  "skipped": true,
+  "successful": true,
+  "skip-reason": "exists did not pass",
+  "summary-line": "File: /etc/myapp.conf: mode: skipped (exists did not pass)",
+  "summary-line-compact": "File: /etc/myapp.conf: mode: skipped (exists did not pass)"
+}
+```
+
+`result` is `2` for a skip, as before. To list every skipped result with its reason:
+
+```console
+syver validate --format json | jq -r '.results[] | select(.skipped) | "\(.["resource-id"]): \(.property): \(.["skip-reason"] // "no reason")"'
+```
+
+The same result in `--format junit`:
+
+```xml
+<testcase name="File /etc/myapp.conf mode" time="0.000">
+<skipped message="exists did not pass"/><system-out>File: /etc/myapp.conf: mode: skipped (exists did not pass)</system-out>
+</testcase>
+```
 
 ### Skipping on a discovered fact
 

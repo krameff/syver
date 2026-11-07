@@ -3,6 +3,7 @@ package system
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -20,16 +21,46 @@ type Port interface {
 }
 
 type DefPort struct {
-	port     string
+	port     string // as written in the spec, with the default network filled in
+	key      string // the GetPorts key to look up: port with its network resolved
 	sysPorts map[string][]net.ConnectionStat
 	err      error
 }
 
+// ErrUnknownPortNetwork is returned by every DefPort method when the port's
+// network is not one GetPorts can answer for, such as a typo like "tpc:22".
+// Before it existed such a port could never be found, so `listening: false`
+// passed without checking anything (goss-org/goss#1006).
+var ErrUnknownPortNetwork = errors.New("unknown port network")
+
+// portNetworks maps each network a spec may name to the GetPorts key prefix
+// that holds its listeners. "tcp4" and "udp4" are aliases, not approximations:
+// GetPorts fills "tcp" and "udp" from exactly those IPv4-only queries.
+var portNetworks = map[string]string{
+	"tcp": "tcp", "tcp4": "tcp", "tcp6": "tcp6",
+	"udp": "udp", "udp4": "udp", "udp6": "udp6",
+}
+
+// portNetworkNames is the list the error message offers, in a fixed order.
+const portNetworkNames = "tcp, tcp4, tcp6, udp, udp4, udp6"
+
 func NewDefPort(_ context.Context, port string, system *System, config util.Config) Port {
 	p := normalizePort(port)
+	network, addr := splitPort(p)
+	prefix, ok := portNetworks[network]
+	if !ok {
+		// Checked before system.Ports() so a mistyped spec is reported as
+		// itself, never masked by an unrelated connection-table error.
+		return &DefPort{
+			port: p,
+			err: fmt.Errorf("%w %q in port %q: must be one of %s",
+				ErrUnknownPortNetwork, network, port, portNetworkNames),
+		}
+	}
 	sysPorts, err := system.Ports()
 	return &DefPort{
 		port:     p,
+		key:      prefix + ":" + addr,
 		sysPorts: sysPorts,
 		err:      err,
 	}
@@ -59,7 +90,7 @@ func (p *DefPort) Listening() (bool, error) {
 	if p.err != nil {
 		return false, p.err
 	}
-	if _, ok := p.sysPorts[p.port]; ok {
+	if _, ok := p.sysPorts[p.key]; ok {
 		return true, nil
 	}
 	return false, nil
@@ -70,7 +101,7 @@ func (p *DefPort) IP() ([]string, error) {
 		return nil, p.err
 	}
 	var ips []string
-	for _, entry := range p.sysPorts[p.port] {
+	for _, entry := range p.sysPorts[p.key] {
 		ips = append(ips, entry.Laddr.IP)
 	}
 	return ips, nil
@@ -85,7 +116,7 @@ func (p *DefPort) PID() ([]int, error) {
 		return nil, p.err
 	}
 	var pids []int
-	for _, entry := range p.sysPorts[p.port] {
+	for _, entry := range p.sysPorts[p.key] {
 		if entry.Pid == 0 {
 			continue
 		}

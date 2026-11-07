@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.16.1 based on krameff/goss v0.6.0 - fixes
+
+- wrong results
+  - a text pattern in `contents`, `stdout`, `stderr`, an `http` body or a
+    `have-patterns` matcher lost
+    every leading `/`, `\` and `!`, so `"/tmp"` matched a line containing
+    `tmpfs` and `"!/tmp"` failed on it. Only the `!` that inverts a pattern
+    and one escaping backslash are now removed, so `"/tmp"` means `/tmp` and
+    `"\\!foo"` means `!foo`, as documented. Regex patterns are unchanged. This
+    also affects specs written by `syver add command`, which escapes output
+    lines starting with `/` as `\/...`: those lines are now checked with
+    their slash. A check that passed only because the slash was ignored will
+    now fail. Reported upstream as goss-org/goss#1152
+  - a port whose network Syver does not know, such as `tpc:22`, could never
+    be found, so `listening: false` passed without checking anything. It now
+    fails with an error naming the valid networks, and `syver add port`
+    refuses it. `tcp4` and `udp4` are now accepted as other names for `tcp`
+    and `udp`, which already meant IPv4 only, so a `tcp4:80` check that
+    failed on a listening port now passes. Reported upstream as
+    goss-org/goss#1006
+
+- dependencies
+  - routine updates with no change to any check, flag or rendered output.
+    `go.yaml.in/yaml/v2` moves to 2.4.5 and `go.yaml.in/yaml/v3` to 3.0.6,
+    the libraries that write and read spec files, and `gopsutil` to 4.26.10,
+    behind the `process:` and port checks. The upstream changes are in code
+    paths Syver does not use: decoding with yaml v2, which Syver only writes
+    with, and FreeBSD terminal listing in `gopsutil`
+
 ## 0.16.0 based on krameff/goss v0.6.0 - skip reasons, masked services, glob
 
 - new in spec files

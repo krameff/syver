@@ -60,6 +60,8 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.16.1 - Text patterns and port networks](#v0161---text-patterns-and-port-networks)
+* [v0.16.0 - Skip reasons, masked services and glob](#v0160---skip-reasons-masked-services-and-glob)
 * [v0.15.3 - Fixes](#v0153---fixes)
 * [v0.15.2 - Go 1.27.3 security update](#v0152---go-1273-security-update)
 * [v0.15.1 - Fixes](#v0151---fixes)
@@ -82,6 +84,110 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.16.1 - Text patterns and port networks
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | `v0.16.1`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.16.0 release record (PR #112), the 0.16.0 Windows11-CIS-Audit comparison (PR #113), skip reason examples (PR #114), goss-vs-syver for 0.16.0 (PR #115), `deps/2026-11-07` (PR #123), `fix/patterns-and-port-network` (PR #124), then `docs/0.16.1`. Merged to `main` through PR pending |
+| Scope | 12 commits (excluding merges), 19 files, +481 / -28, measured at `v0.16.1` against `v0.16.0` |
+| Changelog | [0.16.1](CHANGELOG.md#0161-based-on-krameffgoss-v060---fixes) |
+
+A patch release that fixes two checks able to give the wrong result. A text
+pattern in `contents`, `stdout`, `stderr`, an `http` body or `have-patterns`
+no longer loses its leading `/` and `\`, so `"/tmp"` means `/tmp`; a check that
+passed only because the slash was ignored now fails. A port with an unknown
+network, such as `tpc:22`, now fails instead of passing `listening: false`, and
+`tcp4` and `udp4` are accepted as other names for `tcp` and `udp`. Dependency
+updates: `go.yaml.in/yaml/v2` 2.4.5, `go.yaml.in/yaml/v3` 3.0.6, `gopsutil`
+4.26.10, `goreleaser-action` 7.3.0 and `codeql-action` 4.39.3. No new spec
+syntax; `docs/schema.yaml` is unchanged. The set of published binaries is
+unchanged.
+
+**Suites run on 2026-11-07**, on the union of the two code branches before
+they were committed: Linux unit tests under `-race`, `make check`,
+golangci-lint for linux, windows and darwin, the strict security scan,
+yamllint, markdown lint and `mkdocs --strict`. The goldens against `v0.16.0`
+were unchanged, 238 of 238; no golden fixture uses a text pattern with a
+leading `/` or an unknown port network, so the new unit tests are the gate for
+both fixes. Each was confirmed to fail with its fix reverted. Both pull
+requests were green in CI before merge, including the per-distro integration
+tests, `macos-latest` and `windows-latest`. Merged `devel` at `df95c0c` was
+compared file by file with the tested tree and was identical.
+
+---
+
+## v0.16.0 - Skip reasons, masked services and glob
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-11-03 |
+| Tag | `v0.16.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `6d295ad`, the `devel` -> `main` merge commit from PR #111 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.15.3 release record (PR #104), `feature/skip-reason` (PR #105), `feature/systemd-masked` (PR #106), `fix/windows-user-groups` (PR #107), `feature/template-glob` (PR #108), `fix/vars-read-once` (PR #109), then `docs/0.16.0` (PR #110). Merged to `main` through PR #111 |
+| Scope | 7 commits (excluding merges), 54 files, +3061 / -90, measured at `v0.16.0` against `v0.15.3` |
+| Changelog | [0.16.0](CHANGELOG.md#0160-based-on-krameffgoss-v060---skip-reasons-masked-services-glob) |
+
+A minor release. New in spec files: `skip-reason:` on every resource type and
+on a `gossfile:` include, `masked:` on systemd services, and a `glob` template
+function. Skipped results now say why, including reasons Syver supplies for
+`depends-on` skips and for checks skipped after a failing first check, and
+`--format junit` carries `meta:` as test case properties. Behaviour changes:
+skipped lines end in ` (<reason>)` when a reason exists, `--vars <(command)`
+works, `syver autoadd` on systemd matches service names exactly, and an
+unknown `-o` value warns once per run. On Windows, `user:` `groups` works for
+the account running Syver and is the same elevated or not. Content using
+`skip-reason:`, `masked:` or `glob` fails on 0.15.x. The `system.Service` Go
+interface gains `Masked()`, which affects only out-of-tree implementations.
+The set of published binaries is unchanged.
+
+**Suites run on 2026-11-02**, on the union of the six branches before they
+were committed: Linux unit tests under `-race`, `make check`, golangci-lint
+for linux, windows and darwin, yamllint, markdown lint and `mkdocs --strict`.
+The goldens against `v0.15.3` differed only where expected: `autoadd` no
+longer writes a `service: root` entry, a line number in
+`render/docs__schema.yaml.err` moved, the changed Windows fixtures rendered
+differently, and the new `meta` fixture added ten files. The Docker suite on
+the remote builder passed (rockylinux9, almalinux10 and jammy 128, alpine3
+127, arch 107, all `Failed: 0`; serve, discovery, depends-on and `dcsyver`
+passed). The Windows Server 2025 guest passed unit tests under `-race`, the
+validate fixtures and the serve tests, and reported the same user groups from
+an elevated and a limited-token session. Each branch was green in CI before
+merge, including `macos-latest` and `windows-latest`. Merged `devel` at
+`f0db34a` was compared file by file with the tested tree; the only difference
+was `RELEASES.md` from PR #104. Golang ci on `7f70c75`, the last `devel`
+commit that changed code, passed every job.
+
+**Downstream check, run after the tag on 2026-11-03.** The
+[Windows11-CIS-Audit](https://github.com/ansible-lockdown/Windows11-CIS-Audit)
+content at `4482e08` was run on a Windows 11 Enterprise host (build
+10.0.26200) with the published `v0.15.3` and `v0.16.0` Windows binaries, both
+checked against their `SHA256SUMS`, back to back against the same policy
+snapshot. Both reported 1391 checks, 426 failed and 636 skipped, and no check
+changed outcome. The only differences were the 636 skipped results, which on
+0.16.0 carry the reason `exists did not pass`, and the run timestamp the audit
+records in its own metadata.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `6d295ad` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`f0db34a`. The release carries 38 assets, the same names as 0.15.3.
+`syver_0.16.0_SHA256SUMS` and the `syver-darwin-arm64` SBOM verify against the
+project key alone, imported into an empty keyring. The checksum for
+`syver-linux-amd64` matches, its embedded build information shows go1.27.3
+and revision `6d295ad`, and it reports `syver version 0.16.0`. `install.sh`,
+identical on `main` and the tag, installed v0.16.0 with `dsyver` and `dgoss`
+and left no temporary directory behind. `ghcr.io/krameff/syver:v0.16.0` and
+`:latest` resolve to the same image index, for linux/amd64 and linux/arm64,
+each labelled with revision `6d295ad` and version `0.16.0`. The goldens were
+re-captured on `v0.16.0`: 238 of 238.
 
 ---
 
