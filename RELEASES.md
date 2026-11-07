@@ -60,6 +60,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.16.1 - Text patterns and port networks](#v0161---text-patterns-and-port-networks)
 * [v0.16.0 - Skip reasons, masked services and glob](#v0160---skip-reasons-masked-services-and-glob)
 * [v0.15.3 - Fixes](#v0153---fixes)
 * [v0.15.2 - Go 1.27.3 security update](#v0152---go-1273-security-update)
@@ -83,6 +84,42 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.16.1 - Text patterns and port networks
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | `v0.16.1`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.16.0 release record (PR #112), the 0.16.0 Windows11-CIS-Audit comparison (PR #113), skip reason examples (PR #114), goss-vs-syver for 0.16.0 (PR #115), `deps/2026-11-07` (PR #123), `fix/patterns-and-port-network` (PR #124), then `docs/0.16.1`. Merged to `main` through PR pending |
+| Scope | 12 commits (excluding merges), 19 files, +481 / -28, measured at `v0.16.1` against `v0.16.0` |
+| Changelog | [0.16.1](CHANGELOG.md#0161-based-on-krameffgoss-v060---fixes) |
+
+A patch release that fixes two checks able to give the wrong result. A text
+pattern in `contents`, `stdout`, `stderr`, an `http` body or `have-patterns`
+no longer loses its leading `/` and `\`, so `"/tmp"` means `/tmp`; a check that
+passed only because the slash was ignored now fails. A port with an unknown
+network, such as `tpc:22`, now fails instead of passing `listening: false`, and
+`tcp4` and `udp4` are accepted as other names for `tcp` and `udp`. Dependency
+updates: `go.yaml.in/yaml/v2` 2.4.5, `go.yaml.in/yaml/v3` 3.0.6, `gopsutil`
+4.26.10, `goreleaser-action` 7.3.0 and `codeql-action` 4.39.3. No new spec
+syntax; `docs/schema.yaml` is unchanged. The set of published binaries is
+unchanged.
+
+**Suites run on 2026-11-07**, on the union of the two code branches before
+they were committed: Linux unit tests under `-race`, `make check`,
+golangci-lint for linux, windows and darwin, the strict security scan,
+yamllint, markdown lint and `mkdocs --strict`. The goldens against `v0.16.0`
+were unchanged, 238 of 238; no golden fixture uses a text pattern with a
+leading `/` or an unknown port network, so the new unit tests are the gate for
+both fixes. Each was confirmed to fail with its fix reverted. Both pull
+requests were green in CI before merge, including the per-distro integration
+tests, `macos-latest` and `windows-latest`. Merged `devel` at `df95c0c` was
+compared file by file with the tested tree and was identical.
 
 ---
 
