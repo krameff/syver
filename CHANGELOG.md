@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.16.1 based on krameff/goss v0.6.0 - dependency updates
+
+- dependencies
+  - routine updates with no change to any check, flag or rendered output.
+    `go.yaml.in/yaml/v2` moves to 2.4.5 and `go.yaml.in/yaml/v3` to 3.0.6,
+    the libraries that write and read spec files, and `gopsutil` to 4.26.10,
+    behind the `process:` and port checks. The upstream changes are in code
+    paths Syver does not use: decoding with yaml v2, which Syver only writes
+    with, and FreeBSD terminal listing in `gopsutil`
+
 ## 0.16.0 based on krameff/goss v0.6.0 - skip reasons, masked services, glob
 
 - new in spec files
