@@ -91,11 +91,11 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 | Field | Value |
 | --- | --- |
-| Released | pending |
+| Released | 2026-11-07 |
 | Tag | `v0.16.1`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
-| Commit | pending |
+| Commit | `acf859d`, the `devel` -> `main` merge commit from PR #126 |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.16.0 release record (PR #112), the 0.16.0 Windows11-CIS-Audit comparison (PR #113), skip reason examples (PR #114), goss-vs-syver for 0.16.0 (PR #115), `deps/2026-11-07` (PR #123), `fix/patterns-and-port-network` (PR #124), then `docs/0.16.1`. Merged to `main` through PR pending |
+| Integration branch | `devel`, in this merge order: the 0.16.0 release record (PR #112), the 0.16.0 Windows11-CIS-Audit comparison (PR #113), skip reason examples (PR #114), goss-vs-syver for 0.16.0 (PR #115), `deps/2026-11-07` (PR #123), `fix/patterns-and-port-network` (PR #124), then `docs/0.16.1` (PR #125). Merged to `main` through PR #126 |
 | Scope | 12 commits (excluding merges), 19 files, +481 / -28, measured at `v0.16.1` against `v0.16.0` |
 | Changelog | [0.16.1](CHANGELOG.md#0161-based-on-krameffgoss-v060---fixes) |
 
@@ -119,7 +119,21 @@ leading `/` or an unknown port network, so the new unit tests are the gate for
 both fixes. Each was confirmed to fail with its fix reverted. Both pull
 requests were green in CI before merge, including the per-distro integration
 tests, `macos-latest` and `windows-latest`. Merged `devel` at `df95c0c` was
-compared file by file with the tested tree and was identical.
+compared file by file with the tested tree and was identical. On the tagged
+tree under go1.27.3, 1239 tests passed, 4 skipped, none failed.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `acf859d` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`be88f96`. The release carries 38 assets, the same names as 0.16.0.
+`syver_0.16.1_SHA256SUMS` and the `syver-darwin-arm64` SBOM verify against the
+project key alone, imported into an empty keyring. The checksum for
+`syver-linux-amd64` matches, its embedded build information shows go1.27.3
+and revision `acf859d`, and it reports `syver version 0.16.1`. Run against a
+two-check spec, it fails `"/tmp"` on a line containing only `tmpfs`, and fails
+`tpc:65535` with the unknown network error. `ghcr.io/krameff/syver:v0.16.1`
+and `:latest` resolve to the same image index, for linux/amd64 and
+linux/arm64, labelled with revision `acf859d` and version `0.16.1`.
 
 ---
 
