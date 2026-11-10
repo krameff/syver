@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/krameff/syver"
+	"github.com/krameff/syver/internal/syver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/urfave/cli/v3"

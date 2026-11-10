@@ -10,7 +10,7 @@ import (
 // `syver add` can write (a descriptor with AppendSys) is listed in
 // addSubcommandOrder and has help text in addSubcommandUsage, and that
 // neither list names a type that is not addable. checkAccessorExhaustiveness
-// in the root package covers dispatch.go's tables but not these two, and a
+// in internal/syver covers dispatch.go's tables but not these two, and a
 // type missing from addSubcommandOrder is skipped silently: `syver add
 // <type>` just does not exist.
 //
