@@ -18,7 +18,7 @@ DOCS_DEPS := $(VENV)/.docs.dependencies
 	dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 \
 	ksyver-sha256 sbxsyver-sha256 lint-yaml lint-markdown test-discovery-e2e \
 	test-depends-on-e2e test-dcsyver-e2e test-security check pre-commit pre-push \
-	docs/setup docs/serve docs
+	docs/setup docs/serve docs fuzz
 
 all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256 sbxsyver-sha256
 
@@ -38,6 +38,14 @@ test:
 cov:
 	go test -count=1 -coverpkg=./... -coverprofile=c.out ./...
 	# go tool cover -func ./c.out
+
+# Explore each fuzz target for FUZZTIME. Not part of `check`: the seed corpus
+# already runs with every `go test`, and a fuzz run's length is open-ended.
+FUZZTIME ?= 30s
+fuzz:
+	for t in $$(go test -list '^Fuzz' ./internal/syver | grep '^Fuzz'); do \
+		go test -run '^$$' -fuzz "^$$t$$" -fuzztime $(FUZZTIME) ./internal/syver || exit 1; \
+	done
 
 funcov:
 	go test -count=1 -coverpkg=./... -coverprofile=c.out ./...

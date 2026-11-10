@@ -179,7 +179,11 @@ close to a real key) a suggested fix. See
 including the two patterns -- an `x-`-prefixed key, and a YAML anchor carrier
 -- that are deliberately exempt and never warn. This is worth checking if
 you're migrating a large gossfile collection: a key that validated clean
-under goss may turn out to have been ignored the whole time.
+under goss may turn out to have been ignored the whole time. A file can go
+further and declare `syver-version: 0.20.0`, which makes an unknown top-level
+key an error and names the oldest Syver release the file needs; goss ignores
+that key. See
+[Making unknown keys an error](gossfile.md#making-unknown-keys-an-error).
 
 A third: **a skipped result says why.** goss reports a skip as `skipped` and
 nothing more. Syver appends the reason whenever there is one: the
@@ -234,6 +238,7 @@ fails any other network with an error naming the valid ones. See
 | Spec filenames probed | `goss.yaml`, `goss.yml` | `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml` |
 | Where `add` writes | The gossfile | Whichever file the read resolved to |
 | Unrecognised top-level key (typo, or a key syver doesn't know) | Silently ignored -- the block is dropped and the run still exits 0 | Still ignored, but now logs a `WARN` naming the file, line, and a suggestion if one is close |
+| `syver-version:` top-level key | Ignored | Names the oldest Syver release the file needs, and makes an unknown top-level key in it, or in any file it includes, an error |
 
 ---
 

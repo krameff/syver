@@ -120,12 +120,19 @@ func getStoreFormatFromData(data []byte) (int, error) {
 
 // ReadJSON Reads json file returning SyverConfig
 func ReadJSON(filePath string) (SyverConfig, error) {
+	cfg, _, err := readJSONFile(filePath, "")
+	return cfg, err
+}
+
+// readJSONFile is ReadJSON with the strict origin threaded through; see
+// readJSONData.
+func readJSONFile(filePath, strictOrigin string) (SyverConfig, string, error) {
 	file, err := os.ReadFile(filePath)
 	if err != nil {
-		return SyverConfig{}, fmt.Errorf("file error: %w", err)
+		return SyverConfig{}, "", fmt.Errorf("file error: %w", err)
 	}
 
-	return ReadJSONData(file, false, filePath)
+	return readJSONData(file, false, filePath, strictOrigin)
 }
 
 type TmplVars struct {
@@ -294,16 +301,30 @@ func varsFromString(varsString string) (map[string]any, error) {
 }
 
 // ReadJSONData Reads json byte array returning SyverConfig. path names the
-// spec this data came from and is used only for the top-level key guard's
-// warnings below, so an included gossfile's warning names that file rather
-// than its parent -- pass "" if there is none (e.g. content assembled in
-// memory rather than read from a file).
+// spec this data came from and is used only in the top-level key guard's
+// warnings and errors below, so an included gossfile's message names that
+// file rather than its parent -- pass "" if there is none (e.g. content
+// assembled in memory rather than read from a file).
 func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, error) {
+	cfg, _, err := readJSONData(data, detectFormat, path, "")
+	return cfg, err
+}
+
+// readJSONData is ReadJSONData for a file that may be strict because of an
+// ancestor. strictOrigin is the path of the nearest ancestor that declared
+// syver-version:, or "" when none did. A file that declares the key itself
+// becomes its own origin. The origin in effect for this file is returned so
+// the caller can pass it on to this file's gossfile: includes.
+//
+// Strictness, and the minimum-version check, apply on the real load only. A
+// peek pass (quietDecode) renders templates differently and can produce keys
+// the real load does not, and its result is never used beyond discovery:.
+func readJSONData(data []byte, detectFormat bool, path, strictOrigin string) (SyverConfig, string, error) {
 	var err error
 	if currentTemplateFilter != nil {
 		data, err = currentTemplateFilter(data)
 		if err != nil {
-			return SyverConfig{}, err
+			return SyverConfig{}, "", err
 		}
 		// Logged, not printed: stdout carries the rendered spec, and a dump
 		// written there would corrupt it for anything parsing the output. INFO
@@ -319,19 +340,36 @@ func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, err
 	if detectFormat {
 		format, err = getStoreFormatFromData(data)
 		if err != nil {
-			return SyverConfig{}, err
+			return SyverConfig{}, "", err
 		}
 	}
 
-	// Top-level key guard: report any top-level key the real decode below is
-	// about to silently drop. YAML only (JSON is a known,
-	// documented gap, see docs/gossfile.md) and gated on quietDecode for the
-	// same reason the gossfile:/syverfile: collision WARN a few lines down
-	// is -- every spec is decoded twice per validate invocation (peek, then
-	// the real load), and an ungated warning here would fire twice per
-	// unknown key, which is the exact defect BUG-001 already fixed once.
-	if format == YAML && !quietDecode {
-		for _, w := range checkTopLevelKeys(data, path) {
+	// Top-level key guard: find any top-level key the real decode below is
+	// about to silently drop, and whether this file declares syver-version:.
+	// Skipped entirely on a peek pass, for the same reason the
+	// gossfile:/syverfile: collision WARN a few lines down is gated -- every
+	// spec is decoded twice per validate invocation (peek, then the real
+	// load), and an ungated warning here would fire twice per unknown key.
+	var scan topLevelScan
+	if !quietDecode {
+		switch format {
+		case YAML:
+			scan = scanTopLevelYAML(data, path)
+		case JSON:
+			scan = scanTopLevelJSON(data, path)
+		}
+	}
+	// On a peek pass the scan is empty, so no file there is strict.
+	origin := strictOrigin
+	if scan.marker {
+		origin = specLabel(path)
+	}
+	strict := origin != ""
+
+	// Not strict: each unknown key is a WARN. YAML only; an unmarked JSON
+	// spec is not checked (see docs/gossfile.md).
+	if !strict && format == YAML {
+		for _, w := range scan.unknown {
 			log.Printf("[WARN] %s", w)
 		}
 	}
@@ -339,7 +377,22 @@ func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, err
 	syverConfig := NewSyverConfig()
 	// Horrible, but will do for now
 	if err := unmarshal(data, syverConfig, format); err != nil {
-		return *syverConfig, err
+		return *syverConfig, "", err
+	}
+
+	// Strict: the value problems and the unknown keys come back as one error,
+	// returned rather than logged so it can only surface once.
+	if strict {
+		var errs []error
+		if err := checkDeclaredVersion(path, scan, util.Version); err != nil {
+			errs = append(errs, err)
+		}
+		if len(scan.unknown) > 0 {
+			errs = append(errs, strictKeysError(path, origin, scan.unknown))
+		}
+		if len(errs) > 0 {
+			return SyverConfig{}, "", errors.Join(errs...)
+		}
 	}
 
 	// Fold the syverfile: input alias into the canonical gossfile: map.
@@ -358,7 +411,7 @@ func ReadJSONData(data []byte, detectFormat bool, path string) (SyverConfig, err
 	}
 	syverConfig.SyverfileAlias = nil
 
-	return *syverConfig, nil
+	return *syverConfig, origin, nil
 }
 
 // RenderJSON reads json file recursively returning string
@@ -378,12 +431,12 @@ func RenderJSON(c *util.Config) (string, error) {
 		return "", err
 	}
 
-	j, err := ReadJSON(c.Spec)
+	j, origin, err := readJSONFile(c.Spec, "")
 	if err != nil {
 		return "", err
 	}
 
-	syverConfig, err := mergeJSONData(j, 0, filepath.Dir(c.Spec))
+	syverConfig, err := mergeJSONData(j, 0, filepath.Dir(c.Spec), origin)
 	if err != nil {
 		return "", err
 	}
@@ -396,7 +449,12 @@ func RenderJSON(c *util.Config) (string, error) {
 	return string(b), nil
 }
 
-func mergeJSONData(syverConfig SyverConfig, depth int, path string) (SyverConfig, error) {
+// mergeJSONData resolves syverConfig's gossfile: includes, found relative to
+// path, and merges them in. strictOrigin is the file whose syver-version:
+// makes these includes strict, or "" (see readJSONData). The result carries
+// the highest syver-version: among the files read; a skipped include is not
+// read and does not count.
+func mergeJSONData(syverConfig SyverConfig, depth int, path, strictOrigin string) (SyverConfig, error) {
 	depth++
 	if depth >= 50 {
 		return SyverConfig{}, errMaxDepth
@@ -404,6 +462,8 @@ func mergeJSONData(syverConfig SyverConfig, depth int, path string) (SyverConfig
 	// Our return syverConfig
 	ret := *NewSyverConfig()
 	ret = mergeSyver(ret, syverConfig)
+	// Merge only touches the resource maps and Discovery.
+	ret.SyverVersion = higherSyverVersion(syverConfig.SyverVersion, "")
 
 	// Sort the gossfiles to ensure consistent ordering
 	var keys []string
@@ -434,15 +494,16 @@ func mergeJSONData(syverConfig SyverConfig, depth int, path string) (SyverConfig
 		}
 		for _, match := range matches {
 			fdir := filepath.Dir(match)
-			j, err := ReadJSON(match)
+			j, origin, err := readJSONFile(match, strictOrigin)
 			if err != nil {
 				return SyverConfig{}, fmt.Errorf("could not read json data in %s: %w", match, err)
 			}
-			j, err = mergeJSONData(j, depth, fdir)
+			j, err = mergeJSONData(j, depth, fdir, origin)
 			if err != nil {
 				return ret, fmt.Errorf("could not write json data: %w", err)
 			}
 			ret = mergeSyver(ret, j)
+			ret.SyverVersion = higherSyverVersion(ret.SyverVersion, j.SyverVersion)
 		}
 	}
 	return ret, nil

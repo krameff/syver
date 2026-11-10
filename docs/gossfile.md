@@ -142,8 +142,8 @@ If the key is close to a real one, the warning suggests the fix. The warning
 is informational only -- it does not fail the run or change `Count`/`Failed`
 in the result.
 
-Two kinds of top-level key are deliberately exempt, and neither produces a
-warning:
+Three kinds of top-level key are deliberately exempt, and none of them
+produces a warning:
 
 * **A key prefixed `x-`.** This is the same convention docker-compose uses
   for extension fields: a documented, explicit way to say "this block is
@@ -167,10 +167,15 @@ warning:
   about. This is detected structurally (does the value define an anchor?),
   not by name -- a block with no anchor is not covered by this exemption,
   which is exactly what the `x-` prefix is for.
+* **A top-level YAML merge, `<<:`,** whose value is an alias (`<<: *base`) or
+  a list of aliases (`<<: [*a, *b]`). The merged keys are read as if written
+  at the top level, and are checked the same way: a misspelt key inside the
+  merged block is reported at its line in that block. A `<<:` with any other
+  value, such as an inline map, is reported as an unknown key.
 
-**This check only applies to YAML gossfiles.** JSON gossfiles have the same
-gap -- an unknown JSON top-level key is dropped the same way -- and it is not
-yet covered.
+**In a JSON gossfile this check only runs when the file declares
+`syver-version`** (see below). An unmarked JSON gossfile still drops an
+unknown top-level key without a warning.
 
 **A `--vars` file is never checked against this.** A vars file is arbitrary
 user-supplied data with no fixed vocabulary, so every key in it is expected
@@ -179,6 +184,92 @@ to be "unknown" to syver and none of them warn.
 See [`examples/unknown-top-level-key.yaml`](https://github.com/krameff/syver/blob/main/examples/unknown-top-level-key.yaml)
 for a runnable spec that shows both sides of this: a genuine typo that
 warns, and a legitimate anchor-carrying block next to it that does not.
+
+#### Making unknown keys an error
+
+Requires syver 0.20.0 or later. Put `syver-version:` at the top of a gossfile
+to name the oldest Syver release it needs:
+
+```yaml
+syver-version: 0.20.0
+
+command:
+  echo hello:
+    exit-status: 0
+```
+
+Declaring the key does two things.
+
+**Unknown top-level keys in that file become an error.** The run stops before
+any check runs, with one error listing every unknown key, its line and any
+suggested fix:
+
+```console
+$ syver -g syver.yaml validate
+Error: syver.yaml: syver-version is set, so unknown top-level keys are errors (prefix a key with x- to keep it):
+  syver.yaml:7: "prot" (did you mean "port"?)
+  syver.yaml:12: "totally-made-up-key"
+```
+
+`validate` exits 78, the same as for any other spec that fails to load.
+`render` fails the same way. `syver serve` refuses to start and exits
+non-zero rather than serving a health endpoint for a spec it could not read.
+`syver add` and `syver autoadd` refuse to write the file and leave it exactly
+as it was, rather than rewriting it without the unknown block.
+
+The exemptions above all still apply: `x-` keys, a block whose value carries
+an anchor, and a top-level `<<:` merge of aliases. Two cases follow from how
+the anchor exemption works, and both are fixed by prefixing the key with `x-`:
+
+* a misspelt key that happens to carry its own anchor (`servce: &s ...`) is
+  still treated as an anchor carrier and is not reported;
+* a block whose anchors are all nested further down, rather than on its own
+  value, is reported as unknown.
+
+**Included files are strict too.** Every `gossfile:` the marked file includes,
+directly or through other includes, gets the same check, and the error names
+the file that made it strict:
+
+```console
+Error: could not read json data in common.yaml: common.yaml: unknown top-level keys are errors (prefix a key with x- to keep it) (strict because it is included from syver.yaml, which sets syver-version):
+  common.yaml:3: "prot" (did you mean "port"?)
+```
+
+An included file that declares `syver-version:` itself is strict whatever
+includes it. A file that is not marked and not included from a marked file
+keeps the warning described above.
+
+**A Syver release older than the value stops with an error:**
+
+```console
+Error: syver.yaml requires syver 0.21.0 or later (syver-version: 0.21.0); this is syver 0.20.0
+```
+
+Each file's own value is checked, so an included file can ask for a newer
+release than the file including it. Development builds skip this comparison,
+and say so in one `[DEBUG]` line: only a binary stamped with a plain release
+version such as `0.20.0` or `v0.20.0` compares. A `make build` binary stamped
+`v0.20.0-3-gabc1234`, a snapshot build, a release candidate or an unstamped
+`go build` all skip it. The unknown-key check applies to every build.
+
+The value is a single version: `0.20.0`, `v0.20.0` or `0.20`. `1` means
+`1.0.0`. An empty value is an error, and so are operators and ranges such as
+`>=0.20.0` or `~0.20`. `syver add` writes the full form `0.20.0` back
+unchanged, but writes a short form such as `0.20` back quoted, as
+`syver-version: "0.20"`, so use the full form if the file is maintained with
+`syver add`. In a JSON gossfile the value must be a string,
+`"syver-version": "0.20.0"`; a JSON number is a decode error.
+
+`render` keeps the key, with the highest `syver-version` among the files it
+read. An include skipped with `skip: true` is not read and does not count.
+
+**This does not reach backwards.** goss ignores the key. Syver releases from
+0.9.2 through 0.16.1 warn that `syver-version` is an unknown top-level key and
+carry on, and earlier Syver releases say nothing. The checks start with
+0.20.0.
+
+See [`examples/syver-version.yaml`](https://github.com/krameff/syver/blob/main/examples/syver-version.yaml)
+for a runnable marked spec.
 
 ## Available tests
 

@@ -20,7 +20,7 @@ func TestMergePreservesDiscovery(t *testing.T) {
 		},
 	}
 
-	merged, err := mergeJSONData(incoming, 0, t.TempDir())
+	merged, err := mergeJSONData(incoming, 0, t.TempDir(), "")
 	if err != nil {
 		t.Fatalf("mergeJSONData: %v", err)
 	}
