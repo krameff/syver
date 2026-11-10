@@ -26,7 +26,7 @@ dns:
     resolvable: true
 
 file:
-  /ect/password/static:
+  /etc/password/static:
     exists: true
     mode: "0644"
     size: 2118
