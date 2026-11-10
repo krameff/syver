@@ -647,6 +647,64 @@ definitions:
       register: { "$ref": "#/definitions/register" }
       depends-on: { "$ref": "#/definitions/dependsOnList" }
 
+  pkgBaselineTest:
+    description: "Requires syver 0.20.0 or later."
+    required:
+      - installed
+    additionalProperties: false
+    properties:
+      title: { "$ref":"#/definitions/title" }
+      meta: { "$ref":"#/definitions/meta" }
+      installed:
+        description: every recorded package, by name, as consist-of with a list of names
+        type: object
+        required:
+          - consist-of
+        additionalProperties: false
+        properties:
+          consist-of:
+            type: array
+            uniqueItems: true
+            items:
+              type: string
+              minLength: 1
+      ignore:
+        description: globs of package names left out entirely, on both sides
+        type: array
+        items:
+          type: string
+          minLength: 1
+      allow:
+        description: globs of package names that may be installed without being recorded
+        type: array
+        items:
+          type: string
+          minLength: 1
+      versions:
+        description: recorded versions, by package name; every name must also be in installed
+        type: object
+        additionalProperties:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            minLength: 1
+      version-match:
+        description: >-
+          how versions are compared. Defaults to exact when versions is set and
+          name-only when it is not. rpm's gpg-pubkey is always compared exactly.
+        type: string
+        enum:
+          - name-only
+          - exact
+          - newer
+      skip:
+        type: boolean
+        default: false
+      skip-reason: { "$ref": "#/definitions/skipReason" }
+      register: { "$ref": "#/definitions/register" }
+      depends-on: { "$ref": "#/definitions/dependsOnList" }
+
   serviceTest:
     # Nothing is required. The code requires no attribute, and a Windows spec
     # may assert only Windows attributes such as `dependencies`.
@@ -1004,6 +1062,14 @@ properties:
           allOf:
             - $ref: "#/definitions/registryTest"
             - $ref: "#/definitions/discoveryRegister"
+      pkg-baseline:
+        type: object
+        propertyNames:
+          enum: [rpm, dpkg, apk, pacman]
+        additionalProperties:
+          allOf:
+            - $ref: "#/definitions/pkgBaselineTest"
+            - $ref: "#/definitions/discoveryRegister"
 
   file:
     type: object
@@ -1209,6 +1275,16 @@ properties:
       NOTE: this check uses the --package <format> parameter passed on the command line.
     additionalProperties:
       $ref: "#/definitions/packageTest"
+
+  pkg-baseline:
+    type: object
+    description: |
+      Checks that a Linux host has exactly a recorded set of installed packages.
+      Keyed by the host's package manager. Requires syver 0.20.0 or later.
+    propertyNames:
+      enum: [rpm, dpkg, apk, pacman]
+    additionalProperties:
+      $ref: "#/definitions/pkgBaselineTest"
 
   port:
     type: object

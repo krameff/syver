@@ -153,6 +153,9 @@ reuses the same steps as the host E2E scripts via [`ci/lib/syver-e2e-steps.sh`](
 
 * `run_discovery_e2e_steps` — `--format discovery`, `--discover`, inline `discovery:`, discover+depends-on
 * `run_depends_on_e2e_steps` — pure `depends-on` skip semantics
+* `run_pkg_baseline_e2e_steps` — `syver add pkg-baseline` against the container's real package
+  manager, then a clean validate, missing and unexpected packages, `ignore:`, `exact` and `newer`
+  versions, a baseline for the wrong package manager, and (on alpine) an apk virtual package
 
 Fixtures live under
 [`integration-tests/syver/examples/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/)

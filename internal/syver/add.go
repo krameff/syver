@@ -14,6 +14,16 @@ import (
 
 // AddResources is a simple wrapper to add multiple resources
 func AddResources(fileName, resourceName string, keys []string, c *util.Config) error {
+	return addResources(fileName, resourceName, keys, c, system.New)
+}
+
+// addResources is AddResources with the System constructor passed in, so tests
+// can supply a host.
+//
+// A type whose descriptor sets AddWithoutArgs gets one entry from an empty
+// key when no arguments are given. A type whose descriptor sets Since raises
+// the file's syver-version: to that release, and says so.
+func addResources(fileName, resourceName string, keys []string, c *util.Config, newSystem func(string) *system.System) error {
 	var err error
 	err = setLogLevel(c)
 	if err != nil {
@@ -34,11 +44,25 @@ func AddResources(fileName, resourceName string, keys []string, c *util.Config) 
 		syverConfig = *NewSyverConfig()
 	}
 
-	sys := system.New(c.PackageManager)
+	sys := newSystem(c.PackageManager)
+
+	desc, _ := resource.DescriptorByName(resourceName)
+	if len(keys) == 0 && desc.AddWithoutArgs {
+		keys = []string{""}
+	}
 
 	for _, key := range keys {
 		if err := AddResource(fileName, syverConfig, resourceName, key, *c, sys); err != nil {
 			return err
+		}
+	}
+
+	if len(keys) > 0 && desc.Since != "" {
+		if v := higherSyverVersion(syverConfig.SyverVersion, desc.Since); v != syverConfig.SyverVersion {
+			syverConfig.SyverVersion = v
+			if c.AnnounceToCLI {
+				fmt.Printf("Setting %s: %s in '%s': %s requires it\n", syverVersionKey, v, fileName, desc.Key)
+			}
 		}
 	}
 

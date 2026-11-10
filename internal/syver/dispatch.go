@@ -16,7 +16,7 @@ import (
 var resourceOrder = []string{
 	"command", "http", "addr", "dns", "package", "service", "file",
 	"process", "user", "group", "port", "kernel-param", "mount",
-	"interface", "matching", "registry",
+	"interface", "matching", "registry", "pkg-baseline",
 }
 
 // accessor is a resource type's handle on its SyverConfig field.
@@ -118,6 +118,7 @@ var wiring = []wiredType{
 	wire("http", func(c *SyverConfig) *resource.HTTPMap { return &c.HTTPs }, func(c *DiscoveryConfig) *resource.HTTPMap { return &c.HTTPs }),
 	wire("matching", func(c *SyverConfig) *resource.MatchingMap { return &c.Matchings }, func(c *DiscoveryConfig) *resource.MatchingMap { return &c.Matchings }),
 	wire("registry", func(c *SyverConfig) *resource.RegistryMap { return &c.Registries }, func(c *DiscoveryConfig) *resource.RegistryMap { return &c.Registries }),
+	wire("pkg-baseline", func(c *SyverConfig) *resource.PkgBaselineMap { return &c.PkgBaselines }, func(c *DiscoveryConfig) *resource.PkgBaselineMap { return &c.PkgBaselines }),
 }
 
 // configAccessors and discoveryAccessors are wiring indexed by key, and

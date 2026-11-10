@@ -158,11 +158,57 @@ A sub-command *resource type* has to be provided when running `add`.
 | [`kernel-param`](gossfile.md#kernel-param) | Validate kernel parameters (sysctl values)                                                                                      |
 | [`mount`](gossfile.md#mount)               | Validate the existence and options relative to a [mount](gossfile.md#mount) point                                               |
 | [`package`](gossfile.md#package)           | Validate the status of a [package](gossfile.md#package) using the package manager specified on the commandline with `--package` |
+| [`pkg-baseline`](gossfile.md#pkg-baseline) | Validate that a Linux host has exactly a recorded set of packages; see [`add pkg-baseline`](#add-pkg-baseline)                  |
 | [`port`](gossfile.md#port)                 | Validate the status of a local [port](gossfile.md#port), for example `80` or `udp:123`                                          |
 | [`process`](gossfile.md#process)           | Validate the status of a [process](gossfile.md#process)                                                                         |
 | [`registry`](gossfile.md#registry)         | Validate a Windows [registry](gossfile.md#registry) key or value. Windows only                                                  |
 | [`service`](gossfile.md#service)           | Validate if a [service](gossfile.md#service) is running and/or enabled at boot                                                  |
 | [`user`](gossfile.md#user)                 | Validate the existence and values of a [user](gossfile.md#user) on the system                                                   |
+
+#### `add pkg-baseline`
+
+!!! abstract "Record every installed package"
+    ```console
+    syver add pkg-baseline [--versions name-only|newer|exact] [--ignore GLOB]... [--allow GLOB]... [<manager>]
+    ```
+
+Requires syver 0.20.0 or later, on Linux. Writes one
+[`pkg-baseline`](gossfile.md#pkg-baseline) entry listing every package
+installed on this host, keyed by its package manager, and sets
+`syver-version: 0.20.0` in the file if it is absent or lower, printing a line
+when it does. The argument is optional; if given, it must be this host's
+package manager (`rpm`, `dpkg`, `apk` or `pacman`). The global `--package`
+flag picks the package manager when it cannot be detected. On Windows and
+macOS the command fails, even with `--package`.
+
+`--versions`
+:   `name-only`, `newer` or `exact`. With `newer` or `exact` the installed
+    versions are recorded too, with `version-match` set to the mode. Without
+    the flag a new entry records names only.
+
+`--ignore`
+:   A glob of package names to leave out entirely. May be given more than once.
+
+`--allow`
+:   A glob of package names that may be installed without being recorded. May
+    be given more than once.
+
+A bad `--versions` value or glob fails before anything is read from the host.
+
+Running it again over an existing entry refreshes the package list from the
+host and keeps the entry's other settings: `ignore`, `allow` and
+`version-match`, unless the matching flag is given, and `title`, `meta`,
+`skip`, `skip-reason`, `depends-on` and `register` always. Versions are
+recorded again if the kept `version-match` checks them, and not otherwise.
+
+!!! example
+    ```console
+    syver add pkg-baseline
+    syver add pkg-baseline --versions newer --ignore 'kernel*' --allow 'python3-*'
+    ```
+
+As with every `syver add`, the file is rewritten from what Syver understands,
+so top-level blocks it does not know, `x-` blocks and anchors are not kept.
 
 ### `autoadd`
 
@@ -581,6 +627,9 @@ the command line.
 | `add http` | `--password`, `-p` | none | none | unset |
 | `add http` | `--proxy`, `-x` | none | none | unset |
 | `add mount` | `--timeout` | none | none | `1s` |
+| `add pkg-baseline` | `--versions` | none | none | unset (names only) |
+| `add pkg-baseline` | `--ignore` | none | none | unset |
+| `add pkg-baseline` | `--allow` | none | none | unset |
 
 The other `add` resource types take no options of their own. Each command's
 `--help` prints the same information for the binary in front of you, for

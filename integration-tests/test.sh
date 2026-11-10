@@ -111,6 +111,10 @@ run_discovery_e2e_steps "/goss/examples/discovery" syver_runner \
   "${REPO_ROOT}/integration-tests/syver/examples/discovery"
 run_depends_on_e2e_steps "/goss/examples/depends-on" syver_runner \
   "${REPO_ROOT}/integration-tests/syver/examples/depends-on"
+container_sh() {
+  docker_exec sh -c "$1"
+}
+run_pkg_baseline_e2e_steps syver_runner container_sh "$os"
 
 if [[ ! $os == "arch" ]]; then
   docker_exec /goss/generate_goss.sh "$os" "$arch"
