@@ -18,14 +18,12 @@ file:
     owner: root
     group: root
     filetype: file
-    contents: null
   /etc/passwd:
     exists: true
     mode: "0644"
     owner: root
     group: root
     filetype: file
-    contents: null
 package:
   httpd:
     installed: true
@@ -167,3 +165,7 @@ matching:
     content: some string
     matches:
       match-regexp: some str
+  sping_basic:
+    content: HELLO!HELLO!HELLO!HELLO!HELLO!
+    matches:
+      match-regexp: HELLO!HELLO!HELLO!HELLO!HELLO!
