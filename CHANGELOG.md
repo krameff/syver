@@ -8,6 +8,12 @@
     gossfile format are unchanged. A Go program that imported
     `github.com/krameff/syver` as a library will no longer build; that was
     never a supported use, and no such importer is known.
+  - `release-build.sh` moved to `ci/release-build.sh`; `make build` calls it
+    from there.
+- dependencies
+  - routine updates with no change to any check, flag or rendered output.
+    `tidwall/gjson` moves to 1.20.2, behind the `gjson:` matcher, and
+    `golang.org/x/sys` to 0.50.0, along with indirect modules.
 
 ## 0.16.1 based on krameff/goss v0.6.0 - fixes
 
