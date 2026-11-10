@@ -55,8 +55,9 @@ LC_ALL=C join -t $'\t' -a 1 -a 2 -e missing -o 0,1.2,2.2 \
   "$TMP/old.tsv" "$TMP/new.tsv" >"$TMP/joined"
 awk -F '\t' '$2 != $3 { k = $1; sub(/#1$/, "", k); printf "%s: %s -> %s\n", k, $2, $3 }' "$TMP/joined" >"$TMP/diff"
 
-total=$(wc -l <"$TMP/joined")
-changed=$(wc -l <"$TMP/diff")
+# Arithmetic expansion drops the leading spaces BSD wc pads its count with.
+total=$(( $(wc -l <"$TMP/joined") ))
+changed=$(( $(wc -l <"$TMP/diff") ))
 cat "$TMP/diff"
 echo "compared $total checks: $changed changed"
 [ "$changed" -eq 0 ]
