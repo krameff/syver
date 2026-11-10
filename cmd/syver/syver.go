@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/krameff/syver"
+	"github.com/krameff/syver/internal/syver"
 	"github.com/krameff/syver/outputs"
 	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/system"
@@ -101,7 +101,7 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 
 // addSubcommandOrder preserves the exact original CLI listing order for
 // `syver add` subcommands. Unrelated to fieldOrder/resourceOrder in the
-// root package (those drive struct iteration and marshalling; this is
+// internal/syver package (those drive struct iteration and marshalling; this is
 // purely a CLI presentation concern), so it gets its own list rather than
 // reusing either.
 var addSubcommandOrder = []string{

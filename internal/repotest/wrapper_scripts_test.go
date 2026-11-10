@@ -1,4 +1,4 @@
-package syver
+package repotest
 
 import (
 	"bytes"

@@ -164,11 +164,31 @@ func TestValidateWithoutDiscoverErrorsOnMissingTemplateVar(t *testing.T) {
 
 func discoveryExamplesDir(t *testing.T) string {
 	t.Helper()
-	dir := filepath.Join("integration-tests", "syver", "examples", "discovery")
+	dir := filepath.Join(repoRoot(t), "integration-tests", "syver", "examples", "discovery")
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatalf("discovery examples missing: %v", err)
 	}
 	return dir
+}
+
+// repoRoot walks up from the package directory to the directory holding
+// go.mod, for fixtures that live outside this package.
+func repoRoot(t *testing.T) string {
+	t.Helper()
+	dir, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			t.Fatalf("no go.mod above the package directory")
+		}
+		dir = parent
+	}
 }
 
 func TestValidateWithDiscoverFlag(t *testing.T) {

@@ -131,7 +131,7 @@ for spec in passing failing meta; do
   for fmt in documentation json junit nagios prometheus rspecish structured tap silent; do
     f="$OUT/validate/${spec}.${fmt}"
     set +e
-    "$BIN" -g "testdata/${spec}.goss.yaml" validate --no-color --format "$fmt" 2>&1 | sanitize > "$f"
+    "$BIN" -g "internal/syver/testdata/${spec}.goss.yaml" validate --no-color --format "$fmt" 2>&1 | sanitize > "$f"
     # MUST stay the very next command: PIPESTATUS is clobbered by the next
     # pipeline or simple command, so inserting anything above this line silently
     # reverts this harness to recording a constant again.
@@ -169,7 +169,7 @@ while IFS= read -r f; do
   else
     rm -f "$OUT/render/$safe.err"
   fi
-done < <(find ./testdata ./integration-tests ./examples ./docs \
+done < <(find ./internal/syver/testdata ./integration-tests ./examples ./docs \
            \( -name '*.yaml' -o -name '*.yml' \) 2>/dev/null \
          | grep -viE 'compose|expected|generated|\.pages' | sort)
 
@@ -189,7 +189,7 @@ done < <(find ./testdata ./integration-tests ./examples ./docs \
 # ci/fixtures/templated.vars.yaml uses a double-space value on purpose: it is the
 # input where sprig and sprout disagree. Do not "tidy" it to a single space.
 mkdir -p "$OUT/render-vars"
-if ! "$BIN" -g testdata/templated.goss.yaml --vars ci/fixtures/templated.vars.yaml render \
+if ! "$BIN" -g internal/syver/testdata/templated.goss.yaml --vars ci/fixtures/templated.vars.yaml render \
        > "$OUT/render-vars/templated.out" 2> "$OUT/render-vars/templated.err"; then
   mv "$OUT/render-vars/templated.out" "$OUT/render-vars/templated.out.failed"
 else
