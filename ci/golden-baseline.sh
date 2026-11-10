@@ -43,10 +43,12 @@
 #              also emitted a `service: root` entry until 0.16.0, but only because
 #              the systemd existence check matched `root.service` as a substring of
 #              units such as `initrd-switch-root.service`; no `root` service exists.
-#   validate/  three fixtures x all 9 output formats, INCLUDING the exit code.
+#   validate/  four fixtures x all 9 output formats, INCLUDING the exit code.
 #              meta is the only fixture carrying meta:, so it is what shows
 #              meta reaching the json, structured, documentation and junit
-#              output; passing and failing carry none.
+#              output; passing and failing carry none. skipped is the only one
+#              producing skipped results: an author skip-reason, a failed
+#              first check, and a failed and a skipped dependency.
 #              The exit code is the primary contract of a validation CLI -- it is
 #              what CI steps and `dgoss run` actually consume -- and for a long
 #              time this harness recorded a constant 0 for every case, so it was
@@ -127,7 +129,7 @@ sanitize() {
 
 # ---- validate: every fixture x every registered output format ----------------
 mkdir -p "$OUT/validate"
-for spec in passing failing meta; do
+for spec in passing failing meta skipped; do
   for fmt in documentation json junit nagios prometheus rspecish structured tap silent; do
     f="$OUT/validate/${spec}.${fmt}"
     set +e

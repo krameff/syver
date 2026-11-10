@@ -129,6 +129,21 @@ Steps performed:
 1. Validate a gossfile where a file check fails and a command depends on it
 2. Asserts `Failed: 1` (prerequisite) and `Skipped: 1` (dependent via `depends-on`)
 
+## Comparing two builds
+
+Script: [`ci/compare-binaries.sh`](https://github.com/krameff/syver/blob/main/ci/compare-binaries.sh)
+
+Runs two syver binaries against the same spec on the same host and lists every check whose
+result (pass, fail or skip) differs. Use it before a release that changes a matcher or a
+resource, with the last release as the old binary and a real-world spec as input:
+
+```bash
+./ci/compare-binaries.sh ./syver-0.16.1 ./release/syver-linux-amd64 -g audit/goss.yml --vars audit/vars.yml
+```
+
+Exit code 0 means no check changed, 1 means some did (each is listed as `type|id|property: old -> new`),
+and 2 means a binary produced no results. Needs `jq`.
+
 ## Docker integration matrix
 
 Script: [`integration-tests/test.sh`](https://github.com/krameff/syver/blob/main/integration-tests/test.sh)
