@@ -197,7 +197,7 @@ which green they are looking at.
 
 ## Go unit and integration tests
 
-### Package `github.com/krameff/syver` (root)
+### Package `internal/syver`
 
 | Test | File | Covers |
 | --- | --- | --- |
@@ -396,7 +396,7 @@ cannot run together and will produce "configuration not found" warnings on pull 
   [`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)
 * **Output formats**: add to `outputs/*_test.go`
 * **Resource types**: add to `resource/validate_test.go` and platform integration gossfiles
-* **CLI behaviour**: prefer root `syver_test.go` or integration command gossfiles under
+* **CLI behaviour**: prefer `internal/syver/syver_test.go` or integration command gossfiles under
   `integration-tests/syver/<platform>/commands/`
 
 PRs should include automated tests; discovery changes should keep `make test-discovery-e2e` passing.

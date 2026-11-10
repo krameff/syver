@@ -203,14 +203,14 @@ func copyTitleMeta(dst, src any) {
 
 // UpsertLive inserts res into the live map pointed to by field -- field must
 // be a pointer to one of the type aliases below (e.g. *PortMap), such as
-// what an accessor.Field(c) call in the root package's dispatch.go returns.
+// what an accessor.Field(c) call in internal/syver's dispatch.go returns.
 // It preserves Title/Meta from any existing entry with the same ID, exactly
 // like AppendSysResource does for its own map.
 //
-// This exists because add.go, in the root package, cannot call
+// This exists because add.go, in internal/syver, cannot call
 // AppendSysResource directly (it doesn't know which SyverConfig field a
-// dispatched-by-name resource belongs to, and resource cannot import the
-// root package to find out -- see FEAT-007 G1). It gets a freshly-built
+// dispatched-by-name resource belongs to, and resource cannot import
+// internal/syver to find out -- see FEAT-007 G1). It gets a freshly-built
 // Resource from Descriptor.AppendSys instead, and needs a generic way to
 // store it in whichever live field the accessor table points at.
 func UpsertLive(field any, res Resource) error {

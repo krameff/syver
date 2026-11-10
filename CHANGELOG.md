@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.20.0 based on krameff/goss v0.6.0 - repository tidy
+
+- repository layout
+  - the application code moved from the top of the repository into
+    `internal/syver`. The `syver` command, its flags, its output and the
+    gossfile format are unchanged. A Go program that imported
+    `github.com/krameff/syver` as a library will no longer build; that was
+    never a supported use, and no such importer is known.
+
 ## 0.16.1 based on krameff/goss v0.6.0 - fixes
 
 - wrong results
