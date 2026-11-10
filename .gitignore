@@ -1,17 +1,17 @@
 *.swp
-/main
 *.bak
 .vscode
 /syver
 /release
 /dist
+# Docker build context: docker-syver.yaml copies the goreleaser binaries here.
 /linux
 /integration-tests/**/*-generated*
 /vendor/
 /integration-tests/**/syver-linux-386
 /integration-tests/**/syver-linux-amd64
 
-# Random stuff for my local testing/development that I don't want checked in
+# Local testing and development files, not committed.
 tmp/
 /goss.yaml
 /syver.yaml
@@ -29,13 +29,14 @@ tmp/
 
 
 # Generated at release time (make dgoss-sha256 dcgoss-sha256 kgoss-sha256
-# dsyver-sha256 dcsyver-sha256 ksyver-sha256)
+# dsyver-sha256 dcsyver-sha256 ksyver-sha256 sbxsyver-sha256)
 /extras/dsyver/dgoss.sha256
 /extras/dcsyver/dcgoss.sha256
 /extras/ksyver/kgoss.sha256
 /extras/dsyver/dsyver.sha256
 /extras/dcsyver/dcsyver.sha256
 /extras/ksyver/ksyver.sha256
+/extras/sbxsyver/sbxsyver.sha256
 
 # Rendered terminal recordings. The tape and the cards are the source; the
 # video is a build output, published as a release asset and never committed.
