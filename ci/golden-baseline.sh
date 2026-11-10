@@ -217,6 +217,8 @@ _add mount /
 _add interface lo
 _add addr tcp://127.0.0.1:22
 _add dns localhost
+# pkg-baseline is not added here: it records every package on the capturing
+# host, which changes with every update there.
 rm -f "$OUT/work/aa.yaml"
 "$BIN" -g "$OUT/work/aa.yaml" autoadd root > "$OUT/add/autoadd.stdout" 2> "$OUT/add/autoadd.stderr" || true
 cp "$OUT/work/aa.yaml" "$OUT/add/autoadd.yaml" 2>/dev/null || true

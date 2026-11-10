@@ -27,6 +27,24 @@
     releases warn that they do not know the key and carry on, and goss ignores
     it, so the check starts with 0.20.0. `render` keeps the highest
     `syver-version:` it reads.
+  - `pkg-baseline:` checks that a Linux host has exactly a recorded set of
+    packages, using rpm, dpkg, apk or pacman. `syver add pkg-baseline`
+    records every installed package by name (and sets `syver-version:
+    0.20.0`). `validate` reports packages recorded but missing, and packages
+    installed but not recorded. `ignore:` globs leave packages out entirely;
+    `allow:` globs let packages be installed without being recorded.
+    Versions are not checked by default; `--versions exact` or `--versions
+    newer` records them, and `newer` allows upgrades but not downgrades.
+    rpm's `gpg-pubkey` entries are always compared exactly. A baseline is
+    keyed by package manager: one per host, and a later include replaces an
+    earlier one rather than adding to it. A baseline for another package
+    manager fails with a message saying so. On Windows and macOS
+    `pkg-baseline:` is an error and never passes. Architecture is not
+    recorded, so a second architecture of a recorded package is not reported.
+- new commands
+  - `syver add pkg-baseline [--versions name-only|newer|exact] [--ignore GLOB]... [--allow GLOB]...`.
+    Re-running it refreshes the package list (and recorded versions, if the
+    entry checks them) and keeps the entry's other settings.
 - fixes
   - a top-level `<<:` merge of an anchor no longer logs an "unknown top-level
     key" warning.

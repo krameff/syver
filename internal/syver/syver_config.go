@@ -43,6 +43,7 @@ type SyverConfig struct {
 	HTTPs          resource.HTTPMap        `json:"http,omitempty" yaml:"http,omitempty"`
 	Matchings      resource.MatchingMap    `json:"matching,omitempty" yaml:"matching,omitempty"`
 	Registries     resource.RegistryMap    `json:"registry,omitempty" yaml:"registry,omitempty"`
+	PkgBaselines   resource.PkgBaselineMap `json:"pkg-baseline,omitempty" yaml:"pkg-baseline,omitempty"`
 }
 
 // NewSyverConfig builds an empty SyverConfig with every map field

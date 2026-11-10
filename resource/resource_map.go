@@ -50,6 +50,7 @@ func (r ResourceMap[T, ST, PT]) AppendSysResource(sr string, sys *system.System,
 	id := res.ID()
 	if old, ok := r[id]; ok {
 		copyTitleMeta(res, PT(old))
+		readdOver(res, PT(old))
 	}
 	r[id] = res
 	return res, nil
@@ -201,6 +202,19 @@ func copyTitleMeta(dst, src any) {
 	}
 }
 
+// readder is implemented by a type that keeps more than Title and Meta from
+// the entry it replaces when `syver add` runs over an existing ID.
+type readder interface {
+	readd(old any)
+}
+
+// readdOver lets res carry over what it keeps from old, after copyTitleMeta.
+func readdOver(res, old any) {
+	if r, ok := res.(readder); ok {
+		r.readd(old)
+	}
+}
+
 // UpsertLive inserts res into the live map pointed to by field -- field must
 // be a pointer to one of the type aliases below (e.g. *PortMap), such as
 // what an accessor.Field(c) call in internal/syver's dispatch.go returns.
@@ -227,6 +241,7 @@ func UpsertLive(field any, res Resource) error {
 	resV := reflect.ValueOf(res)
 	if old := mv.MapIndex(keyV); old.IsValid() {
 		copyTitleMeta(res, old.Interface())
+		readdOver(res, old.Interface())
 	}
 	mv.SetMapIndex(keyV, resV)
 	return nil
@@ -257,6 +272,7 @@ type MountMap = ResourceMap[Mount, system.Mount, *Mount]
 type InterfaceMap = ResourceMap[Interface, system.Interface, *Interface]
 type HTTPMap = ResourceMap[HTTP, system.HTTP, *HTTP]
 type RegistryMap = ResourceMap[Registry, system.Registry, *Registry]
+type PkgBaselineMap = ResourceMap[PkgBaseline, system.PackageInventory, *PkgBaseline]
 
 // MatchingMap has no system backing (matching validates a literal `content:`
 // value, not anything read off the host), so its ST is `any` and its

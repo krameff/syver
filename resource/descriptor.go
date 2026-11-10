@@ -65,6 +65,16 @@ type Descriptor struct {
 	CLIName    string
 	CLIAliases []string
 
+	// AddWithoutArgs makes `syver add <type>` with no arguments add one
+	// entry, built from an empty key, instead of adding nothing.
+	AddWithoutArgs bool
+
+	// Since is the first Syver release that understands this type. `syver
+	// add` raises the file's syver-version: to it, so a release that checks
+	// the marker and is older refuses the file instead of ignoring the type.
+	// Empty for types every release understands.
+	Since string
+
 	Source Source
 }
 

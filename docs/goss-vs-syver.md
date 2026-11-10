@@ -239,6 +239,7 @@ fails any other network with an error naming the valid ones. See
 | Where `add` writes | The gossfile | Whichever file the read resolved to |
 | Unrecognised top-level key (typo, or a key syver doesn't know) | Silently ignored -- the block is dropped and the run still exits 0 | Still ignored, but now logs a `WARN` naming the file, line, and a suggestion if one is close |
 | `syver-version:` top-level key | Ignored | Names the oldest Syver release the file needs, and makes an unknown top-level key in it, or in any file it includes, an error |
+| `pkg-baseline:` top-level key | Silently ignored | Checks that a Linux host has exactly a recorded set of installed packages. Syver 0.9.2 to 0.16.1 warn that it is unknown and skip it |
 
 ---
 
@@ -249,6 +250,7 @@ fails any other network with an error naming the valid ones. See
 | Primary spec-file flag | `--gossfile` | `--syverfile`, with `--gossfile` and `-g` as aliases |
 | Default spec path | Static `./goss.yaml` | Resolved dynamically across all four names |
 | Nested add subcommand | `add goss` | `add syver`, and `add goss` still works |
+| `add pkg-baseline` | n/a | Records every installed package on a Linux host; Syver 0.20.0 or later |
 | Subcommands, flags, matchers | n/a | Identical |
 
 ---

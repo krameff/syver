@@ -255,7 +255,8 @@ version such as `0.20.0` or `v0.20.0` compares. A `make build` binary stamped
 The value is a single version: `0.20.0`, `v0.20.0` or `0.20`. `1` means
 `1.0.0`. An empty value is an error, and so are operators and ranges such as
 `>=0.20.0` or `~0.20`. `syver add` writes the full form `0.20.0` back
-unchanged, but writes a short form such as `0.20` back quoted, as
+unchanged (`syver add pkg-baseline` raises a lower value to `0.20.0`), but
+writes a short form such as `0.20` back quoted, as
 `syver-version: "0.20"`, so use the full form if the file is maintained with
 `syver add`. In a JSON gossfile the value must be a string,
 `"syver-version": "0.20.0"`; a JSON number is a decode error.
@@ -285,6 +286,7 @@ for a runnable marked spec.
 * [matching](#matching)
 * [mount](#mount)
 * [package](#package)
+* [pkg-baseline](#pkg-baseline) (Linux only)
 * [port](#port)
 * [process](#process)
 * [registry](#registry) (Windows only)
@@ -890,6 +892,144 @@ package:
 
 !!! note
     this check uses the `--package <format>` parameter passed on the command line.
+
+### pkg-baseline
+
+Requires syver 0.20.0 or later. Checks that a Linux host has exactly a recorded
+set of installed packages: nothing recorded is missing, and nothing installed
+is unrecorded. `package:` checks one named package; `pkg-baseline:` checks the
+whole list.
+
+Generate a baseline on the host it describes, rather than writing one by hand:
+
+```console
+$ syver add pkg-baseline
+Adding PkgBaseline to './syver.yaml': rpm
+Setting syver-version: 0.20.0 in './syver.yaml': pkg-baseline requires it
+```
+
+```yaml
+syver-version: 0.20.0
+pkg-baseline:
+  # the host's package manager: rpm, dpkg, apk or pacman
+  rpm:
+    # required attribute: every recorded package, by name
+    installed:
+      consist-of:
+      - bash
+      - kernel-core
+      - openssh-server
+    # optional attributes
+    ignore: [kernel-*]
+    allow: [python3-*]
+    versions:
+      bash: ["5.2.26-6.el10"]
+    version-match: newer
+    skip: false
+```
+
+`syver add pkg-baseline` takes no argument, or the host's package manager. See
+[`syver add pkg-baseline`](cli.md#add-pkg-baseline) for its flags and what
+re-running it keeps. `syver autoadd` does not write a baseline.
+
+**Results.** Each baseline reports up to three results. Each shows
+`consist-of: []` as the expectation and the differences as the actual value,
+so a passing result has nothing to show and a failing one lists only what
+differs, not the whole package list:
+
+* `missing`: recorded packages that are not installed.
+* `unexpected`: installed packages that are not recorded and not allowed.
+* `versions`: only when versions are checked. One line per recorded package
+  whose installed versions break the rule, for example
+  `bash: installed 5.2.21-1.el10, older than recorded 5.2.26-6.el10`.
+
+**Attributes.**
+
+* `installed` is required and takes exactly one form: `consist-of` with a list
+  of package names, each listed once. Any other matcher is an error.
+* `ignore` is a list of globs. A matching package is left out entirely: it is
+  neither required nor reported when installed. Use it for packages that come
+  and go, such as kernels.
+* `allow` is a list of globs. A matching package may be installed without
+  being recorded. A recorded package that matches is still required. When a
+  name matches both, `ignore` wins.
+* `versions` maps a package name to the list of versions recorded for it. Every
+  name in it must also be in `installed`.
+* `version-match` decides how versions are compared:
+    * `name-only`: versions are not checked.
+    * `exact`: the installed versions must be exactly the recorded ones.
+    * `newer`: no installed version may be older than the lowest recorded
+      one, so upgrades pass and downgrades fail. Versions are ordered by the
+      host's own package manager: `rpm`, `dpkg --compare-versions`,
+      `apk version -t` or pacman's `vercmp`.
+
+    When `version-match` is absent, it is `exact` if `versions` is present and
+    `name-only` if not. `name-only` with `versions`, and `exact` or `newer`
+    without them, are errors.
+* rpm records each imported signing key as a `gpg-pubkey` package whose
+  version is the key id. Its versions are always compared with `exact`,
+  whatever `version-match` says, so a new or removed key is always reported.
+
+Globs use the same syntax as Go's
+[`path.Match`](https://pkg.go.dev/path#Match): `*`, `?` and `[...]`.
+
+**Errors.** Each of these fails every result of the baseline, with a message
+naming the problem; none of them passes or skips:
+
+* a rule above is broken, for example a name listed twice or a glob that does
+  not parse;
+* the key is not the host's package manager, for example
+  `baseline recorded for dpkg; this host's package manager is rpm`;
+* the package list cannot be read, or is empty;
+* the host is not Linux: `package inventory is supported on Linux only (rpm,
+  dpkg, apk, pacman)`. This applies on Windows and macOS even with `--package`.
+
+A wrongly typed attribute, such as `ignore: kernel-*` instead of a list, or
+`versions:` as a list instead of a map, fails the whole spec when it is read,
+as it would for any other resource type.
+
+**One baseline per host.** A baseline is keyed by package manager, so a spec
+holds one per host. If two included files both define `pkg-baseline: rpm:`,
+the later one replaces the earlier one, with the usual "Duplicate key
+detected" warning; the two lists are not combined:
+
+```yaml
+# base.yaml
+pkg-baseline:
+  rpm:
+    installed:
+      consist-of: [bash, openssh-server]
+---
+# web.yaml includes base.yaml, and its own entry replaces base.yaml's
+gossfile:
+  base.yaml: {}
+pkg-baseline:
+  rpm:
+    installed:
+      consist-of: [httpd]
+```
+
+To layer a role on a common baseline, build the combined list when the spec is
+generated or templated, or use `allow:` for the role's extra packages.
+
+**Packages are recorded by name.** Several versions installed under one name
+are one entry with several versions. A second architecture of a package that
+is already recorded at the same version, such as `glibc.i686` beside
+`glibc.x86_64` or `libc6:i386` beside `libc6:amd64`, is not reported.
+
+**Package lists.** rpm is read with `rpm -qa`, dpkg with `dpkg-query -W`
+(packages removed but not purged are not counted), apk from
+`/lib/apk/db/installed`, and pacman with `pacman -Q`. The list is read once
+and shared by every baseline in the run; a `discovery:` phase reads it again
+for itself.
+
+goss and Syver releases before 0.20.0 do not run `pkg-baseline:`. Syver
+0.9.2 to 0.16.1 warn that it is an unknown top-level key and carry on; goss and
+earlier Syver releases ignore it without a word. `syver add pkg-baseline` sets
+`syver-version: 0.20.0`, which later releases use to refuse a spec they are
+too old for (see [Making unknown keys an error](#making-unknown-keys-an-error)).
+
+See [`examples/pkg-baseline.yaml`](https://github.com/krameff/syver/blob/main/examples/pkg-baseline.yaml).
 
 ### port
 
