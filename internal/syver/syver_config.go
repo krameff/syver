@@ -7,6 +7,13 @@ import (
 )
 
 type SyverConfig struct {
+	// SyverVersion is the minimum Syver release this file was written for.
+	// Declaring the key also makes unknown top-level keys in this file an
+	// error. It is not a resource type and has no accessor: Merge leaves it
+	// alone, and mergeJSONData carries the highest value across includes.
+	// First in the struct so a marshalled spec writes it at the top.
+	SyverVersion string `json:"syver-version,omitempty" yaml:"syver-version,omitempty"`
+
 	Discovery  DiscoveryConfig       `json:"discovery,omitempty" yaml:"discovery,omitempty"`
 	Files      resource.FileMap      `json:"file,omitempty" yaml:"file,omitempty"`
 	Packages   resource.PackageMap   `json:"package,omitempty" yaml:"package,omitempty"`

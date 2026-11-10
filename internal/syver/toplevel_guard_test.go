@@ -253,7 +253,7 @@ func TestReadJSONData_IncludedGossfile_WarnsWithIncludedFilePath(t *testing.T) {
 	cfg, err := ReadJSON(parentPath)
 	assert.NoError(t, err)
 
-	_, err = mergeJSONData(cfg, 0, dir)
+	_, err = mergeJSONData(cfg, 0, dir, "")
 	assert.NoError(t, err)
 
 	assert.Contains(t, logOutput.String(), "child.yaml", "the warning for the included file's typo must name that file")

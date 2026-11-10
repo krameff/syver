@@ -36,7 +36,7 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 	quietDecode = peek
 	defer func() { quietDecode = false }()
 
-	var path, source string
+	var path, source, origin string
 	var syverConfig SyverConfig
 
 	if peek {
@@ -64,7 +64,7 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 			return nil, err
 		}
 
-		syverConfig, err = ReadJSONData(data, true, source)
+		syverConfig, origin, err = readJSONData(data, true, source, "")
 		if err != nil {
 			return nil, err
 		}
@@ -76,13 +76,13 @@ func loadSyverConfig(varsFiles []string, varsInline string, specFile string, dis
 			return nil, err
 		}
 
-		syverConfig, err = ReadJSON(specFile)
+		syverConfig, origin, err = readJSONFile(specFile, "")
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	syverConfig, err = mergeJSONData(syverConfig, 0, path)
+	syverConfig, err = mergeJSONData(syverConfig, 0, path, origin)
 	if err != nil {
 		return nil, err
 	}

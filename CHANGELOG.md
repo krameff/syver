@@ -14,6 +14,22 @@
   - routine updates with no change to any check, flag or rendered output.
     `tidwall/gjson` moves to 1.20.2, behind the `gjson:` matcher, and
     `golang.org/x/sys` to 0.50.0, along with indirect modules.
+- new in spec files
+  - `syver-version:` at the top of a spec names the oldest Syver it needs,
+    for example `syver-version: 0.20.0`. A released Syver older than that
+    stops with an error saying which version is needed; development and
+    snapshot builds skip that comparison. In a file that declares it, an
+    unknown top-level key is an error instead of a warning, and so is one in
+    any `gossfile:` the file includes. Keys starting `x-`, blocks that carry
+    a YAML anchor, and a top-level `<<:` merge are still allowed. `syver
+    serve` refuses to start on such an error, and `syver add` refuses to
+    write the file. Files without the marker behave as before. Older Syver
+    releases warn that they do not know the key and carry on, and goss ignores
+    it, so the check starts with 0.20.0. `render` keeps the highest
+    `syver-version:` it reads.
+- fixes
+  - a top-level `<<:` merge of an anchor no longer logs an "unknown top-level
+    key" warning.
 
 ## 0.16.1 based on krameff/goss v0.6.0 - fixes
 

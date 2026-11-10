@@ -776,6 +776,12 @@ description: "A file describing a series of tests"
 type: "object"
 
 properties:
+  syver-version:
+    type: string
+    description: "Minimum Syver version for this file; also makes unknown top-level keys an error. Requires syver 0.20.0 or later."
+    examples:
+      - "0.20.0"
+
   addr:
     type: object
     description: "Validates if a remote address:port are accessible."
