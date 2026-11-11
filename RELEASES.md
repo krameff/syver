@@ -28,7 +28,8 @@ signature look like a bad one.**
 | What | Signed by | Key |
 | --- | --- | --- |
 | Git tags | the maintainer's own key | `5154CE6E4F8712D87B9C870DCC071079D4E84F77` |
-| Release artifacts: `SHA256SUMS`, the SBOMs | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+| Release artifacts: `SHA256SUMS`, the SBOMs (`.sig`) | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+| Release artifacts from v0.20.0: `SHA256SUMS`, the SBOMs (`.rsa.sig`) | the project RSA-4096 key, for FIPS-mode gpg, published as [`krameff-syver-key-rsa.asc`](krameff-syver-key-rsa.asc) | `AC1C7F6FEC28F09F8DCF352DDBEADDD13E62F866` |
 
 So importing `krameff-syver-key.asc` and then running `git verify-tag` will
 report that it has no public key for the signature. That is expected, not a
