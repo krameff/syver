@@ -97,6 +97,12 @@ signing key (fingerprint `CD218D529C95DC65A71F18D84C9E5095CABE5092`, published
 as [`krameff-syver-key.asc`](https://github.com/krameff/syver/blob/main/krameff-syver-key.asc) at the repo root and
 attached to every release).
 
+From 0.20.0 each release is also signed with an RSA-4096 key (fingerprint
+`AC1C7F6FEC28F09F8DCF352DDBEADDD13E62F866`, published as
+[`krameff-syver-key-rsa.asc`](https://github.com/krameff/syver/blob/main/krameff-syver-key-rsa.asc)).
+Its signatures are in separate `.rsa.sig` files. Use it where gpg runs in
+FIPS mode, which rejects the Ed25519 key; anywhere else, either key will do.
+
 ```bash
 SYVER_VER=v0.15.0   # the release you downloaded
 
@@ -107,6 +113,14 @@ curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-syver-ke
 gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.sig syver_${SYVER_VER#v}_SHA256SUMS
 # --ignore-missing: the file lists every release asset, not only the one you downloaded
 sha256sum --ignore-missing -c syver_${SYVER_VER#v}_SHA256SUMS
+```
+
+On a FIPS-mode host, import the RSA key and verify the `.rsa.sig` file
+instead:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-syver-key-rsa.asc | gpg --import
+gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.rsa.sig syver_${SYVER_VER#v}_SHA256SUMS
 ```
 
 A `gpg --verify` output of `Good signature from "Krameff Solutions Limited..."`

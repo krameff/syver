@@ -116,7 +116,10 @@ Upstream `goss-org/goss` publishes no signatures. This fork GPG-signs its
 release checksums.
 
 The key for 0.7.0 onward is `krameff-syver-key.asc`, fingerprint
-`CD218D529C95DC65A71F18D84C9E5095CABE5092`. If you imported the earlier
+`CD218D529C95DC65A71F18D84C9E5095CABE5092`. From 0.20.0 an RSA-4096 key,
+`krameff-syver-key-rsa.asc` (`AC1C7F6FEC28F09F8DCF352DDBEADDD13E62F866`), also
+signs each release, in `.rsa.sig` files, for hosts whose gpg runs in FIPS mode.
+If you imported the earlier
 `krameff-goss-key.asc` from a 0.6.0 release, import the new one as well: the
 old key will not verify 0.7.0 artifacts. See
 [Verifying release signatures](installation.md#verifying-release-signatures).

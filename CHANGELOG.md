@@ -48,6 +48,13 @@
 - fixes
   - a top-level `<<:` merge of an anchor no longer logs an "unknown top-level
     key" warning.
+- release signing
+  - the checksum file and SBOMs are also signed with an RSA-4096 key,
+    `krameff-syver-key-rsa.asc` (fingerprint
+    `AC1C7F6FEC28F09F8DCF352DDBEADDD13E62F866`), in separate `.rsa.sig`
+    files. A gpg running in FIPS mode rejects the existing Ed25519 key, so
+    verify with this one on such a host. The `.sig` files and their key are
+    unchanged.
 
 ## 0.16.1 based on krameff/goss v0.6.0 - fixes
 
