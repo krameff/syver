@@ -14,6 +14,8 @@
   - routine updates with no change to any check, flag or rendered output.
     `tidwall/gjson` moves to 1.20.2, behind the `gjson:` matcher, and
     `golang.org/x/sys` to 0.50.0, along with indirect modules.
+  - built with Go 1.27.4, a security update for `net/http` (GO-2026-6859),
+    which `serve` and the `http:` check both use.
 - new in spec files
   - `syver-version:` at the top of a spec names the oldest Syver it needs,
     for example `syver-version: 0.20.0`. A released Syver older than that
