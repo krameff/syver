@@ -38,12 +38,8 @@ tmp/
 /extras/ksyver/ksyver.sha256
 /extras/sbxsyver/sbxsyver.sha256
 
-# Rendered terminal recordings. The tape and the cards are the source; the
-# video is a build output, published as a release asset and never committed.
-# The .png cards are NOT ignored -- they are small, stable and committed.
-/development/demo/*.mp4
-/development/demo/*.gif
-/development/demo/*.webm
+# Demo recordings: tapes, cards and rendered video are kept out of the repo.
+/development/demo/
 
 # AI
 IMPROVEMENTS_PLAN.md
