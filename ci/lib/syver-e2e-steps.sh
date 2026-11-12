@@ -119,6 +119,43 @@ run_pkg_baseline_e2e_steps() {
     _pkgb_expect "virtual package recorded by name" "      - .syver-e2e" "$("${sh_runner}" "cat ${spec}")"
   fi
 
+  # 1b. The recorded names are exactly what the host's own package tool lists.
+  #     Steps 2-7 compare Syver with itself, so an enumeration bug that drops or
+  #     invents packages would pass them all; this compares it with the host.
+  #     The reference queries are deliberately not Syver's: dpkg uses its own
+  #     "installed" status flag rather than Syver's status strings, and apk asks
+  #     apk rather than reading the db file.
+  local ref_cmd
+  case "${manager}" in
+    rpm) ref_cmd="rpm -qa --qf '%{NAME}\\n'" ;;
+    dpkg) ref_cmd="dpkg-query -W -f '\${db:Status-Abbrev} \${Package}\\n' | awk 'substr(\$1,2,1)==\"i\" {print \$2}'" ;;
+    apk) ref_cmd="apk info" ;;
+    pacman) ref_cmd="pacman -Qq" ;;
+    *)
+      echo "ERROR: pkg-baseline e2e (${os}): no host reference query for package manager '${manager}'" >&2
+      return 1
+      ;;
+  esac
+  local host_names spec_names only_host only_spec
+  host_names="$("${sh_runner}" "${ref_cmd}" | LC_ALL=C sort -u)"
+  spec_names="$("${sh_runner}" "sed -n '/^      consist-of:\$/,/^    [a-z]/s/^      - //p' ${spec}" |
+    sed -e "s/^'\\(.*\\)'\$/\\1/" -e 's/^"\(.*\)"$/\1/' | LC_ALL=C sort -u)"
+  if [[ -z "${host_names}" || -z "${spec_names}" ]]; then
+    echo "ERROR: pkg-baseline e2e (${os}): empty name list (host $(wc -l <<<"${host_names}"), spec $(wc -l <<<"${spec_names}"))" >&2
+    return 1
+  fi
+  only_host="$(LC_ALL=C comm -23 <(echo "${host_names}") <(echo "${spec_names}"))"
+  only_spec="$(LC_ALL=C comm -13 <(echo "${host_names}") <(echo "${spec_names}"))"
+  if [[ -n "${only_host}${only_spec}" ]]; then
+    echo "ERROR: pkg-baseline e2e (${os}): recorded names differ from '${ref_cmd}'" >&2
+    echo "  installed on the host but not recorded:" >&2
+    echo "${only_host:-(none)}" | sed 's/^/    /' >&2
+    echo "  recorded but not installed on the host:" >&2
+    echo "${only_spec:-(none)}" | sed 's/^/    /' >&2
+    return 1
+  fi
+  echo "INFO: pkg-baseline e2e (${os}): $(wc -l <<<"${spec_names}") recorded names match the host's ${manager}"
+
   # 2. A fresh baseline passes.
   _pkgb_validate
   _pkgb_rc "fresh baseline" 0 "${rc}"
