@@ -17,26 +17,7 @@
 # scheduled red build for no decision, which is the failure mode the blocking
 # gate was deliberately designed to avoid.
 
-vulnerabilities:
-  - id: GO-2026-5932
-    statement: |
-      golang.org/x/crypto/openpgp is unmaintained and unsafe by design. It is a
-      deprecated package, not a patched CVE, so there is no fixed version and
-      there will not be one. Deliberately no expired_at: see the note above.
-
-      Reachability: x/crypto arrives transitively via
-      github.com/go-sprout/sprout (template.go:12,41 -- sprigin.TxtFuncMap()
-      backs gossfile templating), which needs x/crypto/bcrypt, not openpgp. The
-      openpgp subpackage is not in the build graph. Sprout replaced sprig as
-      the templating library in 0.10.0 (FEAT-009); the dependency and this
-      suppression both survive that swap because sprout needs x/crypto for
-      the same bcrypt template functions sprig did.
-
-      That reachability claim is not asserted once and left to rot: govulncheck
-      runs on every `make check` and every CI build, reports reachable call
-      paths rather than affected versions, and has never flagged this. If a
-      dependency starts importing openpgp, govulncheck fails the build on its
-      own, independently of this file.
+vulnerabilities: []
 
 misconfigurations:
   - id: DS-0002

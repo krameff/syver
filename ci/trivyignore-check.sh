@@ -17,8 +17,9 @@ IGNORE_FILE="${SYVER_TRIVY_IGNOREFILE:-.trivyignore.yaml}"
 # ID still exist?", not "does it breach the gate?" -- a filter is the same bug
 # class as the missing --ignorefile was: an entry for a finding below the
 # threshold reads as "no longer found" and the script advises deleting a live
-# suppression. The old default omitted LOW entirely. Verified: unfiltered, the
-# scan still returns exactly GO-2026-5932 and nothing spurious.
+# suppression. The old default omitted LOW entirely. Verified (against the
+# GO-2026-5932 entry removed in 0.20.0): unfiltered, the scan returned exactly
+# that ID and nothing spurious.
 
 if [[ ! -f "${IGNORE_FILE}" ]]; then
   echo "[trivyignore-check] no ${IGNORE_FILE}, skipping"
@@ -55,7 +56,7 @@ fi
 # loop below reports each one as "no longer found", and following that advice
 # deletes a suppression that was still doing its job. Verified: with the
 # auto-loaded ignorefile the scan returns only the two x/mod CVEs; with it
-# bypassed the same scan also returns GO-2026-5932, the sole .trivyignore entry.
+# bypassed the same scan also returned GO-2026-5932, then the sole entry.
 # --exit-code 0 is explicit and load-bearing: this script reports staleness and
 # must never fail on findings. trivy reads TRIVY_<FLAG> from the environment, so
 # without it an exported TRIVY_EXIT_CODE (which ci/security-scan.sh invites you
