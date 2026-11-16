@@ -63,6 +63,13 @@
     files. A gpg running in FIPS mode rejects the existing Ed25519 key, so
     verify with this one on such a host. The `.sig` files and their key are
     unchanged.
+- build pipeline
+  - the GitHub Actions that build and release Syver are now recorded in a
+    lockfile, `.github/workflows/actions.lock`, which pins every action to a
+    commit, including the actions those actions use in turn. Previously only
+    the actions named directly in the workflows were pinned. A pull request
+    whose workflows and lockfile disagree now fails. Nothing in the released
+    binaries, packages or images changes.
 
 ## 0.16.1 based on krameff/goss v0.6.0 - fixes
 
