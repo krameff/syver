@@ -6,6 +6,13 @@ name: Verify actions lockfile
 # here rather than by a blocked run once the "Require lockfile" policy is on.
 # To fix a failure: run `gh actions-lock` locally and commit the lockfile with
 # the workflow change.
+#
+# This runs --verify-local, the offline coverage check, not the full --verify.
+# --verify asks the API about each locked repository, and the aquasecurity
+# organisation's IP allow list refuses the runner's GITHUB_TOKEN ("your IP
+# address is not permitted"), so it can never pass here. The full check, which
+# also catches moved tags and replaced repositories, runs locally whenever the
+# lockfile is regenerated, and in the release gate.
 
 on:
   push:
@@ -34,7 +41,5 @@ jobs:
         # Pinned to a release so a new version cannot change this check
         # without a pull request.
         run: gh extension install github/gh-actions-lock --pin v0.4.1
-      - name: Verify lockfile
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh actions-lock --verify --no-interactive
+      - name: Verify lockfile covers every action
+        run: gh actions-lock --verify-local
