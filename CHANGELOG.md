@@ -11,9 +11,15 @@
   - `release-build.sh` moved to `ci/release-build.sh`; `make build` calls it
     from there.
 - dependencies
-  - routine updates with no change to any check, flag or rendered output.
-    `tidwall/gjson` moves to 1.20.2, behind the `gjson:` matcher, and
+  - routine updates with no change to any flag or rendered output.
+    `tidwall/gjson` moves to 1.20.3, behind the `gjson:` matcher, which
+    fixes a very large unsigned number being read as a wrapped, wrong value;
+    `prometheus/common` to 0.74.0, behind `--format prometheus`; and
     `golang.org/x/sys` to 0.50.0, along with indirect modules.
+  - `golang.org/x/crypto` moves to 0.59.0, which no longer contains the
+    deprecated `openpgp` package. Syver never used it, but security scanners
+    reported it (GO-2026-5932); they no longer do, and the suppression for it
+    is gone.
   - built with Go 1.27.4, a security update for `net/http` (GO-2026-6859),
     which `serve` and the `http:` check both use.
 - new in spec files
@@ -80,7 +86,7 @@
     goss-org/goss#1006
 
 - dependencies
-  - routine updates with no change to any check, flag or rendered output.
+  - routine updates with no change to any flag or rendered output.
     `go.yaml.in/yaml/v2` moves to 2.4.5 and `go.yaml.in/yaml/v3` to 3.0.6,
     the libraries that write and read spec files, and `gopsutil` to 4.26.10,
     behind the `process:` and port checks. The upstream changes are in code
@@ -332,7 +338,7 @@
     GO-2026-6809 in `crypto/x509`, which now distrusts compromised
     intermediate certificates; syver reaches it through the `http:` check and
     `serve` over TLS. Building from source still needs Go 1.27 or later
-  - routine updates with no change to any check, flag or rendered output.
+  - routine updates with no change to any flag or rendered output.
     `prometheus/common`, behind the `prometheus` output and `/metrics`, moves
     to 0.73.1, and `prometheus/procfs`, `moby/sys/mountinfo` and
     `golang.org/x/net` to their current releases
@@ -450,7 +456,7 @@
     vulnerabilities in `net/http` and its HTTP/2 support (GO-2026-6610 to
     6613 and GO-2026-6617), which syver reaches through `serve` and the
     `http:` check. Building from source still needs Go 1.27 or later
-  - routine updates with no change to any check, flag or rendered output.
+  - routine updates with no change to any flag or rendered output.
     `urfave/cli`, the command line framework, moves to 3.14.0;
     `prometheus/client_golang`, behind the `prometheus` output and `/metrics`,
     to 1.25.0; `gjson`, behind the `gjson` matcher, to 1.20.0; and the
@@ -522,7 +528,7 @@
     is still read, so no existing setup needs changing
 
 - dependencies
-  - routine updates with no change to any check, flag or rendered output.
+  - routine updates with no change to any flag or rendered output.
     `urfave/cli`, the command line framework, moves to 3.13.0; `gopsutil`,
     which reads process and system information, to 4.26.9; `prometheus/common`,
     behind the `prometheus` output and `/metrics`, to 0.72.0; and `gomega`, the
