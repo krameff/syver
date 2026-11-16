@@ -67,8 +67,10 @@
   - the GitHub Actions that build and release Syver are now recorded in a
     lockfile, `.github/workflows/actions.lock`, which pins every action to a
     commit, including the actions those actions use in turn. Previously only
-    the actions named directly in the workflows were pinned. A pull request
-    whose workflows and lockfile disagree now fails. Nothing in the released
+    the actions named directly in the workflows were pinned. The workflows
+    now name each action by its release tag, and GitHub runs the commit the
+    lockfile records for that tag. A pull request whose workflows and
+    lockfile disagree now fails. Nothing in the released
     binaries, packages or images changes.
 
 ## 0.16.1 based on krameff/goss v0.6.0 - fixes
