@@ -54,6 +54,7 @@ type Config struct {
 	VarsFiles             []string
 	VarsInline            string
 	DiscoverSpec          string
+	NoDiscover            bool // render --no-discover: declared registers are false, no check runs
 	DisabledResourceTypes []string
 	// PkgBaselineVersions, PkgBaselineIgnore and PkgBaselineAllow carry
 	// `syver add pkg-baseline`'s --versions, --ignore and --allow.

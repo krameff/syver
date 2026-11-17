@@ -1,6 +1,7 @@
 package syver
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -415,28 +416,68 @@ func readJSONData(data []byte, detectFormat bool, path, strictOrigin string) (Sy
 }
 
 // RenderJSON reads json file recursively returning string
-func RenderJSON(c *util.Config) (string, error) {
+//
+// Discovery runs first, as it does for validate: the --discover file, or the
+// spec's own discovery: block, fills .Discovered. With c.NoDiscover no check
+// runs and every declared register is false.
+func RenderJSON(ctx context.Context, c *util.Config) (string, error) {
 	err := setLogLevel(c)
 	if err != nil {
 		return "", err
 	}
+
+	// The discovery loads are not the render --debug asked to see, so the
+	// template dump stays off until the spec itself is read.
+	debug = false
+	var discovered map[string]bool
+	switch {
+	case c.NoDiscover && c.DiscoverSpec != "":
+		return "", errNoDiscoverWithDiscover
+	case c.NoDiscover:
+		discovered, err = declaredDiscoveredFalse(c)
+	default:
+		discovered, err = resolveDiscovered(ctx, c, true)
+	}
+	if err != nil {
+		return "", err
+	}
+
 	debug = c.Debug
-	currentTemplateFilter, err = NewTemplateFilter(c.VarsFiles, c.VarsInline, nil)
+	currentTemplateFilter, err = NewTemplateFilter(c.VarsFiles, c.VarsInline, discovered)
 	if err != nil {
 		return "", err
 	}
 
-	outStoreFormat, err = getStoreFormatFromFileName(c.Spec)
-	if err != nil {
-		return "", err
+	var j SyverConfig
+	var origin, path string
+	if c.Spec == "-" {
+		// Read through the same buffer the discovery peek used: stdin can
+		// only be read once.
+		data, err := readStdinOnce()
+		if err != nil {
+			return "", err
+		}
+		outStoreFormat, err = getStoreFormatFromData(data)
+		if err != nil {
+			return "", err
+		}
+		j, origin, err = readJSONData(data, true, "STDIN", "")
+		if err != nil {
+			return "", err
+		}
+	} else {
+		outStoreFormat, err = getStoreFormatFromFileName(c.Spec)
+		if err != nil {
+			return "", err
+		}
+		j, origin, err = readJSONFile(c.Spec, "")
+		if err != nil {
+			return "", err
+		}
+		path = filepath.Dir(c.Spec)
 	}
 
-	j, origin, err := readJSONFile(c.Spec, "")
-	if err != nil {
-		return "", err
-	}
-
-	syverConfig, err := mergeJSONData(j, 0, filepath.Dir(c.Spec), origin)
+	syverConfig, err := mergeJSONData(j, 0, path, origin)
 	if err != nil {
 		return "", err
 	}

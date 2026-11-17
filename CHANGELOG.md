@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.20.1 based on krameff/goss v0.6.0 - fixes
+
+- discovery under `render` and `serve`
+  - `render` and `serve` never ran discovery, so a spec reading
+    `.Discovered`, from an inline `discovery:` block or in a file pulled in
+    by `gossfile:`, failed under both with `map has no entry for key`. Only
+    `validate` worked, and the way round it was to export discovery to a
+    vars file first. Both commands now run discovery the way `validate`
+    does: the inline block, or the file named by the new `--discover` flag,
+    which wins over an inline block as it does for `validate`. `render`
+    therefore shows the suite as `validate` would check it on the host it
+    runs on. `serve` runs discovery once, at startup, and keeps the results
+    until it is restarted. The vars-file way round still works. `validate`
+    is unchanged
+  - `render --no-discover` renders without running any discovery checks:
+    every register the `discovery:` block declares is `false`, and a
+    `.Discovered` key it does not declare is still an error
+  - `render -g -` failed with a file error instead of reading the spec from
+    standard input. It now reads it, as `validate -g -` does
+
 ## 0.20.0 based on krameff/goss v0.6.0 - repository tidy
 
 - repository layout

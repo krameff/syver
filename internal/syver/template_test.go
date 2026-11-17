@@ -505,7 +505,7 @@ func TestGlob_RenderWarnsExactlyOnce(t *testing.T) {
 	cfg.LogLevel = cliDefaultLogLevel
 
 	var renderErr error
-	_, stderr := captureStdoutStderr(t, func() { _, renderErr = RenderJSON(cfg) })
+	_, stderr := captureStdoutStderr(t, func() { _, renderErr = RenderJSON(t.Context(), cfg) })
 	require.NoError(t, renderErr)
 	assert.Equal(t, 1, strings.Count(stderr, "[WARN] glob pattern "+q(missing)+" matched no files"), stderr)
 }

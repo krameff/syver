@@ -230,6 +230,13 @@ which green they are looking at.
 | `TestDiscoverFlagOverridesInline` | `discovery_integration_test.go` | `--discover` wins over inline |
 | `TestValidateDiscoverWithDependsOn` | `discovery_integration_test.go` | `--discover` + `depends-on` skip semantics |
 | `TestValidateDependsOnSkipsDependent` | `discovery_integration_test.go` | `depends-on` skip semantics |
+| `TestRenderInlineDiscovery` | `discovery_integration_test.go` | `render` runs inline `discovery:` |
+| `TestRenderInlineDiscoveryReadByInclude` | `discovery_integration_test.go` | `render`: `.Discovered` read in a `gossfile:` include |
+| `TestRenderDiscoverFlagOverridesInline` | `discovery_integration_test.go` | `render --discover` wins over inline, one INFO log |
+| `TestRenderNoDiscover` | `discovery_integration_test.go` | `render --no-discover`: declared registers false, undeclared still an error |
+| `TestRenderStdinWithDiscoverySection` | `discovery_integration_test.go` | `render -g -` with `discovery:` |
+| `TestServeInlineDiscovery` | `discovery_integration_test.go` | `serve` runs inline `discovery:` at startup |
+| `TestServeDiscoverFlag` | `discovery_integration_test.go` | `serve --discover` |
 | `TestTemplateDiscoveredVars` | `discovery_integration_test.go` | Template `.Discovered` rendering |
 | `TestMergePreservesDiscovery` | `discovery_merge_test.go` | Discovery survives gossfile merge |
 | `TestConfigMerge` | `syver_test.go` | Config merge behaviour |
