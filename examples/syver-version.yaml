@@ -1,0 +1,32 @@
+# Demonstrates syver-version: -- see
+# docs/gossfile.md#making-unknown-keys-an-error. Run it with:
+#
+#   syver -g examples/syver-version.yaml validate
+#
+# It validates clean. Change "command:" below to "comand:" and the run stops
+# with an error naming the key and its line, instead of the warning an
+# unmarked file gets.
+
+# The oldest Syver release this file needs. Declaring it also makes any
+# unknown top-level key in this file an error.
+syver-version: 0.20.0
+
+# Still allowed: a block whose value carries a YAML anchor ...
+common-checks: &common
+  exit-status: 0
+
+# ... a key starting x- ...
+x-shared-matching: &shared
+  matching:
+    merged in from x-shared-matching:
+      content: 42
+      matches: 42
+
+# ... and a top-level merge of an anchor.
+<<: *shared
+
+command:
+  echo hello:
+    <<: *common
+    stdout:
+      - hello

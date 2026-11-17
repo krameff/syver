@@ -129,6 +129,21 @@ Steps performed:
 1. Validate a gossfile where a file check fails and a command depends on it
 2. Asserts `Failed: 1` (prerequisite) and `Skipped: 1` (dependent via `depends-on`)
 
+## Comparing two builds
+
+Script: [`ci/compare-binaries.sh`](https://github.com/krameff/syver/blob/main/ci/compare-binaries.sh)
+
+Runs two syver binaries against the same spec on the same host and lists every check whose
+result (pass, fail or skip) differs. Use it before a release that changes a matcher or a
+resource, with the last release as the old binary and a real-world spec as input:
+
+```bash
+./ci/compare-binaries.sh ./syver-0.16.1 ./release/syver-linux-amd64 -g audit/goss.yml --vars audit/vars.yml
+```
+
+Exit code 0 means no check changed, 1 means some did (each is listed as `type|id|property: old -> new`),
+and 2 means a binary produced no results. Needs `jq`.
+
 ## Docker integration matrix
 
 Script: [`integration-tests/test.sh`](https://github.com/krameff/syver/blob/main/integration-tests/test.sh)
@@ -138,6 +153,9 @@ reuses the same steps as the host E2E scripts via [`ci/lib/syver-e2e-steps.sh`](
 
 * `run_discovery_e2e_steps` — `--format discovery`, `--discover`, inline `discovery:`, discover+depends-on
 * `run_depends_on_e2e_steps` — pure `depends-on` skip semantics
+* `run_pkg_baseline_e2e_steps` — `syver add pkg-baseline` against the container's real package
+  manager, then a clean validate, missing and unexpected packages, `ignore:`, `exact` and `newer`
+  versions, a baseline for the wrong package manager, and (on alpine) an apk virtual package
 
 Fixtures live under
 [`integration-tests/syver/examples/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/)
@@ -197,7 +215,7 @@ which green they are looking at.
 
 ## Go unit and integration tests
 
-### Package `github.com/krameff/syver` (root)
+### Package `internal/syver`
 
 | Test | File | Covers |
 | --- | --- | --- |
@@ -396,7 +414,7 @@ cannot run together and will produce "configuration not found" warnings on pull 
   [`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)
 * **Output formats**: add to `outputs/*_test.go`
 * **Resource types**: add to `resource/validate_test.go` and platform integration gossfiles
-* **CLI behaviour**: prefer root `syver_test.go` or integration command gossfiles under
+* **CLI behaviour**: prefer `internal/syver/syver_test.go` or integration command gossfiles under
   `integration-tests/syver/<platform>/commands/`
 
 PRs should include automated tests; discovery changes should keep `make test-discovery-e2e` passing.

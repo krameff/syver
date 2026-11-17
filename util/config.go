@@ -55,6 +55,11 @@ type Config struct {
 	VarsInline            string
 	DiscoverSpec          string
 	DisabledResourceTypes []string
+	// PkgBaselineVersions, PkgBaselineIgnore and PkgBaselineAllow carry
+	// `syver add pkg-baseline`'s --versions, --ignore and --allow.
+	PkgBaselineVersions string
+	PkgBaselineIgnore   []string
+	PkgBaselineAllow    []string
 }
 
 // TimeOutMilliSeconds is the timeout as milliseconds

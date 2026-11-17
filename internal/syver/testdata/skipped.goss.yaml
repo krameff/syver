@@ -1,0 +1,32 @@
+---
+# One result of each skip kind, so the validate goldens record skip output in
+# every format: an author skip with a reason, a failed first check, a
+# dependency that failed, and a dependency that was itself skipped.
+#
+# The resources form one depends-on chain. Independent resources finish in no
+# fixed order, even with --max-concurrent 1, so a second root would make the
+# goldens flap. An author-skipped prerequisite does not count as not passing,
+# so the chain carries on past it.
+file:
+  /nonexistent/syver-golden-author-skip:
+    exists: true
+    skip: true
+    skip-reason: skipped by the author
+  /nonexistent/syver-golden-missing:
+    depends-on:
+      - file:/nonexistent/syver-golden-author-skip
+    exists: true
+    mode: "0644"
+command:
+  dependent:
+    depends-on:
+      - file:/nonexistent/syver-golden-missing
+    exec: "echo dependent"
+    exit-status: 0
+    timeout: 10000
+  chained:
+    depends-on:
+      - command:dependent
+    exec: "echo chained"
+    exit-status: 0
+    timeout: 10000

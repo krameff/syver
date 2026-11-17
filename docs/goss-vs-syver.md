@@ -116,7 +116,10 @@ Upstream `goss-org/goss` publishes no signatures. This fork GPG-signs its
 release checksums.
 
 The key for 0.7.0 onward is `krameff-syver-key.asc`, fingerprint
-`CD218D529C95DC65A71F18D84C9E5095CABE5092`. If you imported the earlier
+`CD218D529C95DC65A71F18D84C9E5095CABE5092`. From 0.20.0 an RSA-4096 key,
+`krameff-syver-key-rsa.asc` (`AC1C7F6FEC28F09F8DCF352DDBEADDD13E62F866`), also
+signs each release, in `.rsa.sig` files, for hosts whose gpg runs in FIPS mode.
+If you imported the earlier
 `krameff-goss-key.asc` from a 0.6.0 release, import the new one as well: the
 old key will not verify 0.7.0 artifacts. See
 [Verifying release signatures](installation.md#verifying-release-signatures).
@@ -179,7 +182,11 @@ close to a real key) a suggested fix. See
 including the two patterns -- an `x-`-prefixed key, and a YAML anchor carrier
 -- that are deliberately exempt and never warn. This is worth checking if
 you're migrating a large gossfile collection: a key that validated clean
-under goss may turn out to have been ignored the whole time.
+under goss may turn out to have been ignored the whole time. A file can go
+further and declare `syver-version: 0.20.0`, which makes an unknown top-level
+key an error and names the oldest Syver release the file needs; goss ignores
+that key. See
+[Making unknown keys an error](gossfile.md#making-unknown-keys-an-error).
 
 A third: **a skipped result says why.** goss reports a skip as `skipped` and
 nothing more. Syver appends the reason whenever there is one: the
@@ -234,6 +241,8 @@ fails any other network with an error naming the valid ones. See
 | Spec filenames probed | `goss.yaml`, `goss.yml` | `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml` |
 | Where `add` writes | The gossfile | Whichever file the read resolved to |
 | Unrecognised top-level key (typo, or a key syver doesn't know) | Silently ignored -- the block is dropped and the run still exits 0 | Still ignored, but now logs a `WARN` naming the file, line, and a suggestion if one is close |
+| `syver-version:` top-level key | Ignored | Names the oldest Syver release the file needs, and makes an unknown top-level key in it, or in any file it includes, an error |
+| `pkg-baseline:` top-level key | Silently ignored | Checks that a Linux host has exactly a recorded set of installed packages. Syver 0.9.2 to 0.16.1 warn that it is unknown and skip it |
 
 ---
 
@@ -244,6 +253,7 @@ fails any other network with an error naming the valid ones. See
 | Primary spec-file flag | `--gossfile` | `--syverfile`, with `--gossfile` and `-g` as aliases |
 | Default spec path | Static `./goss.yaml` | Resolved dynamically across all four names |
 | Nested add subcommand | `add goss` | `add syver`, and `add goss` still works |
+| `add pkg-baseline` | n/a | Records every installed package on a Linux host; Syver 0.20.0 or later |
 | Subcommands, flags, matchers | n/a | Identical |
 
 ---

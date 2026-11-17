@@ -1,0 +1,31 @@
+# Demonstrates pkg-baseline: -- see docs/gossfile.md#pkg-baseline.
+#
+# A real baseline is written by `syver add pkg-baseline` on the host it
+# describes, and lists every installed package. This one is cut down to show
+# the attributes; validating it on a real host reports most of that host's
+# packages as unexpected.
+#
+#   syver -g examples/pkg-baseline.yaml validate
+
+# pkg-baseline needs Syver 0.20.0 or later. `syver add pkg-baseline` sets this.
+syver-version: 0.20.0
+
+pkg-baseline:
+  # The key is the package manager: rpm, dpkg, apk or pacman. It must be the
+  # host's own; a baseline for another one fails with a message saying so.
+  rpm:
+    title: web tier baseline
+    installed:
+      consist-of:
+      - bash
+      - kernel-core
+      - openssh-server
+    # Left out of the comparison entirely, on both sides.
+    ignore: [kernel-*]
+    # May be installed without being recorded.
+    allow: [python3-*]
+    # With versions recorded, newer allows upgrades and reports downgrades.
+    versions:
+      bash: ["5.2.26-6.el10"]
+      openssh-server: ["9.9p1-7.el10"]
+    version-match: newer

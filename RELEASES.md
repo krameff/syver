@@ -28,7 +28,8 @@ signature look like a bad one.**
 | What | Signed by | Key |
 | --- | --- | --- |
 | Git tags | the maintainer's own key | `5154CE6E4F8712D87B9C870DCC071079D4E84F77` |
-| Release artifacts: `SHA256SUMS`, the SBOMs | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+| Release artifacts: `SHA256SUMS`, the SBOMs (`.sig`) | the project signing key, published as [`krameff-syver-key.asc`](krameff-syver-key.asc) | `CD218D529C95DC65A71F18D84C9E5095CABE5092` |
+| Release artifacts from v0.20.0: `SHA256SUMS`, the SBOMs (`.rsa.sig`) | the project RSA-4096 key, for FIPS-mode gpg, published as [`krameff-syver-key-rsa.asc`](krameff-syver-key-rsa.asc) | `AC1C7F6FEC28F09F8DCF352DDBEADDD13E62F866` |
 
 So importing `krameff-syver-key.asc` and then running `git verify-tag` will
 report that it has no public key for the signature. That is expected, not a
@@ -60,6 +61,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.20.0 - Package baselines and syver-version](#v0200---package-baselines-and-syver-version)
 * [v0.16.1 - Text patterns and port networks](#v0161---text-patterns-and-port-networks)
 * [v0.16.0 - Skip reasons, masked services and glob](#v0160---skip-reasons-masked-services-and-glob)
 * [v0.15.3 - Fixes](#v0153---fixes)
@@ -87,15 +89,73 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ---
 
-## v0.16.1 - Text patterns and port networks
+## v0.20.0 - Package baselines and syver-version
 
 | Field | Value |
 | --- | --- |
 | Released | pending |
-| Tag | `v0.16.1`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
-| Commit | pending |
+| Tag | `v0.20.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` (`.sig`) and, new in this release, the project RSA-4096 key `AC1C7F6F...3E62F866` (`.rsa.sig`) |
+| Commit | pending, the `devel` -> `main` merge commit |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.16.0 release record (PR #112), the 0.16.0 Windows11-CIS-Audit comparison (PR #113), skip reason examples (PR #114), goss-vs-syver for 0.16.0 (PR #115), `deps/2026-11-07` (PR #123), `fix/patterns-and-port-network` (PR #124), then `docs/0.16.1`. Merged to `main` through PR pending |
+| Integration branch | `devel`, in this merge order: the 0.16.1 release record (PR #127), `chore/tidy-hygiene` (PR #128), `code_tidyup` (PR #129), `deps/update-2026-11-10` (PR #130), `chore/root-scripts` (PR #131), `test/skip-golden` (PR #132), `feature/syver-version` (PR #133), `feature/pkg-baseline` (PR #134), `feature/rsa-signing` (PR #135), `deps/go-1.27.4` (PR #136), `chore/ignore-demos` (PR #137), `test/pkg-baseline-host-crosscheck` (PR #138), Dependabot's mkdocs-material 9.8.1 (PR #139) and docker/login-action 4.8.0 (PR #140), `deps/0.20.0-refresh` (PR #141), `feature/actions-lockfile` (PR #142), `fix/actions-lock-standard-form` (PR #143), then `docs/0.20.0` |
+| Scope | pending, measured at `v0.20.0` against `v0.16.1` |
+| Changelog | [0.20.0](CHANGELOG.md#0200-based-on-krameffgoss-v060---repository-tidy) |
+
+A minor release with two additions to spec syntax, both in
+`docs/schema.yaml`. `pkg-baseline:` checks that a Linux host has exactly a
+recorded set of packages (rpm, dpkg, apk or pacman), and `syver add
+pkg-baseline` records it. `syver-version:` names the oldest Syver a spec
+needs, and in a file that declares it an unknown top-level key is an error
+rather than a warning. The checksum file and SBOMs gain a second signature
+from an RSA-4096 key, for hosts whose gpg runs in FIPS mode, which rejects
+the existing Ed25519 key. Built with Go 1.27.4 for GO-2026-6859 in
+`net/http`. The application code moved from the top of the repository into
+`internal/syver`; the command, its flags, its output and the gossfile format
+are unchanged. Dependency updates: `tidwall/gjson` 1.20.3,
+`prometheus/common` 0.74.0, `golang.org/x/sys` 0.50.0 and
+`golang.org/x/crypto` 0.59.0, which drops the `openpgp` package and with it
+the last trivy suppression for a Go module. The GitHub Actions workflows are
+now pinned through `.github/workflows/actions.lock`. The set of published
+binaries is unchanged.
+
+**Suites run on 2026-11-16**, on go-builder, on the tree of
+`deps/0.20.0-refresh` (PR #141): Linux unit tests under `-race`, `make
+check`, golangci-lint for linux, windows and darwin, coverage, yamllint,
+`mkdocs --strict`, the trivy suppression check (strict), the schema check,
+`make build`, the 64-bit integration tests and the dcsyver end-to-end test.
+1500 tests passed, none failed. The goldens against `devel` before that
+branch were unchanged, 253 of 253. PRs #142 and #143 change only workflow
+files and `CHANGELOG.md`; with #143 merged, every workflow on `devel` at
+`1e7f64b` was green, including the per-distro integration tests,
+`macos-latest` and `windows-latest`.
+
+**Compared against v0.16.1 on real audit content**, with `devel` at
+`1e7f64b` built as `v0.20.0` and the published 0.16.1 binaries verified
+against their checksums. Across the 26 Linux ansible-lockdown `-Audit`
+repositories on go-builder, every check gave the same result in the 19 whose
+content loads. One check in RHEL9-STIG-Audit, `device_files_labelled`,
+differed once; it runs `find /` over live device files, and rerun it passed
+on both versions. Five audits (RHEL7-CIS, RHEL7-STIG, RHEL8-STIG, UBUNTU18-CIS
+and UBUNTU24-CIS) fail to load on both versions with the same error in their
+own content, and UBUNTU26-STIG-Audit has no spec yet. Windows-11-CIS-Audit at
+`4482e08`, run through its own `run_audit.ps1` with both versions reading one
+policy snapshot, gave the same result for all 1391 checks on a Windows 11
+Enterprise host and on a Windows Server 2025 VM, and 0.20.0 passed the
+audit's version check.
+
+**Verified after the push**: pending.
+
+---
+
+## v0.16.1 - Text patterns and port networks
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-11-07 |
+| Tag | `v0.16.1`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` |
+| Commit | `acf859d`, the `devel` -> `main` merge commit from PR #126 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.16.0 release record (PR #112), the 0.16.0 Windows11-CIS-Audit comparison (PR #113), skip reason examples (PR #114), goss-vs-syver for 0.16.0 (PR #115), `deps/2026-11-07` (PR #123), `fix/patterns-and-port-network` (PR #124), then `docs/0.16.1` (PR #125). Merged to `main` through PR #126 |
 | Scope | 12 commits (excluding merges), 19 files, +481 / -28, measured at `v0.16.1` against `v0.16.0` |
 | Changelog | [0.16.1](CHANGELOG.md#0161-based-on-krameffgoss-v060---fixes) |
 
@@ -119,7 +179,21 @@ leading `/` or an unknown port network, so the new unit tests are the gate for
 both fixes. Each was confirmed to fail with its fix reverted. Both pull
 requests were green in CI before merge, including the per-distro integration
 tests, `macos-latest` and `windows-latest`. Merged `devel` at `df95c0c` was
-compared file by file with the tested tree and was identical.
+compared file by file with the tested tree and was identical. On the tagged
+tree under go1.27.3, 1239 tests passed, 4 skipped, none failed.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `acf859d` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`be88f96`. The release carries 38 assets, the same names as 0.16.0.
+`syver_0.16.1_SHA256SUMS` and the `syver-darwin-arm64` SBOM verify against the
+project key alone, imported into an empty keyring. The checksum for
+`syver-linux-amd64` matches, its embedded build information shows go1.27.3
+and revision `acf859d`, and it reports `syver version 0.16.1`. Run against a
+two-check spec, it fails `"/tmp"` on a line containing only `tmpfs`, and fails
+`tpc:65535` with the unknown network error. `ghcr.io/krameff/syver:v0.16.1`
+and `:latest` resolve to the same image index, for linux/amd64 and
+linux/arm64, labelled with revision `acf859d` and version `0.16.1`.
 
 ---
 

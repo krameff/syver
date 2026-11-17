@@ -284,7 +284,9 @@ In addition, Syver files can also be further manually edited (without yet full j
 
 A typo'd top-level key (writing `prot:` instead of `port:`, for example) no
 longer validates silently: syver logs a `[WARN]` for it, with a suggestion
-when it can make one. See [Unknown top-level keys](https://github.com/krameff/syver/blob/main/docs/gossfile.md#unknown-top-level-keys).
+when it can make one. A spec that declares `syver-version:` turns that warning
+into an error, and also names the oldest Syver release it needs. See
+[Unknown top-level keys](https://github.com/krameff/syver/blob/main/docs/gossfile.md#unknown-top-level-keys).
 
 Some examples:
 
@@ -378,6 +380,7 @@ Fixtures: [`integration-tests/syver/examples/discovery/`](https://github.com/kra
 ## Supported resources
 
 * package - add new package
+* pkg-baseline - record every installed package, to check the host still has exactly that set (Linux)
 * file - add new file
 * addr - add new remote address:port - ex: google.com:80
 * port - add new listening [protocol]:port - ex: 80 or udp:123

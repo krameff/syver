@@ -43,10 +43,12 @@
 #              also emitted a `service: root` entry until 0.16.0, but only because
 #              the systemd existence check matched `root.service` as a substring of
 #              units such as `initrd-switch-root.service`; no `root` service exists.
-#   validate/  three fixtures x all 9 output formats, INCLUDING the exit code.
+#   validate/  four fixtures x all 9 output formats, INCLUDING the exit code.
 #              meta is the only fixture carrying meta:, so it is what shows
 #              meta reaching the json, structured, documentation and junit
-#              output; passing and failing carry none.
+#              output; passing and failing carry none. skipped is the only one
+#              producing skipped results: an author skip-reason, a failed
+#              first check, and a failed and a skipped dependency.
 #              The exit code is the primary contract of a validation CLI -- it is
 #              what CI steps and `dgoss run` actually consume -- and for a long
 #              time this harness recorded a constant 0 for every case, so it was
@@ -127,11 +129,11 @@ sanitize() {
 
 # ---- validate: every fixture x every registered output format ----------------
 mkdir -p "$OUT/validate"
-for spec in passing failing meta; do
+for spec in passing failing meta skipped; do
   for fmt in documentation json junit nagios prometheus rspecish structured tap silent; do
     f="$OUT/validate/${spec}.${fmt}"
     set +e
-    "$BIN" -g "testdata/${spec}.goss.yaml" validate --no-color --format "$fmt" 2>&1 | sanitize > "$f"
+    "$BIN" -g "internal/syver/testdata/${spec}.goss.yaml" validate --no-color --format "$fmt" 2>&1 | sanitize > "$f"
     # MUST stay the very next command: PIPESTATUS is clobbered by the next
     # pipeline or simple command, so inserting anything above this line silently
     # reverts this harness to recording a constant again.
@@ -169,7 +171,7 @@ while IFS= read -r f; do
   else
     rm -f "$OUT/render/$safe.err"
   fi
-done < <(find ./testdata ./integration-tests ./examples ./docs \
+done < <(find ./internal/syver/testdata ./integration-tests ./examples ./docs \
            \( -name '*.yaml' -o -name '*.yml' \) 2>/dev/null \
          | grep -viE 'compose|expected|generated|\.pages' | sort)
 
@@ -189,7 +191,7 @@ done < <(find ./testdata ./integration-tests ./examples ./docs \
 # ci/fixtures/templated.vars.yaml uses a double-space value on purpose: it is the
 # input where sprig and sprout disagree. Do not "tidy" it to a single space.
 mkdir -p "$OUT/render-vars"
-if ! "$BIN" -g testdata/templated.goss.yaml --vars ci/fixtures/templated.vars.yaml render \
+if ! "$BIN" -g internal/syver/testdata/templated.goss.yaml --vars ci/fixtures/templated.vars.yaml render \
        > "$OUT/render-vars/templated.out" 2> "$OUT/render-vars/templated.err"; then
   mv "$OUT/render-vars/templated.out" "$OUT/render-vars/templated.out.failed"
 else
@@ -215,6 +217,8 @@ _add mount /
 _add interface lo
 _add addr tcp://127.0.0.1:22
 _add dns localhost
+# pkg-baseline is not added here: it records every package on the capturing
+# host, which changes with every update there.
 rm -f "$OUT/work/aa.yaml"
 "$BIN" -g "$OUT/work/aa.yaml" autoadd root > "$OUT/add/autoadd.stdout" 2> "$OUT/add/autoadd.stderr" || true
 cp "$OUT/work/aa.yaml" "$OUT/add/autoadd.yaml" 2>/dev/null || true

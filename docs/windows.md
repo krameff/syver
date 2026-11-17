@@ -257,6 +257,10 @@ flag to explicitly set it`. It does not silently answer "not installed", which
 it did before 0.11.0. A backend over the Add/Remove Programs registry
 hives is planned.
 
+**`pkg-baseline:`.** Package inventory is Linux only. Every result fails with
+`package inventory is supported on Linux only (rpm, dpkg, apk, pacman)`, and
+`syver add pkg-baseline` fails with the same error, even with `--package`.
+
 **`port:`.** Every assertion errors with `not implemented yet`. gopsutil ships
 a Windows backend for connection enumeration, so this one looked like it might
 already work and nobody had checked; measured on Windows Server 2025 on
@@ -313,6 +317,7 @@ that three fixtures assert nothing at all.
 | `add`, `help`, `validate` | 1 of 1 each | 2 each | CLI command fixtures |
 | `autoadd` | **0 of 1** | 2 | asserts nothing |
 | `package` | **0 of 1** | 2 | asserts nothing |
+| `pkg-baseline` | 1 of 1 | 2 | asserts the unsupported error: both results must fail, never skip or pass |
 | `port` | **0 of 1** | 2 | asserts nothing |
 | `kernel-param` | **not run at all** | | excluded by filename; nothing to assert |
 

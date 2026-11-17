@@ -1,4 +1,4 @@
-# Vars for testdata/templated.goss.yaml, supplied by ci/golden-baseline.sh.
+# Vars for internal/syver/testdata/templated.goss.yaml, supplied by ci/golden-baseline.sh.
 #
 # "setting" deliberately contains a DOUBLE space. That is the exact input where
 # sprig and sprout disagree: sprig produced "max__connections" / "Max Connections"

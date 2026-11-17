@@ -194,6 +194,13 @@ func (conformanceDNS) Exists() (bool, error)     { return true, nil }
 func (conformanceDNS) Server() string            { return "" }
 func (conformanceDNS) Qtype() string             { return "" }
 
+type conformanceInventory struct{}
+
+func (conformanceInventory) Manager() string { return "rpm" }
+func (conformanceInventory) Packages() (map[string][]string, error) {
+	return map[string][]string{"package-fake": {"1.0-1"}}, nil
+}
+
 // newConformanceSystem builds a *system.System with every New<Type> field
 // wired to one of the fakes above, ignoring the key/config arguments
 // entirely -- good enough for "run Validate() and check Skip is honoured",
@@ -223,6 +230,9 @@ func newConformanceSystem() *system.System {
 		NewHTTP: func(context.Context, string, *system.System, util.Config) system.HTTP { return conformanceHTTP{} },
 		NewRegistry: func(context.Context, string, *system.System, util.Config) system.Registry {
 			return conformanceRegistry{}
+		},
+		NewPackageInventory: func(context.Context) (system.PackageInventory, error) {
+			return conformanceInventory{}, nil
 		},
 	}
 }

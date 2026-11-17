@@ -7,8 +7,8 @@ cd "${ROOT}"
 source "${ROOT}/ci/lib/trivy.sh"
 
 # UNKNOWN is included deliberately. Trivy reports Go vulndb GO-IDs with no CVSS
-# score as UNKNOWN, and GO-2026-5932 -- the sole entry in this repo's
-# .trivyignore.yaml -- is exactly that. Without UNKNOWN the gate never looked at
+# score as UNKNOWN, and GO-2026-5932 -- the x/crypto/openpgp entry this repo's
+# .trivyignore.yaml carried until 0.20.0 -- was exactly that. Without UNKNOWN the gate never looked at
 # the severity class its own suppression file governs, so the suppressions and the
 # validator that guards it were protecting a door the gate did not use.
 TRIVY_SEVERITY="${TRIVY_SEVERITY:-HIGH,CRITICAL,MEDIUM,UNKNOWN}"

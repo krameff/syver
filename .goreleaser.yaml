@@ -147,10 +147,15 @@ sboms:
         {{- .Arch }}
         {{- if .Arm }}v{{ .Arm }}{{ end }}.spdx.json
 
-# Two signing passes over the same key, not one. `artifacts:` takes a single
-# value, so covering both the checksum file and the SBOMs needs two entries.
-# The SBOMs are signed on purpose: an unsigned SBOM sitting beside a signed
-# checksum leaves a consumer to guess which one is authoritative.
+# Two signing passes per key. `artifacts:` takes a single value, so covering
+# both the checksum file and the SBOMs needs two entries. The SBOMs are signed
+# on purpose: an unsigned SBOM sitting beside a signed checksum leaves a
+# consumer to guess which one is authoritative.
+#
+# Two keys: the Ed25519 key writes `.sig`, the RSA-4096 key writes `.rsa.sig`
+# (a FIPS-mode gpg rejects Ed25519). Each key gets its own file because a
+# `.sig` holding both signatures makes `gpg --verify` exit 2 for anyone who
+# has imported only one of the keys.
 signs:
   - id: gpg
     cmd: gpg
@@ -188,6 +193,42 @@ signs:
     artifacts: sbom
     stdin: "{{ .Env.GPG_PASSPHRASE }}"
 
+  - id: gpg-rsa
+    cmd: gpg
+    signature: "${artifact}.rsa.sig"
+    args:
+      - "--batch"
+      - "--pinentry-mode"
+      - "loopback"
+      - "--passphrase-fd"
+      - "0"
+      - "-u"
+      - "{{ .Env.GPG_RSA_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+    artifacts: checksum
+    stdin: "{{ .Env.GPG_RSA_PASSPHRASE }}"
+
+  - id: gpg-rsa-sbom
+    cmd: gpg
+    signature: "${artifact}.rsa.sig"
+    args:
+      - "--batch"
+      - "--pinentry-mode"
+      - "loopback"
+      - "--passphrase-fd"
+      - "0"
+      - "-u"
+      - "{{ .Env.GPG_RSA_FINGERPRINT }}"
+      - "--output"
+      - "${signature}"
+      - "--detach-sign"
+      - "${artifact}"
+    artifacts: sbom
+    stdin: "{{ .Env.GPG_RSA_PASSPHRASE }}"
+
 release:
   extra_files:
     # Directories are now *syver; the goss-named wrappers inside them are the
@@ -198,6 +239,7 @@ release:
     - glob: ./extras/ksyver/ksyver*
     - glob: ./extras/sbxsyver/sbxsyver*
     - glob: ./krameff-syver-key.asc
+    - glob: ./krameff-syver-key-rsa.asc
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"

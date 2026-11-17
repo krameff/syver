@@ -142,8 +142,8 @@ If the key is close to a real one, the warning suggests the fix. The warning
 is informational only -- it does not fail the run or change `Count`/`Failed`
 in the result.
 
-Two kinds of top-level key are deliberately exempt, and neither produces a
-warning:
+Three kinds of top-level key are deliberately exempt, and none of them
+produces a warning:
 
 * **A key prefixed `x-`.** This is the same convention docker-compose uses
   for extension fields: a documented, explicit way to say "this block is
@@ -167,10 +167,15 @@ warning:
   about. This is detected structurally (does the value define an anchor?),
   not by name -- a block with no anchor is not covered by this exemption,
   which is exactly what the `x-` prefix is for.
+* **A top-level YAML merge, `<<:`,** whose value is an alias (`<<: *base`) or
+  a list of aliases (`<<: [*a, *b]`). The merged keys are read as if written
+  at the top level, and are checked the same way: a misspelt key inside the
+  merged block is reported at its line in that block. A `<<:` with any other
+  value, such as an inline map, is reported as an unknown key.
 
-**This check only applies to YAML gossfiles.** JSON gossfiles have the same
-gap -- an unknown JSON top-level key is dropped the same way -- and it is not
-yet covered.
+**In a JSON gossfile this check only runs when the file declares
+`syver-version`** (see below). An unmarked JSON gossfile still drops an
+unknown top-level key without a warning.
 
 **A `--vars` file is never checked against this.** A vars file is arbitrary
 user-supplied data with no fixed vocabulary, so every key in it is expected
@@ -179,6 +184,93 @@ to be "unknown" to syver and none of them warn.
 See [`examples/unknown-top-level-key.yaml`](https://github.com/krameff/syver/blob/main/examples/unknown-top-level-key.yaml)
 for a runnable spec that shows both sides of this: a genuine typo that
 warns, and a legitimate anchor-carrying block next to it that does not.
+
+#### Making unknown keys an error
+
+Requires syver 0.20.0 or later. Put `syver-version:` at the top of a gossfile
+to name the oldest Syver release it needs:
+
+```yaml
+syver-version: 0.20.0
+
+command:
+  echo hello:
+    exit-status: 0
+```
+
+Declaring the key does two things.
+
+**Unknown top-level keys in that file become an error.** The run stops before
+any check runs, with one error listing every unknown key, its line and any
+suggested fix:
+
+```console
+$ syver -g syver.yaml validate
+Error: syver.yaml: syver-version is set, so unknown top-level keys are errors (prefix a key with x- to keep it):
+  syver.yaml:7: "prot" (did you mean "port"?)
+  syver.yaml:12: "totally-made-up-key"
+```
+
+`validate` exits 78, the same as for any other spec that fails to load.
+`render` fails the same way. `syver serve` refuses to start and exits
+non-zero rather than serving a health endpoint for a spec it could not read.
+`syver add` and `syver autoadd` refuse to write the file and leave it exactly
+as it was, rather than rewriting it without the unknown block.
+
+The exemptions above all still apply: `x-` keys, a block whose value carries
+an anchor, and a top-level `<<:` merge of aliases. Two cases follow from how
+the anchor exemption works, and both are fixed by prefixing the key with `x-`:
+
+* a misspelt key that happens to carry its own anchor (`servce: &s ...`) is
+  still treated as an anchor carrier and is not reported;
+* a block whose anchors are all nested further down, rather than on its own
+  value, is reported as unknown.
+
+**Included files are strict too.** Every `gossfile:` the marked file includes,
+directly or through other includes, gets the same check, and the error names
+the file that made it strict:
+
+```console
+Error: could not read json data in common.yaml: common.yaml: unknown top-level keys are errors (prefix a key with x- to keep it) (strict because it is included from syver.yaml, which sets syver-version):
+  common.yaml:3: "prot" (did you mean "port"?)
+```
+
+An included file that declares `syver-version:` itself is strict whatever
+includes it. A file that is not marked and not included from a marked file
+keeps the warning described above.
+
+**A Syver release older than the value stops with an error:**
+
+```console
+Error: syver.yaml requires syver 0.21.0 or later (syver-version: 0.21.0); this is syver 0.20.0
+```
+
+Each file's own value is checked, so an included file can ask for a newer
+release than the file including it. Development builds skip this comparison,
+and say so in one `[DEBUG]` line: only a binary stamped with a plain release
+version such as `0.20.0` or `v0.20.0` compares. A `make build` binary stamped
+`v0.20.0-3-gabc1234`, a snapshot build, a release candidate or an unstamped
+`go build` all skip it. The unknown-key check applies to every build.
+
+The value is a single version: `0.20.0`, `v0.20.0` or `0.20`. `1` means
+`1.0.0`. An empty value is an error, and so are operators and ranges such as
+`>=0.20.0` or `~0.20`. `syver add` writes the full form `0.20.0` back
+unchanged (`syver add pkg-baseline` raises a lower value to `0.20.0`), but
+writes a short form such as `0.20` back quoted, as
+`syver-version: "0.20"`, so use the full form if the file is maintained with
+`syver add`. In a JSON gossfile the value must be a string,
+`"syver-version": "0.20.0"`; a JSON number is a decode error.
+
+`render` keeps the key, with the highest `syver-version` among the files it
+read. An include skipped with `skip: true` is not read and does not count.
+
+**This does not reach backwards.** goss ignores the key. Syver releases from
+0.9.2 through 0.16.1 warn that `syver-version` is an unknown top-level key and
+carry on, and earlier Syver releases say nothing. The checks start with
+0.20.0.
+
+See [`examples/syver-version.yaml`](https://github.com/krameff/syver/blob/main/examples/syver-version.yaml)
+for a runnable marked spec.
 
 ## Available tests
 
@@ -194,6 +286,7 @@ warns, and a legitimate anchor-carrying block next to it that does not.
 * [matching](#matching)
 * [mount](#mount)
 * [package](#package)
+* [pkg-baseline](#pkg-baseline) (Linux only)
 * [port](#port)
 * [process](#process)
 * [registry](#registry) (Windows only)
@@ -799,6 +892,144 @@ package:
 
 !!! note
     this check uses the `--package <format>` parameter passed on the command line.
+
+### pkg-baseline
+
+Requires syver 0.20.0 or later. Checks that a Linux host has exactly a recorded
+set of installed packages: nothing recorded is missing, and nothing installed
+is unrecorded. `package:` checks one named package; `pkg-baseline:` checks the
+whole list.
+
+Generate a baseline on the host it describes, rather than writing one by hand:
+
+```console
+$ syver add pkg-baseline
+Adding PkgBaseline to './syver.yaml': rpm
+Setting syver-version: 0.20.0 in './syver.yaml': pkg-baseline requires it
+```
+
+```yaml
+syver-version: 0.20.0
+pkg-baseline:
+  # the host's package manager: rpm, dpkg, apk or pacman
+  rpm:
+    # required attribute: every recorded package, by name
+    installed:
+      consist-of:
+      - bash
+      - kernel-core
+      - openssh-server
+    # optional attributes
+    ignore: [kernel-*]
+    allow: [python3-*]
+    versions:
+      bash: ["5.2.26-6.el10"]
+    version-match: newer
+    skip: false
+```
+
+`syver add pkg-baseline` takes no argument, or the host's package manager. See
+[`syver add pkg-baseline`](cli.md#add-pkg-baseline) for its flags and what
+re-running it keeps. `syver autoadd` does not write a baseline.
+
+**Results.** Each baseline reports up to three results. Each shows
+`consist-of: []` as the expectation and the differences as the actual value,
+so a passing result has nothing to show and a failing one lists only what
+differs, not the whole package list:
+
+* `missing`: recorded packages that are not installed.
+* `unexpected`: installed packages that are not recorded and not allowed.
+* `versions`: only when versions are checked. One line per recorded package
+  whose installed versions break the rule, for example
+  `bash: installed 5.2.21-1.el10, older than recorded 5.2.26-6.el10`.
+
+**Attributes.**
+
+* `installed` is required and takes exactly one form: `consist-of` with a list
+  of package names, each listed once. Any other matcher is an error.
+* `ignore` is a list of globs. A matching package is left out entirely: it is
+  neither required nor reported when installed. Use it for packages that come
+  and go, such as kernels.
+* `allow` is a list of globs. A matching package may be installed without
+  being recorded. A recorded package that matches is still required. When a
+  name matches both, `ignore` wins.
+* `versions` maps a package name to the list of versions recorded for it. Every
+  name in it must also be in `installed`.
+* `version-match` decides how versions are compared:
+    * `name-only`: versions are not checked.
+    * `exact`: the installed versions must be exactly the recorded ones.
+    * `newer`: no installed version may be older than the lowest recorded
+      one, so upgrades pass and downgrades fail. Versions are ordered by the
+      host's own package manager: `rpm`, `dpkg --compare-versions`,
+      `apk version -t` or pacman's `vercmp`.
+
+    When `version-match` is absent, it is `exact` if `versions` is present and
+    `name-only` if not. `name-only` with `versions`, and `exact` or `newer`
+    without them, are errors.
+* rpm records each imported signing key as a `gpg-pubkey` package whose
+  version is the key id. Its versions are always compared with `exact`,
+  whatever `version-match` says, so a new or removed key is always reported.
+
+Globs use the same syntax as Go's
+[`path.Match`](https://pkg.go.dev/path#Match): `*`, `?` and `[...]`.
+
+**Errors.** Each of these fails every result of the baseline, with a message
+naming the problem; none of them passes or skips:
+
+* a rule above is broken, for example a name listed twice or a glob that does
+  not parse;
+* the key is not the host's package manager, for example
+  `baseline recorded for dpkg; this host's package manager is rpm`;
+* the package list cannot be read, or is empty;
+* the host is not Linux: `package inventory is supported on Linux only (rpm,
+  dpkg, apk, pacman)`. This applies on Windows and macOS even with `--package`.
+
+A wrongly typed attribute, such as `ignore: kernel-*` instead of a list, or
+`versions:` as a list instead of a map, fails the whole spec when it is read,
+as it would for any other resource type.
+
+**One baseline per host.** A baseline is keyed by package manager, so a spec
+holds one per host. If two included files both define `pkg-baseline: rpm:`,
+the later one replaces the earlier one, with the usual "Duplicate key
+detected" warning; the two lists are not combined:
+
+```yaml
+# base.yaml
+pkg-baseline:
+  rpm:
+    installed:
+      consist-of: [bash, openssh-server]
+---
+# web.yaml includes base.yaml, and its own entry replaces base.yaml's
+gossfile:
+  base.yaml: {}
+pkg-baseline:
+  rpm:
+    installed:
+      consist-of: [httpd]
+```
+
+To layer a role on a common baseline, build the combined list when the spec is
+generated or templated, or use `allow:` for the role's extra packages.
+
+**Packages are recorded by name.** Several versions installed under one name
+are one entry with several versions. A second architecture of a package that
+is already recorded at the same version, such as `glibc.i686` beside
+`glibc.x86_64` or `libc6:i386` beside `libc6:amd64`, is not reported.
+
+**Package lists.** rpm is read with `rpm -qa`, dpkg with `dpkg-query -W`
+(packages removed but not purged are not counted), apk from
+`/lib/apk/db/installed`, and pacman with `pacman -Q`. The list is read once
+and shared by every baseline in the run; a `discovery:` phase reads it again
+for itself.
+
+goss and Syver releases before 0.20.0 do not run `pkg-baseline:`. Syver
+0.9.2 to 0.16.1 warn that it is an unknown top-level key and carry on; goss and
+earlier Syver releases ignore it without a word. `syver add pkg-baseline` sets
+`syver-version: 0.20.0`, which later releases use to refuse a spec they are
+too old for (see [Making unknown keys an error](#making-unknown-keys-an-error)).
+
+See [`examples/pkg-baseline.yaml`](https://github.com/krameff/syver/blob/main/examples/pkg-baseline.yaml).
 
 ### port
 

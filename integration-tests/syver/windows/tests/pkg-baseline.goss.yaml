@@ -1,0 +1,12 @@
+# expect-exit: 1
+# expect-count: 2
+# expect-skipped: 0
+---
+# There is no package manager to enumerate on Windows, so pkg-baseline fails every
+# property with "package inventory is supported on Linux only". It must never
+# pass or skip here.
+pkg-baseline:
+  rpm:
+    installed:
+      consist-of:
+      - bash

@@ -41,6 +41,13 @@ type System struct {
 	portsOnce      sync.Once
 	procMap        map[string][]*process.Process
 	procOnce       sync.Once
+
+	// NewPackageInventory resolves the host's package inventory backend. See
+	// PackageInventory, which caches the enumeration in the fields below.
+	NewPackageInventory func(context.Context) (PackageInventory, error)
+	inventory           map[string][]string
+	inventoryErr        error
+	inventoryOnce       sync.Once
 }
 
 func (s *System) Ports() (map[string][]net.ConnectionStat, error) {
@@ -81,6 +88,13 @@ func New(packageManager string) *System {
 
 	sys.detectService()
 	sys.detectPackage(packageManager)
+	sys.NewPackageInventory = func(ctx context.Context) (PackageInventory, error) {
+		manager, err := resolvePackageInventory(packageManager, DetectPackageManager, runtime.GOOS)
+		if err != nil {
+			return nil, err
+		}
+		return newPackageInventory(ctx, manager), nil
+	}
 
 	return sys
 }

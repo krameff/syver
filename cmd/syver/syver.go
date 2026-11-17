@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/krameff/syver"
+	"github.com/krameff/syver/internal/syver"
 	"github.com/krameff/syver/outputs"
 	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/system"
@@ -86,6 +86,12 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 		VarsFiles:         c.StringSlice("vars"),
 		VarsInline:        c.String("vars-inline"),
 		DiscoverSpec:      c.String("discover"),
+
+		// Only `syver add pkg-baseline` defines these three; elsewhere they
+		// read as unset.
+		PkgBaselineVersions: c.String("versions"),
+		PkgBaselineIgnore:   c.StringSlice("ignore"),
+		PkgBaselineAllow:    c.StringSlice("allow"),
 	}
 
 	if c.Bool("no-color") {
@@ -101,13 +107,13 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 
 // addSubcommandOrder preserves the exact original CLI listing order for
 // `syver add` subcommands. Unrelated to fieldOrder/resourceOrder in the
-// root package (those drive struct iteration and marshalling; this is
+// internal/syver package (those drive struct iteration and marshalling; this is
 // purely a CLI presentation concern), so it gets its own list rather than
 // reusing either.
 var addSubcommandOrder = []string{
 	"package", "file", "addr", "port", "service", "user", "group",
 	"command", "dns", "process", "http", "gossfile", "kernel-param",
-	"mount", "interface", "registry",
+	"mount", "interface", "registry", "pkg-baseline",
 }
 
 // addSubcommandUsage holds the per-type `syver add <type>` help text.
@@ -131,6 +137,7 @@ var addSubcommandUsage = map[string]string{
 	"mount":        "add new mount",
 	"interface":    "add new interface",
 	"registry":     "add new registry key",
+	"pkg-baseline": "add a baseline of every installed package (Linux)",
 }
 
 // addSubcommands builds the `syver add` subcommand tree from

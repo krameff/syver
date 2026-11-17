@@ -18,7 +18,7 @@ DOCS_DEPS := $(VENV)/.docs.dependencies
 	dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 \
 	ksyver-sha256 sbxsyver-sha256 lint-yaml lint-markdown test-discovery-e2e \
 	test-depends-on-e2e test-dcsyver-e2e test-security check pre-commit pre-push \
-	docs/setup docs/serve docs
+	docs/setup docs/serve docs fuzz
 
 all: test-short-all test-int-all dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256 sbxsyver-sha256
 
@@ -38,6 +38,14 @@ test:
 cov:
 	go test -count=1 -coverpkg=./... -coverprofile=c.out ./...
 	# go tool cover -func ./c.out
+
+# Explore each fuzz target for FUZZTIME. Not part of `check`: the seed corpus
+# already runs with every `go test`, and a fuzz run's length is open-ended.
+FUZZTIME ?= 30s
+fuzz:
+	for t in $$(go test -list '^Fuzz' ./internal/syver | grep '^Fuzz'); do \
+		go test -run '^$$' -fuzz "^$$t$$" -fuzztime $(FUZZTIME) ./internal/syver || exit 1; \
+	done
 
 funcov:
 	go test -count=1 -coverpkg=./... -coverprofile=c.out ./...
@@ -106,7 +114,7 @@ test-int-serve-%: release/syver-%
 	./integration-tests/run-serve-tests.sh $*
 
 release/syver-%: $(GO_FILES)
-	./release-build.sh -p $* -v $(or $(RELEASE_TAG),$(shell ./ci/version.sh 2>/dev/null),0.0.0)
+	./ci/release-build.sh -p $* -v $(or $(RELEASE_TAG),$(shell ./ci/version.sh 2>/dev/null),0.0.0)
 
 release:
 	$(MAKE) clean
@@ -132,7 +140,7 @@ build-images:
 
 # Update the matcher test golden files
 update-matcher-tests:
-	go test -v -run '^TestMatchers' . -update
+	go test -v -run '^TestMatchers' ./internal/syver -update
 
 test-darwin-all: test-short-all test-int-darwin-all
 # linux _does_ have the docker-style testing, but does _not_ currently have the same style integration tests darwin+windows do, _because_ of the docker-style testing.

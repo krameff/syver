@@ -152,6 +152,12 @@ This matrix attempts to track parity across platforms.
 | **package**         |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | installed           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | versions            | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
+| **pkg-baseline**    |                     | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
+|                     | installed           | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
+|                     | ignore              | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
+|                     | allow               | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
+|                     | versions            | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
+|                     | version-match       | {{ fully_supported }}   | {{ n_a }}              | {{ n_a }}               |
 | **port**            |                     | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | listening           | {{ fully_supported }}   | {{ not_implemented }}  | {{ not_implemented }}   |
 |                     | ip                  | {{ fully_supported }}   |  {{ no_data }}         | {{ not_implemented }}   |

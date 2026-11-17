@@ -50,6 +50,7 @@ func (r ResourceMap[T, ST, PT]) AppendSysResource(sr string, sys *system.System,
 	id := res.ID()
 	if old, ok := r[id]; ok {
 		copyTitleMeta(res, PT(old))
+		readdOver(res, PT(old))
 	}
 	r[id] = res
 	return res, nil
@@ -201,16 +202,29 @@ func copyTitleMeta(dst, src any) {
 	}
 }
 
+// readder is implemented by a type that keeps more than Title and Meta from
+// the entry it replaces when `syver add` runs over an existing ID.
+type readder interface {
+	readd(old any)
+}
+
+// readdOver lets res carry over what it keeps from old, after copyTitleMeta.
+func readdOver(res, old any) {
+	if r, ok := res.(readder); ok {
+		r.readd(old)
+	}
+}
+
 // UpsertLive inserts res into the live map pointed to by field -- field must
 // be a pointer to one of the type aliases below (e.g. *PortMap), such as
-// what an accessor.Field(c) call in the root package's dispatch.go returns.
+// what an accessor.Field(c) call in internal/syver's dispatch.go returns.
 // It preserves Title/Meta from any existing entry with the same ID, exactly
 // like AppendSysResource does for its own map.
 //
-// This exists because add.go, in the root package, cannot call
+// This exists because add.go, in internal/syver, cannot call
 // AppendSysResource directly (it doesn't know which SyverConfig field a
-// dispatched-by-name resource belongs to, and resource cannot import the
-// root package to find out -- see FEAT-007 G1). It gets a freshly-built
+// dispatched-by-name resource belongs to, and resource cannot import
+// internal/syver to find out -- see FEAT-007 G1). It gets a freshly-built
 // Resource from Descriptor.AppendSys instead, and needs a generic way to
 // store it in whichever live field the accessor table points at.
 func UpsertLive(field any, res Resource) error {
@@ -227,6 +241,7 @@ func UpsertLive(field any, res Resource) error {
 	resV := reflect.ValueOf(res)
 	if old := mv.MapIndex(keyV); old.IsValid() {
 		copyTitleMeta(res, old.Interface())
+		readdOver(res, old.Interface())
 	}
 	mv.SetMapIndex(keyV, resV)
 	return nil
@@ -257,6 +272,7 @@ type MountMap = ResourceMap[Mount, system.Mount, *Mount]
 type InterfaceMap = ResourceMap[Interface, system.Interface, *Interface]
 type HTTPMap = ResourceMap[HTTP, system.HTTP, *HTTP]
 type RegistryMap = ResourceMap[Registry, system.Registry, *Registry]
+type PkgBaselineMap = ResourceMap[PkgBaseline, system.PackageInventory, *PkgBaseline]
 
 // MatchingMap has no system backing (matching validates a literal `content:`
 // value, not anything read off the host), so its ST is `any` and its
