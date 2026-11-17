@@ -93,12 +93,12 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 | Field | Value |
 | --- | --- |
-| Released | pending |
+| Released | 2026-11-17 |
 | Tag | `v0.20.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT key `CD218D52...CABE5092` (`.sig`) and, new in this release, the project RSA-4096 key `AC1C7F6F...3E62F866` (`.rsa.sig`) |
-| Commit | pending, the `devel` -> `main` merge commit |
+| Commit | `7c16e02`, the `devel` -> `main` merge commit from PR #145 |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.16.1 release record (PR #127), `chore/tidy-hygiene` (PR #128), `code_tidyup` (PR #129), `deps/update-2026-11-10` (PR #130), `chore/root-scripts` (PR #131), `test/skip-golden` (PR #132), `feature/syver-version` (PR #133), `feature/pkg-baseline` (PR #134), `feature/rsa-signing` (PR #135), `deps/go-1.27.4` (PR #136), `chore/ignore-demos` (PR #137), `test/pkg-baseline-host-crosscheck` (PR #138), Dependabot's mkdocs-material 9.8.1 (PR #139) and docker/login-action 4.8.0 (PR #140), `deps/0.20.0-refresh` (PR #141), `feature/actions-lockfile` (PR #142), `fix/actions-lock-standard-form` (PR #143), then `docs/0.20.0` |
-| Scope | pending, measured at `v0.20.0` against `v0.16.1` |
+| Integration branch | `devel`, in this merge order: the 0.16.1 release record (PR #127), `chore/tidy-hygiene` (PR #128), `code_tidyup` (PR #129), `deps/update-2026-11-10` (PR #130), `chore/root-scripts` (PR #131), `test/skip-golden` (PR #132), `feature/syver-version` (PR #133), `feature/pkg-baseline` (PR #134), `feature/rsa-signing` (PR #135), `deps/go-1.27.4` (PR #136), `chore/ignore-demos` (PR #137), `test/pkg-baseline-host-crosscheck` (PR #138), Dependabot's mkdocs-material 9.8.1 (PR #139) and docker/login-action 4.8.0 (PR #140), `deps/0.20.0-refresh` (PR #141), `feature/actions-lockfile` (PR #142), `fix/actions-lock-standard-form` (PR #143), then `docs/0.20.0` (PR #144). Merged to `main` through PR #145 |
+| Scope | 25 commits (excluding merges), 149 files, +8400 / -1146, measured at `v0.20.0` against `v0.16.1` |
 | Changelog | [0.20.0](CHANGELOG.md#0200-based-on-krameffgoss-v060---repository-tidy) |
 
 A minor release with two additions to spec syntax, both in
@@ -143,7 +143,23 @@ policy snapshot, gave the same result for all 1391 checks on a Windows 11
 Enterprise host and on a Windows Server 2025 VM, and 0.20.0 passed the
 audit's version check.
 
-**Verified after the push**: pending.
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `7c16e02` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`7ef2924`. The goldens on `7c16e02` were unchanged, 253 of 253, and were
+re-captured from it as the new baseline. The release carries 47 assets: the
+38 names of 0.16.1, plus `krameff-syver-key-rsa.asc` and a `.rsa.sig` for the
+checksum file and each of the seven SBOMs. With each project key imported
+alone into an empty keyring, `syver_0.20.0_SHA256SUMS` and the
+`syver-darwin-arm64` SBOM verify against the Ed25519 key through `.sig` and
+against the RSA key through `.rsa.sig`, and the `.rsa.sig` does not verify
+against the Ed25519 key. The RSA key in the release assets is byte-identical
+to the one in the tag. The checksum for `syver-linux-amd64` matches, its
+embedded build information shows go1.27.4, revision `7c16e02` and an
+unmodified tree, and it reports `syver version 0.20.0`.
+`ghcr.io/krameff/syver:v0.20.0` and `:latest` resolve to the same image
+index, for linux/amd64 and linux/arm64, labelled with revision `7c16e02` and
+version `0.20.0`.
 
 ---
 
