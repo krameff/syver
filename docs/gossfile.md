@@ -1668,6 +1668,19 @@ syver validate -g goss-inline.yml
 When both `--discover` and an inline `discovery:` section are present, the `--discover`
 file wins and inline discovery is ignored (with an INFO log).
 
+`render` and `serve` run discovery the same way as `validate`: the `--discover` file if
+given, otherwise the gossfile's inline `discovery:` section. `render` therefore shows the
+suite as `validate` would check it on the host it runs on. `serve` runs discovery once, at
+startup, and keeps those results for the life of the server.
+
+To render without running any discovery tests, use `render --no-discover`. Every register
+declared in the `discovery:` section renders as `false`; a `.Discovered` key that no
+`discovery:` test declares is still an error:
+
+```bash
+syver -g goss-inline.yml render --no-discover
+```
+
 Pipe discovery output into a main gossfile (still supported for tooling and CI export):
 
 ```bash

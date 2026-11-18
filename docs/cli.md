@@ -302,6 +302,19 @@ by including them with the `gossfile` directive.
 `--debug`
 :   This prints the rendered golang template prior to printing the parsed JSON/YAML gossfile.
 
+`--discover <gossfile>`
+:   Gossfile containing `discovery:` tests to run before rendering, as for
+    [validate](#validate). Without it, an inline `discovery:` section in the
+    gossfile runs. Either way the results fill `.Discovered`, so the rendered
+    output matches what `validate` would check on this host. Environment
+    variables: `SYVER_DISCOVER`, `GOSS_DISCOVER` (checked in that order).
+
+`--no-discover`
+:   Run no discovery tests. Every register declared in the gossfile's
+    `discovery:` section renders as `false`. A `.Discovered` key that no
+    `discovery:` test declares is still an error. Cannot be combined with
+    `--discover`.
+
 !!! example
     ```console
     $ cat goss_httpd_package.yaml
@@ -396,6 +409,13 @@ The end-point will return the test results in the format requested and an http s
 `--max-concurrent <num>`
 :   Max number of tests to run concurrently, at least 1. A lower value is
     rejected with an error.
+
+`--discover <gossfile>`
+:   Gossfile containing `discovery:` tests, as for [validate](#validate).
+    Without it, an inline `discovery:` section in the gossfile runs. Discovery
+    runs once, when `serve` starts, and its results hold for the life of the
+    server; each request re-runs the tests, not discovery. Environment
+    variables: `SYVER_DISCOVER`, `GOSS_DISCOVER` (checked in that order).
 
 !!! example
     ```console
@@ -613,7 +633,10 @@ the command line.
 | `serve` | `--listen-addr`, `-l` | `SYVER_LISTEN` | `GOSS_LISTEN` | `:8080` |
 | `serve` | `--endpoint`, `-e` | `SYVER_ENDPOINT` | `GOSS_ENDPOINT` | `/healthz` |
 | `serve` | `--max-concurrent` | `SYVER_MAX_CONCURRENT` | `GOSS_MAX_CONCURRENT` | `50` |
+| `serve` | `--discover` | `SYVER_DISCOVER` | `GOSS_DISCOVER` | unset |
 | `render` | `--debug`, `-d` | none | none | `false` |
+| `render` | `--discover` | `SYVER_DISCOVER` | `GOSS_DISCOVER` | unset |
+| `render` | `--no-discover` | none | none | `false` |
 | `autoadd` | (no options of its own) | | | |
 | `add` | `--exclude-attr` | none | none | unset |
 | `add addr` | `--timeout` | none | none | `500ms` |

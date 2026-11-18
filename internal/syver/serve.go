@@ -104,7 +104,13 @@ func newHealthHandler(ctx context.Context, c *util.Config) (*healthHandler, erro
 	noColorOnce.Do(func() { color.NoColor = true })
 	cache := cache.New(c.Cache, 30*time.Second)
 
-	cfg, err := getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, nil)
+	// Discovery runs once, here, and its results hold for the life of the
+	// server; requests re-run the checks, not the discovery phase.
+	discovered, err := resolveDiscovered(ctx, c, true)
+	if err != nil {
+		return nil, err
+	}
+	cfg, err := getSyverConfig(c.VarsFiles, c.VarsInline, c.Spec, discovered)
 	if err != nil {
 		return nil, err
 	}

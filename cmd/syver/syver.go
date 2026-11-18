@@ -86,6 +86,7 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 		VarsFiles:         c.StringSlice("vars"),
 		VarsInline:        c.String("vars-inline"),
 		DiscoverSpec:      c.String("discover"),
+		NoDiscover:        c.Bool("no-discover"),
 
 		// Only `syver add pkg-baseline` defines these three; elsewhere they
 		// read as unset.
@@ -367,6 +368,11 @@ func newApp() *cli.Command {
 						Sources:   nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
 						Validator: syver.ValidateMaxConcurrent,
 					},
+					&cli.StringFlag{
+						Name:    "discover",
+						Usage:   "Syverfile with discovery: tests to run before the main -g gossfile",
+						Sources: nonEmptyEnvVars("SYVER_DISCOVER", "GOSS_DISCOVER"),
+					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
@@ -383,10 +389,19 @@ func newApp() *cli.Command {
 						Aliases: []string{"d"},
 						Usage:   "Print debugging info when rendering",
 					},
+					&cli.StringFlag{
+						Name:    "discover",
+						Usage:   "Syverfile with discovery: tests to run before the main -g gossfile",
+						Sources: nonEmptyEnvVars("SYVER_DISCOVER", "GOSS_DISCOVER"),
+					},
+					&cli.BoolFlag{
+						Name:  "no-discover",
+						Usage: "Run no discovery: tests; every register the spec declares renders as false",
+					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					j, err := syver.RenderJSON(newRuntimeConfigFromCLI(c))
+					j, err := syver.RenderJSON(ctx, newRuntimeConfigFromCLI(c))
 					if err != nil {
 						return err
 					}
