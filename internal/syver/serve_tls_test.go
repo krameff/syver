@@ -21,6 +21,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -141,7 +142,7 @@ func TestServeTLSConfig(t *testing.T) {
 		_, err := serveTLSConfig(&util.Config{ServeCertFile: certPath, ServeKeyFile: missing})
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "loading tls key pair")
-		assert.Contains(t, err.Error(), certPath)
+		assert.Contains(t, err.Error(), strconv.Quote(certPath))
 	})
 
 	// Revert-proof (this row and the two below): replace LoadX509KeyPair with
@@ -200,8 +201,8 @@ func TestServeTLSConfig(t *testing.T) {
 			_, err := serveTLSConfig(&util.Config{ServeCertFile: certPath, ServeKeyFile: enc})
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "the private key is encrypted")
-			assert.Contains(t, err.Error(), certPath)
-			assert.Contains(t, err.Error(), enc)
+			assert.Contains(t, err.Error(), strconv.Quote(certPath))
+			assert.Contains(t, err.Error(), strconv.Quote(enc))
 			assert.NotContains(t, err.Error(), "BEGIN", "file contents must never reach the message")
 		})
 	}
