@@ -19,14 +19,19 @@ type ConfigOption func(c *Config) error
 // NewConfig creates one with defaults modeled on the CLI's, adjusted by
 // ConfigOption functions.
 type Config struct {
-	AllowInsecure         bool
-	AnnounceToCLI         bool
-	Cache                 time.Duration
-	Debug                 bool
-	Endpoint              string
-	FormatOptions         []string
-	IgnoreList            []string
-	ListenAddress         string
+	AllowInsecure bool
+	AnnounceToCLI bool
+	Cache         time.Duration
+	Debug         bool
+	Endpoint      string
+	FormatOptions []string
+	IgnoreList    []string
+	ListenAddress string
+	// ServeCertFile and ServeKeyFile are serve's own HTTPS certificate and key.
+	// They are unrelated to CertFile/KeyFile, which are the http resource's
+	// client certificate.
+	ServeCertFile         string
+	ServeKeyFile          string
 	LocalAddress          string
 	LogLevel              string
 	MaxConcurrent         int

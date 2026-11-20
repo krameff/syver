@@ -13,6 +13,13 @@
 
 # Local testing and development files, not committed.
 tmp/
+# Keys, certificates and env files, so a test pair or a secret is never added.
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+.env*
 /goss.yaml
 /syver.yaml
 

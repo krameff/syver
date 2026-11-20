@@ -88,6 +88,10 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 		DiscoverSpec:      c.String("discover"),
 		NoDiscover:        c.Bool("no-discover"),
 
+		// Only `syver serve` defines these two; elsewhere they read as unset.
+		ServeCertFile: c.String("tls-cert"),
+		ServeKeyFile:  c.String("tls-key"),
+
 		// Only `syver add pkg-baseline` defines these three; elsewhere they
 		// read as unset.
 		PkgBaselineVersions: c.String("versions"),
@@ -104,6 +108,20 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 	}
 
 	return cfg
+}
+
+// notEmptyTLSFlag refuses an explicitly empty --tls-cert or --tls-key. Without
+// it `serve --tls-cert "" --tls-key ""` read as neither flag given and served
+// plain HTTP, although the user had asked for HTTPS. urfave/cli runs a
+// Validator only for a value that was actually set, and an exported-but-empty
+// SYVER_TLS_* is not set (nonEmptyEnvVars), so that still means unset.
+func notEmptyTLSFlag(name string) func(string) error {
+	return func(v string) error {
+		if v == "" {
+			return fmt.Errorf("--%s was given an empty value; name a file, or leave both --tls-cert and --tls-key unset to serve plain HTTP", name)
+		}
+		return nil
+	}
 }
 
 // addSubcommandOrder preserves the exact original CLI listing order for
@@ -360,6 +378,21 @@ func newApp() *cli.Command {
 						Value:   "/healthz",
 						Usage:   "Endpoint to expose",
 						Sources: nonEmptyEnvVars("SYVER_ENDPOINT", "GOSS_ENDPOINT"),
+					},
+					// SYVER_* only, deliberately: there is no GOSS_TLS_* pair,
+					// because a goss name would promise compatibility with an
+					// upstream design that differs from this one.
+					&cli.StringFlag{
+						Name:      "tls-cert",
+						Usage:     "Serve over HTTPS using this PEM certificate file, which may hold the full chain (requires --tls-key)",
+						Sources:   nonEmptyEnvVars("SYVER_TLS_CERT"),
+						Validator: notEmptyTLSFlag("tls-cert"),
+					},
+					&cli.StringFlag{
+						Name:      "tls-key",
+						Usage:     "Unencrypted PEM private key for --tls-cert (requires --tls-cert)",
+						Sources:   nonEmptyEnvVars("SYVER_TLS_KEY"),
+						Validator: notEmptyTLSFlag("tls-key"),
 					},
 					&cli.IntFlag{
 						Name:      "max-concurrent",

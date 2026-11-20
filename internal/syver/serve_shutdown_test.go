@@ -30,7 +30,16 @@ func freePort(t *testing.T) int {
 // by another process before Serve binds it. When that happens Serve returns the
 // bind error before ever answering, and this retries on a fresh port. Retrying
 // only after Serve has returned means no earlier attempt is still reading c.
-func startServe(t *testing.T, ctx context.Context, c *util.Config) (url string, done <-chan error) {
+//
+// scheme is "http" or "https"; client is what polls for readiness, and nil
+// means a plain client with a one-second timeout. An https caller passes a
+// client that trusts its test certificate.
+//
+// Because ANY return before answering is read as a lost bind race, a test that
+// expects Serve to fail at startup (a bad TLS pair, say) must call Serve
+// directly: through here its error would be retried and then reported only as
+// "Serve did not start".
+func startServe(t *testing.T, ctx context.Context, c *util.Config, scheme string, client *http.Client) (url string, done <-chan error) {
 	t.Helper()
 	const attempts = 5
 	for range attempts {
@@ -39,8 +48,8 @@ func startServe(t *testing.T, ctx context.Context, c *util.Config) (url string, 
 		ch := make(chan error, 1)
 		go func() { ch <- Serve(ctx, c) }()
 
-		url = fmt.Sprintf("http://127.0.0.1:%d%s", port, c.Endpoint)
-		serving, err := waitUntilServing(url, ch)
+		url = fmt.Sprintf("%s://127.0.0.1:%d%s", scheme, port, c.Endpoint)
+		serving, err := waitUntilServing(client, url, ch)
 		if serving {
 			return url, ch
 		}
@@ -53,11 +62,14 @@ func startServe(t *testing.T, ctx context.Context, c *util.Config) (url string, 
 	return "", nil
 }
 
-// waitUntilServing polls url until it answers (true) or Serve returns first
-// (false, with Serve's error), which is what a failed bind looks like. It
-// returns (false, nil) if neither happens within the deadline.
-func waitUntilServing(url string, exited <-chan error) (bool, error) {
-	client := &http.Client{Timeout: time.Second}
+// waitUntilServing polls url with client (nil for a plain one-second client)
+// until it answers (true) or Serve returns first (false, with Serve's error),
+// which is what a failed bind looks like. It returns (false, nil) if neither
+// happens within the deadline.
+func waitUntilServing(client *http.Client, url string, exited <-chan error) (bool, error) {
+	if client == nil {
+		client = &http.Client{Timeout: time.Second}
+	}
 	deadline := time.After(10 * time.Second)
 	for {
 		select {
@@ -105,7 +117,7 @@ func TestServeReturnsWhenContextCancelled(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	_, done := startServe(t, ctx, c)
+	_, done := startServe(t, ctx, c, "http", nil)
 
 	cancel()
 	select {
