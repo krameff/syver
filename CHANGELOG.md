@@ -39,6 +39,9 @@
     connection) logs at DEBUG, a crashed request at ERROR, anything else at
     WARN. Before, these printed at every `-L`, so `-L ERROR` now hides the
     WARN ones
+- dependencies
+  - routine updates with no change to any flag, check or output:
+    `tidwall/gjson` to 1.20.5 and `golang.org/x/net` to 0.63.0
 
 ## 0.20.0 based on krameff/goss v0.6.0 - repository tidy
 
