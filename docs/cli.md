@@ -370,16 +370,21 @@ The end-point will return the test results in the format requested and an http s
 
 `serve` will look for a test suite in the same order as [validate](#validate)
 
+Sending a response is limited to 30 seconds once the checks have finished; the
+checks themselves are not time-limited.
+
 !!! warning "The endpoint is unauthenticated"
 
-    `serve` has no authentication, authorization or TLS of its own. Anyone who
-    can reach the listen address can run the suite and read its full output --
-    including the verbatim stdout and stderr of any [`command`](gossfile.md#command)
-    resource, which may carry file paths, versions, or other host detail.
+    `serve` has no authentication or authorization of its own. It serves HTTPS
+    when given `--tls-cert` and `--tls-key`, and plain HTTP otherwise. Either
+    way, anyone who can reach the listen address can run the suite and read its
+    full output -- including the verbatim stdout and stderr of any
+    [`command`](gossfile.md#command) resource, which may carry file paths,
+    versions, or other host detail.
 
     Bind it to a trusted network or an address reachable only by your health
-    checker, put a reverse proxy in front of it if you need TLS or auth, and
-    keep secrets out of command output.
+    checker, put a reverse proxy in front of it if you need auth, and keep
+    secrets out of command output.
 
 `--cache <duration>`, `-c <duration>`
 :   Time to cache the results (default: 5s). A value of `0` or less disables
@@ -410,6 +415,24 @@ The end-point will return the test results in the format requested and an http s
 :   Max number of tests to run concurrently, at least 1. A lower value is
     rejected with an error.
 
+`--tls-cert <file>`
+:   Serve over HTTPS using this PEM certificate. The file can hold the full
+    chain, leaf first. Needs `--tls-key` too. Read once at startup: restart
+    `serve` after renewing the certificate. TLS 1.2 is the oldest version
+    accepted, and HTTP/2 is offered to clients that ask for it. A missing,
+    unreadable, encrypted or mismatched certificate and key stop `serve` at
+    startup, before discovery runs, and so does giving either flag an empty
+    value. At startup `serve` logs the certificate's subject, names and expiry
+    date at INFO, and a WARN if the certificate has expired or is not yet
+    valid; it still starts. Failed handshakes (load-balancer TCP probes,
+    plain-HTTP clients, clients that reject the certificate) are logged only
+    at `-L DEBUG`. Environment variable: `SYVER_TLS_CERT` (no `GOSS_*` name).
+
+`--tls-key <file>`
+:   Unencrypted PEM private key for `--tls-cert`. Needs `--tls-cert` too.
+    Make the file readable only by the user `serve` runs as (mode `0600`).
+    Environment variable: `SYVER_TLS_KEY` (no `GOSS_*` name).
+
 `--discover <gossfile>`
 :   Gossfile containing `discovery:` tests, as for [validate](#validate).
     Without it, an inline `discovery:` section in the gossfile runs. Discovery
@@ -427,7 +450,14 @@ The end-point will return the test results in the format requested and an http s
     # rspecish output format in response via content negotiation
     syver serve --format json &
     curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
+    # HTTPS
+    $ syver serve --tls-cert server.crt --tls-key server.key &
+    $ curl --cacert ca.crt https://host:8080/healthz
     ```
+
+On Windows, `curl.exe --cacert` against a certificate from a private CA also
+needs `--ssl-no-revoke`: Windows' TLS library cannot check revocation for a CA
+that publishes no revocation list, and refuses the connection.
 
 The `application/vnd.goss-{output format}` media type can be used in the `Accept` request header
 to determine the response's content-type.
@@ -435,9 +465,10 @@ You can also `Accept: application/json` to get back `application/json`.
 
 !!! warning "`serve` is unauthenticated, and the response describes your host"
 
-    There is no authentication, authorisation or TLS on this endpoint. Anyone
-    who can reach it gets your full compliance posture: every resource the spec
-    names, and whether each one passed.
+    There is no authentication or authorisation on this endpoint, and it is
+    plain HTTP unless `--tls-cert` and `--tls-key` are given. Anyone who can
+    reach it gets your full compliance posture: every resource the spec names,
+    and whether each one passed.
 
     Failing checks also carry the underlying error text, which can be
     host-specific. A registry key that exists but cannot be read reports the
@@ -606,8 +637,9 @@ Every flag syver defines, with its environment variables and default, as
 registered in the binary. Where a flag has variables, the `SYVER_*` name is
 checked first and the `GOSS_*` name is the fallback. An exported but empty
 `SYVER_*` variable counts as unset, so it never hides a real `GOSS_*` value. A
-command line flag beats both variables. Flags marked "none" can only be set on
-the command line.
+command line flag beats both variables. Variables added since the rename have a
+`SYVER_*` name only, shown as "none" in the `GOSS_*` column. Flags marked
+"none" in both columns can only be set on the command line.
 
 | Command | Flag | `SYVER_*` variable | `GOSS_*` variable | Default |
 | --- | --- | --- | --- | --- |
@@ -632,6 +664,8 @@ the command line.
 | `serve` | `--log-level`, `--loglevel`, `-L` (not `-l`, which is `--listen-addr` here) | `SYVER_LOGLEVEL` | `GOSS_LOGLEVEL` | `INFO` |
 | `serve` | `--listen-addr`, `-l` | `SYVER_LISTEN` | `GOSS_LISTEN` | `:8080` |
 | `serve` | `--endpoint`, `-e` | `SYVER_ENDPOINT` | `GOSS_ENDPOINT` | `/healthz` |
+| `serve` | `--tls-cert` | `SYVER_TLS_CERT` | none | unset |
+| `serve` | `--tls-key` | `SYVER_TLS_KEY` | none | unset |
 | `serve` | `--max-concurrent` | `SYVER_MAX_CONCURRENT` | `GOSS_MAX_CONCURRENT` | `50` |
 | `serve` | `--discover` | `SYVER_DISCOVER` | `GOSS_DISCOVER` | unset |
 | `render` | `--debug`, `-d` | none | none | `false` |

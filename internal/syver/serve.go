@@ -3,10 +3,16 @@ package syver
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -22,6 +28,12 @@ import (
 
 func Serve(ctx context.Context, c *util.Config) error {
 	err := setLogLevel(c)
+	if err != nil {
+		return err
+	}
+	// Before newHealthHandler, which runs discovery and can execute commands:
+	// a mistyped key path should cost nothing but the error.
+	tlsConfig, err := serveTLSConfig(c)
 	if err != nil {
 		return err
 	}
@@ -64,6 +76,10 @@ func Serve(ctx context.Context, c *util.Config) error {
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       60 * time.Second,
+		TLSConfig:         tlsConfig,
+		// Built here, after setLogLevel, because it captures the standard
+		// logger's output, which is the level filter only from then on.
+		ErrorLog: newServeErrorLog(),
 	}
 
 	// ListenAndServe blocks and never looks at a context, so without this the
@@ -82,11 +98,148 @@ func Serve(ctx context.Context, c *util.Config) error {
 		shutdownErr <- srv.Shutdown(shutdownCtx)
 	}()
 
-	log.Printf("[INFO] Starting to listen on: %s", c.ListenAddress)
-	if err := srv.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
+	// The certificate is already in TLSConfig, so ListenAndServeTLS takes no
+	// file names. With NextProtos unset it also offers HTTP/2.
+	if tlsConfig != nil {
+		log.Printf("[INFO] Starting to listen on: %s (https)", c.ListenAddress)
+		err = srv.ListenAndServeTLS("", "")
+	} else {
+		log.Printf("[INFO] Starting to listen on: %s", c.ListenAddress)
+		err = srv.ListenAndServe()
+	}
+	if !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return <-shutdownErr
+}
+
+// serveTLSConfig returns serve's TLS config, or nil when neither file is set.
+// The pair is loaded here, before discovery and before the listener binds, so a
+// missing, unreadable or mismatched pair fails at startup.
+//
+// Only MinVersion is set. Cipher suites, key exchange groups, session tickets
+// and HTTP/2 stay at the Go defaults, which move forward with the toolchain;
+// MinVersion is spelled out so the floor is visible here.
+func serveTLSConfig(c *util.Config) (*tls.Config, error) {
+	certSet, keySet := c.ServeCertFile != "", c.ServeKeyFile != ""
+	switch {
+	case !certSet && !keySet:
+		return nil, nil
+	case !keySet:
+		return nil, errors.New("serving https needs both --tls-cert and --tls-key (or SYVER_TLS_CERT and SYVER_TLS_KEY); only --tls-cert is set")
+	case !certSet:
+		return nil, errors.New("serving https needs both --tls-cert and --tls-key (or SYVER_TLS_CERT and SYVER_TLS_KEY); only --tls-key is set")
+	}
+	// The wrapped error says which of missing file, permission denied,
+	// unparseable PEM or key mismatch it was; the paths say which files, and
+	// are not secret. It does not say "encrypted" for an encrypted key (it
+	// reports an ASN.1 or length error instead), so that case is named here.
+	cert, err := tls.LoadX509KeyPair(c.ServeCertFile, c.ServeKeyFile)
+	if err != nil {
+		if keyFileIsEncrypted(c.ServeKeyFile) {
+			return nil, fmt.Errorf("loading tls key pair (--tls-cert %q, --tls-key %q): the private key is encrypted; serve needs an unencrypted PEM key", c.ServeCertFile, c.ServeKeyFile)
+		}
+		return nil, fmt.Errorf("loading tls key pair (--tls-cert %q, --tls-key %q): %w", c.ServeCertFile, c.ServeKeyFile, err)
+	}
+	leaf := cert.Leaf
+	if leaf == nil {
+		if leaf, err = x509.ParseCertificate(cert.Certificate[0]); err != nil {
+			return nil, fmt.Errorf("parsing tls certificate (--tls-cert %q): %w", c.ServeCertFile, err)
+		}
+	}
+	logServeCertificate(leaf, time.Now())
+	return &tls.Config{
+		Certificates: []tls.Certificate{cert},
+		MinVersion:   tls.VersionTLS12,
+	}, nil
+}
+
+// keyFileIsEncrypted reports whether the key file holds a PEM block that is
+// encrypted: PKCS#8 "ENCRYPTED PRIVATE KEY", or a legacy block with a
+// "Proc-Type: 4,ENCRYPTED" header. Only block types and headers are read, and
+// nothing from the file reaches a message. An unreadable file reports false,
+// leaving the load error to explain it.
+func keyFileIsEncrypted(path string) bool {
+	rest, err := os.ReadFile(path)
+	if err != nil {
+		return false
+	}
+	for {
+		var block *pem.Block
+		block, rest = pem.Decode(rest)
+		if block == nil {
+			return false
+		}
+		if block.Type == "ENCRYPTED PRIVATE KEY" || strings.Contains(block.Headers["Proc-Type"], "ENCRYPTED") {
+			return true
+		}
+	}
+}
+
+// logServeCertificate says at startup which certificate serve presents and
+// until when. An expired or not-yet-valid certificate makes every client fail
+// its handshake, and those failures log only at DEBUG, so it is a WARN here;
+// serve still starts, as replacing the files and restarting is the fix.
+func logServeCertificate(leaf *x509.Certificate, now time.Time) {
+	ips := make([]string, 0, len(leaf.IPAddresses))
+	for _, ip := range leaf.IPAddresses {
+		ips = append(ips, ip.String())
+	}
+	// %q, not %v, for the DNS names: the x509 parser accepts a newline in a
+	// DNS SAN, so a crafted certificate could otherwise forge a log line.
+	log.Printf("[INFO] Serving https with certificate subject %q, DNS names %q, IP addresses %v, valid until %s",
+		leaf.Subject.String(), leaf.DNSNames, ips, leaf.NotAfter.UTC().Format(time.RFC3339))
+	switch {
+	case now.Before(leaf.NotBefore):
+		log.Printf("[WARN] The tls certificate is not valid until %s; clients will reject it",
+			leaf.NotBefore.UTC().Format(time.RFC3339))
+	case now.After(leaf.NotAfter):
+		log.Printf("[WARN] The tls certificate expired at %s; clients will reject it",
+			leaf.NotAfter.UTC().Format(time.RFC3339))
+	}
+}
+
+// serveErrorLogWriter gives http.Server's own messages a level. With a nil
+// ErrorLog they went to the standard logger unprefixed, and an unprefixed line
+// passes the level filter at every -L. Over HTTPS that matters: every TCP-only
+// load balancer probe, port scan and plain-HTTP client produces a TLS
+// handshake error, so those would print continuously at any level.
+//
+//   - a handler panic, with its stack, is [ERROR], so it survives -L ERROR.
+//     HTTP/1 logs it as "http: panic serving" and HTTP/2 as "http2: panic
+//     serving", so the match is on "panic serving";
+//   - a TLS handshake error is [DEBUG]: one per such connection, and nothing
+//     server-side can stop the client causing it;
+//   - anything else is [WARN].
+//
+// http.Server writes each message, stack included, in one call, so the prefix
+// lands once at its start, which is where the level filter looks.
+type serveErrorLogWriter struct {
+	out io.Writer
+}
+
+func (w serveErrorLogWriter) Write(p []byte) (int, error) {
+	level := "[WARN] "
+	switch {
+	case bytes.Contains(p, []byte("panic serving")):
+		level = "[ERROR] "
+	case bytes.Contains(p, []byte("TLS handshake error")):
+		level = "[DEBUG] "
+	}
+	line := make([]byte, 0, len(level)+len(p))
+	line = append(line, level...)
+	line = append(line, p...)
+	if _, err := w.out.Write(line); err != nil {
+		return 0, err
+	}
+	return len(p), nil
+}
+
+// newServeErrorLog builds serve's http.Server ErrorLog. It captures the
+// standard logger's output as it is now, so call it after setLogLevel, which
+// installs the level filter there; built before, it would bypass the filter.
+func newServeErrorLog() *log.Logger {
+	return log.New(serveErrorLogWriter{out: log.Writer()}, "", 0)
 }
 
 // color.NoColor is a package global in fatih/color, and this used to assign it
@@ -129,6 +282,7 @@ func newHealthHandler(ctx context.Context, c *util.Config) (*healthHandler, erro
 		cache:         cache,
 		syverMu:       &sync.Mutex{},
 		maxConcurrent: c.MaxConcurrent,
+		writeTimeout:  serveResponseWriteTimeout,
 	}
 	return health, nil
 }
@@ -144,6 +298,9 @@ type healthHandler struct {
 	cache         *cache.Cache
 	syverMu       *sync.Mutex
 	maxConcurrent int
+	// writeTimeout is serveResponseWriteTimeout, read once here so request
+	// goroutines never touch the package variable.
+	writeTimeout time.Duration
 
 	// baseCtx is the server's context, not any one request's. fillCache runs a
 	// single shared sweep and hands the same result to every waiter, so scoping
@@ -168,9 +325,33 @@ func (h healthHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[TRACE] %v: requesting health probe", r.RemoteAddr)
 	resp := h.processAndEnsureCached(negotiatedContentType, outputer)
+	// Bound the WRITE of the response, set only now that the checks are done
+	// so the checks themselves are never time-limited. Over HTTP/2 a client
+	// can advertise a zero flow-control window: the body write then blocks
+	// forever, holding this handler goroutine, and neither the idle timer
+	// (which only runs with no open streams) nor any server timeout ends it,
+	// since WriteTimeout is deliberately unset (see Serve). Past the deadline
+	// HTTP/2 resets the stream and HTTP/1 fails the write. The error is
+	// ignored: both ResponseWriters support it, and a writer that did not
+	// would just be unbounded, as before.
+	_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(h.writeTimeout))
 	w.Header().Set("Content-Type", negotiatedContentType)
+	// Set explicitly because the response is flushed below, before the handler
+	// returns, which would otherwise switch HTTP/1 to chunked encoding.
+	w.Header().Set("Content-Length", strconv.Itoa(resp.body.Len()))
 	w.WriteHeader(resp.statusCode)
-	resp.body.WriteTo(w)
+	// A health response fits in the server's buffer, so a write the deadline
+	// cuts off fails at the flush, not in WriteTo; flushing here, rather than
+	// after the handler returns, is what lets the failure be seen and logged.
+	// DEBUG, not WARN: a hostile client could produce one per stalled stream.
+	_, err = resp.body.WriteTo(w)
+	if err == nil {
+		err = http.NewResponseController(w).Flush()
+	}
+	if err != nil {
+		log.Printf("[DEBUG] %v: writing response failed (status %d): %v", r.RemoteAddr, resp.statusCode, err)
+		return
+	}
 	log.Printf("[DEBUG] %v: status %d", r.RemoteAddr, resp.statusCode)
 }
 
@@ -209,6 +390,12 @@ func anyFailed(tra [][]resource.TestResult) bool {
 	}
 	return false
 }
+
+// serveResponseWriteTimeout bounds how long writing one health response may
+// take, not how long the checks may run. A health response is small, so a
+// healthy client finishes in well under a second. A variable rather than a
+// constant only so a test can shorten it; newHealthHandler reads it once.
+var serveResponseWriteTimeout = 30 * time.Second
 
 // cacheMissLogFormat is logged on every cache miss, which under a health probe
 // is every cache interval. It carries a level so the log filter can hold it

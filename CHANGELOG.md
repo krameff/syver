@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.20.1 based on krameff/goss v0.6.0 - fixes
+## 0.21.0 based on krameff/goss v0.6.0 - serve over HTTPS, discovery under render and serve
 
 - discovery under `render` and `serve`
   - `render` and `serve` never ran discovery, so a spec reading
@@ -19,6 +19,26 @@
     `.Discovered` key it does not declare is still an error
   - `render -g -` failed with a file error instead of reading the spec from
     standard input. It now reads it, as `validate -g -` does
+- `serve` over HTTPS
+  - `--tls-cert` and `--tls-key` (environment `SYVER_TLS_CERT` and
+    `SYVER_TLS_KEY`; there are no `GOSS_*` names for these) serve the health
+    endpoint and `/metrics` over HTTPS, TLS 1.2 or later. Both are needed. The
+    certificate and key are read when `serve` starts, so a missing, unreadable
+    or mismatched pair stops it with an error naming both files, before
+    discovery runs; an encrypted key is reported as encrypted. Giving either
+    flag an empty value is an error too, rather than quietly serving plain
+    HTTP. At startup `serve` logs the certificate's subject, names and expiry
+    date, and warns if it has expired or is not yet valid (it still starts).
+    Restart `serve` to pick up a renewed certificate. HTTP/2 is offered to
+    clients that ask for it. Sending a response is limited to 30 seconds
+    once the checks finish; the checks themselves are not time-limited.
+    Without the flags `serve` still listens on plain HTTP. Follows the
+    proposal in goss-org/goss#1160
+  - `serve`'s own web-server messages now carry a log level. A failed TLS
+    handshake (a plain-HTTP client, or a load balancer that only opens a TCP
+    connection) logs at DEBUG, a crashed request at ERROR, anything else at
+    WARN. Before, these printed at every `-L`, so `-L ERROR` now hides the
+    WARN ones
 
 ## 0.20.0 based on krameff/goss v0.6.0 - repository tidy
 
