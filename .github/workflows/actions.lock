@@ -10,10 +10,10 @@ workflows:
         - 'github/codeql-action@v4.39.3'
     '.github/workflows/dcsyver-tests.yaml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-go@v7.0.0'
+        - 'actions/setup-go@v7.1.0'
     '.github/workflows/docker-syver.yaml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-go@v7.0.0'
+        - 'actions/setup-go@v7.1.0'
         - 'aquasecurity/trivy-action@v0.36.0'
         - 'docker/build-push-action@v7.4.0'
         - 'docker/login-action@v4.8.0'
@@ -28,13 +28,13 @@ workflows:
         - 'davidanson/markdownlint-cli2-action@v25.0.0'
     '.github/workflows/golangci.yaml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-go@v7.0.0'
+        - 'actions/setup-go@v7.1.0'
         - 'aquasecurity/setup-trivy@v0.3.1'
         - 'docker/setup-qemu-action@v4.4.0'
         - 'golangci/golangci-lint-action@v9.3.0'
     '.github/workflows/release.yaml':
         - 'actions/checkout@v7.0.1'
-        - 'actions/setup-go@v7.0.0'
+        - 'actions/setup-go@v7.1.0'
         - 'anchore/sbom-action@v0.24.3'
         - 'aquasecurity/setup-trivy@v0.3.1'
         - 'crazy-max/ghaction-import-gpg@v7.0.0'
@@ -70,9 +70,9 @@ dependencies:
         commit: 'sha1-3d3c42e5aac5ba805825da76410c181273ba90b1'
         owner_id: 44036562
         repo_id: 197814629
-    'actions/setup-go@v7.0.0':
-        ref: 'v7.0.0'
-        commit: 'sha1-b7ad1dad31e06c5925ef5d2fc7ad053ef454303e'
+    'actions/setup-go@v7.1.0':
+        ref: 'v7.1.0'
+        commit: 'sha1-d8cbb8045d7f43706b9177cceb36c1f91a6644d5'
         owner_id: 44036562
         repo_id: 192624594
     'actions/setup-python@v7.1.0':
