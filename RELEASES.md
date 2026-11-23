@@ -61,6 +61,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.21.0 - Serve over HTTPS, discovery under render and serve](#v0210---serve-over-https-discovery-under-render-and-serve)
 * [v0.20.0 - Package baselines and syver-version](#v0200---package-baselines-and-syver-version)
 * [v0.16.1 - Text patterns and port networks](#v0161---text-patterns-and-port-networks)
 * [v0.16.0 - Skip reasons, masked services and glob](#v0160---skip-reasons-masked-services-and-glob)
@@ -86,6 +87,51 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.21.0 - Serve over HTTPS, discovery under render and serve
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.20.0 release record (PR #146), `fix/render-serve-discovery` (PR #147), `feature/serve-https` (PR #148), `deps/gjson-xnet` (PR #149), Dependabot's actions/setup-go 7.1.0 (PR #151), `fix/integration-http-local` (PR #152), then `docs/0.21.0` |
+| Scope | 7 commits (excluding merges), 37 files, +2165 / -102, measured at `devel` `bbb6c93` against `v0.20.0` |
+| Changelog | [0.21.0](CHANGELOG.md#0210-based-on-krameffgoss-v060---serve-over-https-discovery-under-render-and-serve) |
+
+A minor release with new flags and no change to spec syntax:
+`docs/schema.yaml` is unchanged. `serve` can listen over HTTPS with
+`--tls-cert` and `--tls-key` (or `SYVER_TLS_CERT` and `SYVER_TLS_KEY`),
+following the proposal in goss-org/goss#1160. `render` and `serve` now run
+discovery as `validate` does, with a new `--discover` flag on both and
+`--no-discover` on `render`, so a spec reading `.Discovered` no longer fails
+under them. `validate` is unchanged. Dependency updates: `tidwall/gjson`
+1.20.5 and `golang.org/x/net` 0.63.0. The integration tests no longer reach
+google.com or apple.com; their two `http` checks use the suite's own httpbin
+container. The set of published binaries is unchanged.
+
+**Suites run on 2026-11-23**, on go-builder, on the tree of `devel` at
+`bbb6c93` with no local changes: Linux unit tests under `-race`, `make
+check`, golangci-lint for linux, windows and darwin, coverage, yamllint,
+`mkdocs --strict`, the trivy suppression check, the schema check, `make
+build`, the 64-bit integration tests and the dcsyver end-to-end test. 1563
+tests passed, none failed. Against the v0.20.0 goldens, one fixture of 253
+changed, and it is the intended one: `render` of the inline-discovery example
+failed under 0.20.0 with `map has no entry for key "hosts_exists"` and now
+renders. Every workflow on `devel` at `bbb6c93` was green, including the
+per-distro integration tests, `macos-latest` and `windows-latest`.
+
+**HTTPS checked on a FIPS host.** A build from the `feature/serve-https`
+tree served over HTTPS on AlmaLinux 10 with the kernel in FIPS mode and the
+system crypto policy at FIPS: TLS 1.2 with Extended Master Secret and TLS 1.3
+both negotiated, HTTP/2 was offered, and curl fetched the health endpoint.
+
+**Not compared on audit content.** No matcher, resource or skip rule
+changed and `validate` is untouched; the one dependency on a check path is
+gjson, which none of the ansible-lockdown `-Audit` repositories uses.
 
 ---
 
