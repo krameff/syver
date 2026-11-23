@@ -94,11 +94,11 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | pending |
-| Commit | pending |
+| Released | 2026-11-23 |
+| Tag | `v0.21.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT keys `CD218D52...CABE5092` (`.sig`) and `AC1C7F6F...3E62F866` (`.rsa.sig`) |
+| Commit | `d57ce4c`, the `devel` -> `main` merge commit from PR #154 |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.20.0 release record (PR #146), `fix/render-serve-discovery` (PR #147), `feature/serve-https` (PR #148), `deps/gjson-xnet` (PR #149), Dependabot's actions/setup-go 7.1.0 (PR #151), `fix/integration-http-local` (PR #152), then `docs/0.21.0` |
+| Integration branch | `devel`, in this merge order: the 0.20.0 release record (PR #146), `fix/render-serve-discovery` (PR #147), `feature/serve-https` (PR #148), `deps/gjson-xnet` (PR #149), Dependabot's actions/setup-go 7.1.0 (PR #151), `fix/integration-http-local` (PR #152), then `docs/0.21.0` (PR #153). Merged to `main` through PR #154 |
 | Scope | 7 commits (excluding merges), 37 files, +2165 / -102, measured at `devel` `bbb6c93` against `v0.20.0` |
 | Changelog | [0.21.0](CHANGELOG.md#0210-based-on-krameffgoss-v060---serve-over-https-discovery-under-render-and-serve) |
 
@@ -132,6 +132,23 @@ both negotiated, HTTP/2 was offered, and curl fetched the health endpoint.
 **Not compared on audit content.** No matcher, resource or skip rule
 changed and `validate` is untouched; the one dependency on a check path is
 gjson, which none of the ansible-lockdown `-Audit` repositories uses.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `d57ce4c` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`167b284`. The goldens on `d57ce4c` show the same single intended change
+against v0.20.0, and were re-captured from it as the new baseline. The
+release carries 47 assets, the same names as 0.20.0. With each project key
+imported alone into an empty keyring, the checksum file and all seven SBOMs
+verify against the Ed25519 key through `.sig` and against the RSA key
+through `.rsa.sig`, and the `.rsa.sig` does not verify against the Ed25519
+key. The RSA key in the release assets is byte-identical to the one in the
+tag. The checksum for `syver-linux-amd64` matches, its embedded build
+information shows go1.27.4, revision `d57ce4c`, an unmodified tree,
+`tidwall/gjson` 1.20.5 and `golang.org/x/net` 0.63.0, and it reports `syver
+version 0.21.0`. `ghcr.io/krameff/syver:v0.21.0` and `:latest` resolve to the
+same image index, for linux/amd64 and linux/arm64, labelled with revision
+`d57ce4c` and version `0.21.0`.
 
 ---
 
