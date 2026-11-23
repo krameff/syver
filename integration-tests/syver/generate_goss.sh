@@ -69,9 +69,13 @@ sed -i '/- inode64/d' $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml
 sed -i '/- uid=/d' $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml
 sed -i '/- gid=/d' $SCRIPT_DIR/${OS}/goss-generated-$ARCH.yaml
 
-goss a "${args[@]}" http https://www.google.com
+# Both http adds target the local httpbin container test.sh starts on the
+# same docker network, so the recorded status cannot drift with a third
+# party's rate limiting (a public site answering 429 to CI runners).
+goss a "${args[@]}" http http://httpbin/status/200
 
-goss a "${args[@]}" http https://www.apple.com -x http://127.0.0.1:8888
+# Through tinyproxy, which every distro image runs on 127.0.0.1:8888.
+goss a "${args[@]}" http http://httpbin/anything -x http://127.0.0.1:8888
 
 # Auto-add
 # Validate that empty configs don't get created

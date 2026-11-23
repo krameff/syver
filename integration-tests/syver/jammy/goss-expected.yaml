@@ -156,13 +156,13 @@ mount:
     filesystem: tmpfs
     timeout: 1000
 http:
-  https://www.apple.com:
+  http://httpbin/anything:
     status: 200
     allow-insecure: false
     no-follow-redirects: false
     timeout: 5000
     proxy: http://127.0.0.1:8888
-  https://www.google.com:
+  http://httpbin/status/200:
     status: 200
     allow-insecure: false
     no-follow-redirects: false
