@@ -86,6 +86,11 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 		VarsFiles:         c.StringSlice("vars"),
 		VarsInline:        c.String("vars-inline"),
 		DiscoverSpec:      c.String("discover"),
+		NoDiscover:        c.Bool("no-discover"),
+
+		// Only `syver serve` defines these two; elsewhere they read as unset.
+		ServeCertFile: c.String("tls-cert"),
+		ServeKeyFile:  c.String("tls-key"),
 
 		// Only `syver add pkg-baseline` defines these three; elsewhere they
 		// read as unset.
@@ -103,6 +108,20 @@ func newRuntimeConfigFromCLI(c *cli.Command) *util.Config {
 	}
 
 	return cfg
+}
+
+// notEmptyTLSFlag refuses an explicitly empty --tls-cert or --tls-key. Without
+// it `serve --tls-cert "" --tls-key ""` read as neither flag given and served
+// plain HTTP, although the user had asked for HTTPS. urfave/cli runs a
+// Validator only for a value that was actually set, and an exported-but-empty
+// SYVER_TLS_* is not set (nonEmptyEnvVars), so that still means unset.
+func notEmptyTLSFlag(name string) func(string) error {
+	return func(v string) error {
+		if v == "" {
+			return fmt.Errorf("--%s was given an empty value; name a file, or leave both --tls-cert and --tls-key unset to serve plain HTTP", name)
+		}
+		return nil
+	}
 }
 
 // addSubcommandOrder preserves the exact original CLI listing order for
@@ -360,12 +379,32 @@ func newApp() *cli.Command {
 						Usage:   "Endpoint to expose",
 						Sources: nonEmptyEnvVars("SYVER_ENDPOINT", "GOSS_ENDPOINT"),
 					},
+					// SYVER_* only, deliberately: there is no GOSS_TLS_* pair,
+					// because a goss name would promise compatibility with an
+					// upstream design that differs from this one.
+					&cli.StringFlag{
+						Name:      "tls-cert",
+						Usage:     "Serve over HTTPS using this PEM certificate file, which may hold the full chain (requires --tls-key)",
+						Sources:   nonEmptyEnvVars("SYVER_TLS_CERT"),
+						Validator: notEmptyTLSFlag("tls-cert"),
+					},
+					&cli.StringFlag{
+						Name:      "tls-key",
+						Usage:     "Unencrypted PEM private key for --tls-cert (requires --tls-cert)",
+						Sources:   nonEmptyEnvVars("SYVER_TLS_KEY"),
+						Validator: notEmptyTLSFlag("tls-key"),
+					},
 					&cli.IntFlag{
 						Name:      "max-concurrent",
 						Usage:     "Max number of tests to run concurrently, at least 1",
 						Value:     50,
 						Sources:   nonEmptyEnvVars("SYVER_MAX_CONCURRENT", "GOSS_MAX_CONCURRENT"),
 						Validator: syver.ValidateMaxConcurrent,
+					},
+					&cli.StringFlag{
+						Name:    "discover",
+						Usage:   "Syverfile with discovery: tests to run before the main -g gossfile",
+						Sources: nonEmptyEnvVars("SYVER_DISCOVER", "GOSS_DISCOVER"),
 					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
@@ -383,10 +422,19 @@ func newApp() *cli.Command {
 						Aliases: []string{"d"},
 						Usage:   "Print debugging info when rendering",
 					},
+					&cli.StringFlag{
+						Name:    "discover",
+						Usage:   "Syverfile with discovery: tests to run before the main -g gossfile",
+						Sources: nonEmptyEnvVars("SYVER_DISCOVER", "GOSS_DISCOVER"),
+					},
+					&cli.BoolFlag{
+						Name:  "no-discover",
+						Usage: "Run no discovery: tests; every register the spec declares renders as false",
+					},
 				},
 				Action: func(ctx context.Context, c *cli.Command) error {
 					fatalAlphaIfNeeded(c)
-					j, err := syver.RenderJSON(newRuntimeConfigFromCLI(c))
+					j, err := syver.RenderJSON(ctx, newRuntimeConfigFromCLI(c))
 					if err != nil {
 						return err
 					}

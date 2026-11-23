@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v7.0.1
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: go.mod
 
@@ -98,7 +98,7 @@ jobs:
       - run: make dgoss-sha256 dcgoss-sha256 kgoss-sha256 dsyver-sha256 dcsyver-sha256 ksyver-sha256 sbxsyver-sha256
 
       - name: Set up Go
-        uses: actions/setup-go@v7.0.0
+        uses: actions/setup-go@v7.1.0
         with:
           go-version-file: go.mod
           check-latest: true

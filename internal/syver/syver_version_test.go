@@ -370,7 +370,7 @@ func TestRender_CarriesHighestSyverVersion(t *testing.T) {
 	root := writeSpecIn(t, dir, "root.yaml", "syver-version: 0.20.0\ngossfile:\n  child.yaml: {}\n  skipped.yaml:\n    skip: true\n"+okMatching)
 	c, err := util.NewConfig(util.WithSpecFile(root))
 	require.NoError(t, err)
-	out, err := RenderJSON(c)
+	out, err := RenderJSON(t.Context(), c)
 	require.NoError(t, err)
 	assert.True(t, strings.HasPrefix(out, "syver-version: 0.21.0\n"), "got:\n%s", out)
 
@@ -379,7 +379,7 @@ func TestRender_CarriesHighestSyverVersion(t *testing.T) {
 	plain := writeSpecIn(t, plainDir, "root.yaml", "gossfile:\n  child.yaml: {}\n"+okMatching)
 	c, err = util.NewConfig(util.WithSpecFile(plain))
 	require.NoError(t, err)
-	out, err = RenderJSON(c)
+	out, err = RenderJSON(t.Context(), c)
 	require.NoError(t, err)
 	assert.NotContains(t, out, "syver-version")
 }

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -599,5 +601,433 @@ command:
 	}
 	if code == 0 {
 		t.Fatal("expected non-zero exit when prerequisite fails")
+	}
+}
+
+// writeDiscoveryFixture writes name under dir and returns its path.
+func writeDiscoveryFixture(t *testing.T, dir, name, content string) string {
+	t.Helper()
+	p := filepath.Join(dir, name)
+	if err := os.WriteFile(p, []byte(content), 0o644); err != nil {
+		t.Fatalf("write %s: %v", name, err)
+	}
+	return p
+}
+
+// discoverySentinels returns a file that exists and a path that does not,
+// both slash-separated, so discovery checks can be made to pass or fail
+// on any OS.
+func discoverySentinels(t *testing.T, dir string) (present, missing string) {
+	t.Helper()
+	present = filepath.ToSlash(filepath.Join(dir, "sentinel"))
+	if err := os.WriteFile(filepath.FromSlash(present), []byte("present"), 0o644); err != nil {
+		t.Fatalf("write sentinel: %v", err)
+	}
+	return present, filepath.ToSlash(filepath.Join(dir, "does-not-exist"))
+}
+
+// renderForTest runs RenderJSON at the CLI's default log level and returns
+// the rendered spec and everything logged to stderr.
+func renderForTest(t *testing.T, cfg *util.Config) (string, string, error) {
+	t.Helper()
+	cfg.LogLevel = cliDefaultLogLevel
+	var out string
+	var err error
+	_, stderr := captureStdoutStderr(t, func() { out, err = RenderJSON(t.Context(), cfg) })
+	return out, stderr, err
+}
+
+// inlineDiscoverySpec: a discovery: block with one register that passes and
+// one that fails, and tests that read both.
+func inlineDiscoverySpec(present, missing string) string {
+	return fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %[1]s
+      register: is_found
+      exists: true
+    gone:
+      path: %[2]s
+      register: is_gone
+      exists: true
+file:
+  present:
+    path: %[1]s
+    title: "{{ if .Discovered.is_found }}found-true{{ else }}found-false{{ end }}"
+    exists: true
+  absent:
+    path: %[2]s
+    title: gated
+    skip: {{ not .Discovered.is_gone }}
+    exists: true
+`, present, missing)
+}
+
+// Render runs a spec's inline discovery: block, in the same file as the
+// tests that read it. A register that fails renders its test skipped.
+//
+// Revert-proof: give RenderJSON's template filter nil instead of the
+// discovered map and this fails with "map has no entry for key".
+func TestRenderInlineDiscovery(t *testing.T) {
+	dir := t.TempDir()
+	present, missing := discoverySentinels(t, dir)
+	spec := writeDiscoveryFixture(t, dir, "main.yml", inlineDiscoverySpec(present, missing))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(out, "title: found-true") {
+		t.Fatalf("expected the passing register to render true:\n%s", out)
+	}
+	if !strings.Contains(out, "skip: true") {
+		t.Fatalf("expected the failing register to render skip: true:\n%s", out)
+	}
+}
+
+// The layout the Lockdown audits use: discovery: in the main file, the
+// .Discovered reference inside a gossfile: include.
+func TestRenderInlineDiscoveryReadByInclude(t *testing.T) {
+	dir := t.TempDir()
+	present, _ := discoverySentinels(t, dir)
+	if err := os.Mkdir(filepath.Join(dir, "inc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeDiscoveryFixture(t, dir, filepath.Join("inc", "checks.yml"), fmt.Sprintf(`file:
+  present:
+    path: %s
+    title: "{{ if .Discovered.is_found }}included-true{{ else }}included-false{{ end }}"
+    exists: true
+`, present))
+	spec := writeDiscoveryFixture(t, dir, "main.yml", fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %s
+      register: is_found
+      exists: true
+gossfile:
+  inc/*.yml: {}
+`, present))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(out, "title: included-true") {
+		t.Fatalf("expected the include to see the discovered value:\n%s", out)
+	}
+}
+
+// Inline discovery and a --vars file, both read by the same include.
+func TestRenderInlineDiscoveryWithVarsFile(t *testing.T) {
+	dir := t.TempDir()
+	present, _ := discoverySentinels(t, dir)
+	vars := writeDiscoveryFixture(t, dir, "vars.yml", "label: from-vars\n")
+	if err := os.Mkdir(filepath.Join(dir, "inc"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeDiscoveryFixture(t, dir, filepath.Join("inc", "checks.yml"), fmt.Sprintf(`file:
+  present:
+    path: %s
+    title: "{{ .Vars.label }}-{{ .Discovered.is_found }}"
+    exists: true
+`, present))
+	spec := writeDiscoveryFixture(t, dir, "main.yml", fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %s
+      register: is_found
+      exists: true
+gossfile:
+  inc/*.yml: {}
+`, present))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithVarsFile(vars), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(out, "title: from-vars-true") {
+		t.Fatalf("expected both the vars file and discovery in the include:\n%s", out)
+	}
+}
+
+// render --discover: the file wins over the spec's inline block, and the
+// INFO line saying so is logged once, not once per decode.
+func TestRenderDiscoverFlagOverridesInline(t *testing.T) {
+	dir := t.TempDir()
+	present, missing := discoverySentinels(t, dir)
+	discover := writeDiscoveryFixture(t, dir, "discover.yaml", fmt.Sprintf(`discovery:
+  file:
+    flag:
+      path: %s
+      register: same
+      exists: true
+`, present))
+	spec := writeDiscoveryFixture(t, dir, "main.yml", fmt.Sprintf(`discovery:
+  file:
+    inline:
+      path: %s
+      register: same
+      exists: true
+file:
+  present:
+    path: %s
+    title: "{{ if .Discovered.same }}from-flag{{ else }}from-inline{{ end }}"
+    exists: true
+`, missing, present))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithDiscoverFile(discover), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(out, "title: from-flag") {
+		t.Fatalf("expected the --discover file to win:\n%s", out)
+	}
+	if n := strings.Count(stderr, "[INFO] ignoring inline discovery:"); n != 1 {
+		t.Fatalf("expected the INFO line exactly once, got %d:\n%s", n, stderr)
+	}
+}
+
+// render --no-discover runs no check: a register whose check would pass
+// still renders false. A register the spec does not declare still fails.
+func TestRenderNoDiscover(t *testing.T) {
+	dir := t.TempDir()
+	present, missing := discoverySentinels(t, dir)
+	spec := writeDiscoveryFixture(t, dir, "main.yml", inlineDiscoverySpec(present, missing))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	cfg.NoDiscover = true
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render --no-discover: %v\n%s", err, stderr)
+	}
+	// is_found's check passes on this host, so true here would mean it ran.
+	if !strings.Contains(out, "title: found-false") {
+		t.Fatalf("expected a declared register to render false without running:\n%s", out)
+	}
+	if !strings.Contains(out, "skip: true") {
+		t.Fatalf("expected skip: true for a false register:\n%s", out)
+	}
+
+	typo := writeDiscoveryFixture(t, dir, "typo.yml", fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %[1]s
+      register: is_found
+      exists: true
+file:
+  present:
+    path: %[1]s
+    skip: {{ not .Discovered.is_fuond }}
+    exists: true
+`, present))
+	cfg, err = util.NewConfig(util.WithSpecFile(typo), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	cfg.NoDiscover = true
+	_, _, err = renderForTest(t, cfg)
+	if err == nil || !strings.Contains(err.Error(), "map has no entry") {
+		t.Fatalf("expected an undeclared register to fail with missingkey=error, got: %v", err)
+	}
+}
+
+func TestRenderNoDiscoverWithDiscoverErrors(t *testing.T) {
+	dir := t.TempDir()
+	present, missing := discoverySentinels(t, dir)
+	spec := writeDiscoveryFixture(t, dir, "main.yml", inlineDiscoverySpec(present, missing))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithDiscoverFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	cfg.NoDiscover = true
+	_, _, err = renderForTest(t, cfg)
+	if err == nil || !strings.Contains(err.Error(), "--no-discover and --discover") {
+		t.Fatalf("expected --no-discover with --discover to error, got: %v", err)
+	}
+}
+
+// render -g - reads stdin once and replays it to the discovery peek and the
+// real render. The template sits inside a quoted string because a stdin
+// spec's format is detected from the raw bytes, before templating.
+func TestRenderStdinWithDiscoverySection(t *testing.T) {
+	dir := t.TempDir()
+	present, _ := discoverySentinels(t, dir)
+	content := fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %[1]s
+      register: is_found
+      exists: true
+file:
+  present:
+    path: %[1]s
+    title: "{{ if .Discovered.is_found }}stdin-true{{ else }}stdin-false{{ end }}"
+    exists: true
+`, present)
+
+	resetStdinOnce(t)
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatalf("pipe: %v", err)
+	}
+	os.Stdin = r
+	go func() {
+		_, _ = w.Write([]byte(content))
+		_ = w.Close()
+	}()
+
+	cfg, err := util.NewConfig(util.WithSpecFile("-"), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render from stdin: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(out, "title: stdin-true") {
+		t.Fatalf("expected the discovered value in the stdin render:\n%s", out)
+	}
+}
+
+// The workaround that predates render running discovery: discovery JSON
+// passed as a second --vars file.
+func TestRenderTwoVarsFilesWithDiscoveryJSON(t *testing.T) {
+	dir := t.TempDir()
+	present, _ := discoverySentinels(t, dir)
+	vars := writeDiscoveryFixture(t, dir, "vars.yml", "label: from-vars\n")
+	disc := writeDiscoveryFixture(t, dir, "disc.json", `{"Discovered":{"is_found":true}}`)
+	spec := writeDiscoveryFixture(t, dir, "main.yml", fmt.Sprintf(`file:
+  present:
+    path: %s
+    title: "{{ .Vars.label }}-{{ .Discovered.is_found }}"
+    exists: true
+`, present))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithVarsFiles([]string{vars, disc}), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	out, stderr, err := renderForTest(t, cfg)
+	if err != nil {
+		t.Fatalf("render: %v\n%s", err, stderr)
+	}
+	if !strings.Contains(out, "title: from-vars-true") {
+		t.Fatalf("expected both vars files to apply:\n%s", out)
+	}
+}
+
+// serveDiscoveryRequest builds the health handler and makes one request.
+func serveDiscoveryRequest(t *testing.T, cfg *util.Config) *httptest.ResponseRecorder {
+	t.Helper()
+	hh, err := newHealthHandler(t.Context(), cfg)
+	if err != nil {
+		t.Fatalf("new health handler: %v", err)
+	}
+	rr := httptest.NewRecorder()
+	http.HandlerFunc(hh.ServeHTTP).ServeHTTP(rr, makeRequest(t, cfg, nil))
+	return rr
+}
+
+// serve runs the spec's inline discovery: block when the handler is built.
+// The test asserts exists: <discovered value>, so it passes only if
+// discovery ran and found the file.
+//
+// Revert-proof: load newHealthHandler's spec with nil instead of the
+// discovered map and the handler fails to build ("map has no entry").
+func TestServeInlineDiscovery(t *testing.T) {
+	dir := t.TempDir()
+	present, _ := discoverySentinels(t, dir)
+	spec := writeDiscoveryFixture(t, dir, "main.yml", fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %[1]s
+      register: is_found
+      exists: true
+file:
+  present:
+    path: %[1]s
+    exists: {{ .Discovered.is_found }}
+`, present))
+
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithOutputFormat("json"), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	rr := serveDiscoveryRequest(t, cfg)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d:\n%s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestServeDiscoverFlag(t *testing.T) {
+	dir := t.TempDir()
+	present, _ := discoverySentinels(t, dir)
+	discover := writeDiscoveryFixture(t, dir, "discover.yaml", fmt.Sprintf(`discovery:
+  file:
+    found:
+      path: %s
+      register: is_found
+      exists: true
+`, present))
+	spec := writeDiscoveryFixture(t, dir, "main.yml", fmt.Sprintf(`file:
+  present:
+    path: %s
+    exists: {{ .Discovered.is_found }}
+`, present))
+
+	cfg, err := util.NewConfig(
+		util.WithSpecFile(spec),
+		util.WithDiscoverFile(discover),
+		util.WithOutputFormat("json"),
+		util.WithNoColor(),
+	)
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	rr := serveDiscoveryRequest(t, cfg)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d:\n%s", rr.Code, rr.Body.String())
+	}
+}
+
+// A spec with a template error reports the strict load's error from render,
+// as it did before render ran discovery, not the lenient peek's.
+// Under the peek, a missing key is a zero value, so toLower fails on it with
+// a different message.
+func TestRenderTemplateErrorIsTheStrictLoads(t *testing.T) {
+	dir := t.TempDir()
+	spec := writeDiscoveryFixture(t, dir, "main.yml", `file:
+  /x:
+    title: {{ toLower .Vars.missing }}
+    exists: true
+`)
+	cfg, err := util.NewConfig(util.WithSpecFile(spec), util.WithNoColor())
+	if err != nil {
+		t.Fatalf("new config: %v", err)
+	}
+	_, _, err = renderForTest(t, cfg)
+	if err == nil || !strings.Contains(err.Error(), `map has no entry for key "missing"`) {
+		t.Fatalf("expected the strict missingkey error, got: %v", err)
 	}
 }

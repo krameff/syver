@@ -79,8 +79,9 @@ variables, `--gossfile`, the `goss_tests_*` metrics, the `vnd.goss-` media types
 and the `dgoss`, `dcgoss` and `kgoss` scripts.
 
 They are maintained for compatibility but no longer extended. New features
-arrive under the syver names only: for example, `SYVER_TEMP_DIR` has no `GOSS_*`
-equivalent, and `sbxsyver` has no goss-named copy. If removal is ever planned,
+arrive under the syver names only: for example, `SYVER_TEMP_DIR`,
+`SYVER_TLS_CERT` and `SYVER_TLS_KEY` have no `GOSS_*` equivalent, and
+`sbxsyver` has no goss-named copy. If removal is ever planned,
 it will be announced in the changelog at least one minor release beforehand.
 
 ---
@@ -151,6 +152,7 @@ None of the following are required. Leave them out and nothing changes.
 | [`service.masked`](gossfile.md#service) | Tells a masked systemd unit apart from a disabled one, which `enabled: false` cannot do |
 | [`glob`](gossfile.md#glob) template function | Ranges over the files matching a pattern, as requested in [goss-org/goss#1141](https://github.com/goss-org/goss/issues/1141) |
 | JUnit [`<properties>`](cli.md#validate) | A resource's `meta:` is carried on each of its JUnit test cases |
+| [`serve` over HTTPS](cli.md#serve) | `--tls-cert` and `--tls-key` serve the health endpoint and `/metrics` over HTTPS, following the proposal in [goss-org/goss#1160](https://github.com/goss-org/goss/pull/1160) |
 
 Process and port lookups moved from two unmaintained libraries
 (`goss-org/go-ps` and `goss-org/GOnetstat`) to the maintained `gopsutil`. Specs
@@ -254,15 +256,17 @@ fails any other network with an error naming the valid ones. See
 | Default spec path | Static `./goss.yaml` | Resolved dynamically across all four names |
 | Nested add subcommand | `add goss` | `add syver`, and `add goss` still works |
 | `add pkg-baseline` | n/a | Records every installed package on a Linux host; Syver 0.20.0 or later |
-| Subcommands, flags, matchers | n/a | Identical |
+| `serve --tls-cert`, `--tls-key` | n/a | Serve over HTTPS; Syver 0.21.0 or later |
+| Subcommands, flags, matchers | n/a | Otherwise identical |
 
 ---
 
 ## Environment variables
 
-Every variable is paired. `SYVER_*` takes priority when set to a non-empty value;
-otherwise `GOSS_*` applies. An exported-but-empty `SYVER_*` is treated as unset and
-never shadows a real `GOSS_*`.
+Every variable goss had is paired. `SYVER_*` takes priority when set to a non-empty
+value; otherwise `GOSS_*` applies. An exported-but-empty `SYVER_*` is treated as
+unset and never shadows a real `GOSS_*`. Variables new in Syver, such as
+`SYVER_TLS_CERT` and `SYVER_TLS_KEY`, have a `SYVER_*` name only.
 
 | Item | goss | Syver |
 | --- | --- | --- |
@@ -294,6 +298,7 @@ never shadows a real `GOSS_*`.
 | Accept header vendor prefix | `vnd.goss-` | Both prefixes accepted, the client's own is echoed back |
 | Accept header absent | `vnd.goss-` | `vnd.goss-`, since no preference was expressed |
 | `/metrics` endpoint | Served an empty registry, a bug | Serves the real metrics |
+| `serve` over HTTPS | none | `--tls-cert` and `--tls-key` (environment `SYVER_TLS_*` only), TLS 1.2 or later |
 | Skipped results | `skipped` | `skipped (<reason>)` when a reason exists, in documentation, rspecish, TAP, json and structured |
 | JUnit | n/a | `<skipped>` carries the reason as `message`; a resource's `meta:` becomes `<properties>` on each test case |
 | JSON, structured | n/a | A `skip-reason` field on skipped results |

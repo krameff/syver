@@ -522,7 +522,7 @@ func TestRenderJSONDebugDump(t *testing.T) {
 
 			var rendered string
 			var renderErr error
-			stdout, stderr := captureStdoutStderr(t, func() { rendered, renderErr = RenderJSON(cfg) })
+			stdout, stderr := captureStdoutStderr(t, func() { rendered, renderErr = RenderJSON(t.Context(), cfg) })
 
 			assert.NoError(t, renderErr)
 			assert.Contains(t, rendered, "/etc/rendered-marker")

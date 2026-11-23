@@ -254,6 +254,10 @@ $ curl localhost:8080/healthz
 # rspecish response via content negotiation
 $ syver serve --format json &
 $ curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
+
+# HTTPS, see docs/cli.md#serve
+$ syver serve --tls-cert server.crt --tls-key server.key &
+$ curl --cacert ca.crt https://localhost:8080/healthz
 ```
 
 ### Manually editing Syver files
