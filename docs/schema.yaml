@@ -226,7 +226,7 @@ definitions:
       md5:
         type: string
         default: 7c9bb14b3bf178e82c00c2a4398c93cd
-        description: md5 checksum of file
+        description: "md5 checksum of file. Fails when syver runs with GODEBUG=fips140=only; use sha256 or sha512 there"
 
       sha256:
         type: string

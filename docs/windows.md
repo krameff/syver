@@ -360,6 +360,24 @@ what you are looking at. `addr`'s budget was raised from one second to five on
 2026-09-04 after exactly that happened. Treat a repeatable failure as real and a
 one-off as suspect, and check the rest of the run before assuming a regression.
 
+## FIPS 140-3 mode
+
+Set `GODEBUG` the PowerShell way. It stays set for the rest of the session, so
+remove it afterwards:
+
+```powershell
+$env:GODEBUG = "fips140=on"
+syver --version
+Remove-Item Env:GODEBUG
+```
+
+What each mode does, and what `--version` reports, is the same as on Linux: see
+[FIPS 140-3 mode](installation.md#fips-140-3-mode). As there, it is syver's own
+setting: the Windows FIPS policy
+(`HKLM\SYSTEM\CurrentControlSet\Control\Lsa\FipsAlgorithmPolicy`, value
+`Enabled`) does not switch syver into FIPS mode. Check the policy with a
+`registry:` check if you need to.
+
 ## Behaviour changes since 0.11.0
 
 Windows specs that passed before may now fail. That is the point: they were not
