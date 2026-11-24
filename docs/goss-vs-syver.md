@@ -153,6 +153,7 @@ None of the following are required. Leave them out and nothing changes.
 | [`glob`](gossfile.md#glob) template function | Ranges over the files matching a pattern, as requested in [goss-org/goss#1141](https://github.com/goss-org/goss/issues/1141) |
 | JUnit [`<properties>`](cli.md#validate) | A resource's `meta:` is carried on each of its JUnit test cases |
 | [`serve` over HTTPS](cli.md#serve) | `--tls-cert` and `--tls-key` serve the health endpoint and `/metrics` over HTTPS, following the proposal in [goss-org/goss#1160](https://github.com/goss-org/goss/pull/1160) |
+| [FIPS 140-3 state](installation.md#fips-140-3-mode) | `syver --version` reports whether the binary was built with a frozen Go Cryptographic Module and whether it is running in FIPS 140-3 mode; goss reports neither |
 
 Process and port lookups moved from two unmaintained libraries
 (`goss-org/go-ps` and `goss-org/GOnetstat`) to the maintained `gopsutil`. Specs

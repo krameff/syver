@@ -2,6 +2,7 @@ package system
 
 import (
 	"context"
+	"crypto/fips140"
 	"crypto/md5"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -251,7 +252,31 @@ func realPath(path string) (string, error) {
 	return filepath.Abs(filepath.Join(usr.HomeDir, rest))
 }
 
+// fipsEnforced reports whether the process runs in Go's FIPS 140-only mode
+// (GODEBUG=fips140=only). A variable so the system tests can force it.
+var fipsEnforced = fips140.Enforced
+
+// errMd5FIPSOnly is the md5 result in FIPS 140-only mode. Go refuses md5
+// there, and an empty file would otherwise reach hash.Sum and panic, which
+// replaces every other result of the resource.
+var errMd5FIPSOnly = errors.New("md5 is not available when syver runs in FIPS 140-only mode (GODEBUG=fips140=only); check this file with sha256 or sha512")
+
+// fipsHashError returns the error for a hash function the current FIPS 140
+// mode does not allow, or nil. Every FIPS rule about file hashes lives here.
+// Only md5 is refused, and only in FIPS 140-only mode: sha256 and sha512 are
+// approved, and Go allows md5 in FIPS 140-3 mode "on".
+func fipsHashError(hashFunc hashFuncType) error {
+	if hashFunc == md5Hash && fipsEnforced() {
+		return errMd5FIPSOnly
+	}
+	return nil
+}
+
 func (f *DefFile) hash(hashFunc hashFuncType) (string, error) {
+	// Before setup, so a refused hash costs no I/O.
+	if err := fipsHashError(hashFunc); err != nil {
+		return "", err
+	}
 
 	if err := f.setup(); err != nil {
 		return "", err

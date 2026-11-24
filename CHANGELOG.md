@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.22.0 based on krameff/goss v0.6.0 - FIPS 140-3 mode reporting
+
+- FIPS 140-3 mode reporting and fixes
+  - `syver --version` prints a third line, `fips140: mode=... module=...`,
+    so scripts can tell whether a binary was built with a frozen Go
+    Cryptographic Module and whether it is running in FIPS 140-3 mode. The
+    first two lines are unchanged. A plain build prints
+    `fips140: mode=off module=none`. The mode is syver's own: a host in FIPS
+    mode does not put syver in FIPS mode. The installation docs have a new
+    "FIPS 140-3 mode" section
+  - `--version` now works on every build. A binary built with `go build` or
+    `go install` had no `--version` flag at all. Now `go install ...@v0.22.0`
+    reports `0.22.0`, and a binary built from a git checkout reports
+    `(devel)`
+  - Under `GODEBUG=fips140=only`, a file check's `md5:` attribute and the
+    `md5sum`, `md5Sum`, `sha1sum`, `sha1Sum` and `genPrivateKey "dsa"`
+    template functions now fail with an error naming the function and a
+    FIPS-approved alternative. Before, `md5:` on an empty file gave a
+    `panic:` result that hid the file's other checks, and the template
+    functions rendered an empty value without an error. Outside that mode
+    nothing changes
+
 ## 0.21.0 based on krameff/goss v0.6.0 - serve over HTTPS, discovery under render and serve
 
 - discovery under `render` and `serve`

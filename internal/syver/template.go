@@ -2,11 +2,13 @@ package syver
 
 import (
 	"bytes"
+	"crypto/fips140"
 	"errors"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -42,6 +44,10 @@ func newTemplateFilter(varsFiles []string, varsInline string, discovered map[str
 		Discovered: discoveredFromVars(vars),
 	}
 
+	// Built once per filter, so a sprout upgrade that changes a guarded
+	// function's shape panics here, in every test that renders a template.
+	fipsGuards := fipsGuardTemplateFuncs(sprigin.TxtFuncMap())
+
 	f := func(data []byte) ([]byte, error) {
 		// funcMap is applied SECOND on purpose, and the order is load-bearing.
 		// Three names collide with sprout: regexMatch, toUpper and toLower.
@@ -54,7 +60,10 @@ func newTemplateFilter(varsFiles []string, varsInline string, discovered map[str
 		// pass having asserted nothing. Ours is func(string) string, so the
 		// same expression fails the run and names the line. Reversing these
 		// two calls turns a loud failure into a silent one.
-		t := template.New("test").Funcs(sprigin.TxtFuncMap()).Funcs(funcMap)
+		//
+		// fipsGuards sits between the two: it replaces sprout's own entries for
+		// the guarded names and shares no name with funcMap.
+		t := template.New("test").Funcs(sprigin.TxtFuncMap()).Funcs(fipsGuards).Funcs(funcMap)
 
 		tmpl, err := t.Parse(string(data))
 		if err != nil {
@@ -202,4 +211,79 @@ var funcMap = template.FuncMap{
 	"toUpper":            strings.ToUpper,
 	"toLower":            strings.ToLower,
 	"findStringSubmatch": findStringSubmatch,
+}
+
+// fipsGuardedTemplateFuncs names the sprout template functions that render an
+// empty value, silently, when syver runs in Go's FIPS 140-only mode
+// (GODEBUG=fips140=only), mapped to the hint their error gives. sprout's
+// backward-compatible wrapper discards every error and recovered panic, so a
+// refused algorithm becomes "<no value>" and the render succeeds. The guard
+// turns that into a failed render naming the function.
+//
+// The authority for this set is TestTemplateFIPSProbe, which calls every
+// sprout function with and without enforcement: a function that returns a
+// value without it and an empty one with it must be listed here or in
+// fipsSilentTemplateFuncsAccepted, and every name here must show that
+// difference.
+var fipsGuardedTemplateFuncs = map[string]string{
+	"md5sum":        "for a checksum, use sha256Sum",
+	"md5Sum":        "for a checksum, use sha256Sum",
+	"sha1sum":       "for a checksum, use sha256Sum",
+	"sha1Sum":       "for a checksum, use sha256Sum",
+	"genPrivateKey": "for a key, use rsa, ecdsa or ed25519",
+}
+
+// fipsSilentTemplateFuncsAccepted lists functions that render empty in FIPS
+// 140-only mode but are deliberately not guarded, with the reason. Empty:
+// everything the probe finds is guarded.
+var fipsSilentTemplateFuncsAccepted = map[string]string{}
+
+// templateFIPSEnforced reports FIPS 140-only mode. A variable so the tests
+// can force it.
+var templateFIPSEnforced = fips140.Enforced
+
+// sproutFunc is the shape sprout's backward-compatible map gives every
+// function whose name does not start with "must".
+type sproutFunc = func(...any) (any, error)
+
+// fipsGuardTemplateFuncs wraps each guarded function of the sprout map. It
+// panics if a guarded name is missing or has another shape: a sprout upgrade
+// that changes either must fail loudly, not quietly drop the guard.
+func fipsGuardTemplateFuncs(sprout template.FuncMap) template.FuncMap {
+	guards := make(template.FuncMap, len(fipsGuardedTemplateFuncs))
+	for name, hint := range fipsGuardedTemplateFuncs {
+		v, ok := sprout[name]
+		if !ok {
+			panic(fmt.Sprintf("template function %s is FIPS-guarded but sprout no longer provides it", name))
+		}
+		fn, ok := v.(sproutFunc)
+		if !ok {
+			panic(fmt.Sprintf("template function %s is FIPS-guarded but sprout's value is now %T, not func(...any) (any, error)", name, v))
+		}
+		guards[name] = fipsGuardTemplateFunc(name, hint, fn)
+	}
+	return guards
+}
+
+// emptyTemplateValue reports whether a sprout result is what its wrapper
+// leaves behind when the function failed: nil after a recovered panic (the
+// md5 and sha1 checksums), or the zero value the function returned alongside
+// its error (genPrivateKey "dsa" gives "").
+func emptyTemplateValue(v any) bool {
+	return v == nil || reflect.ValueOf(v).IsZero()
+}
+
+// fipsGuardTemplateFunc calls the sprout function unchanged, sprout's own
+// deprecation warnings included. Only in FIPS 140-only mode, and only when
+// the call produced an empty value, does it return an error instead: a value
+// is passed through, so `genPrivateKey "rsa"` still works in that mode. None
+// of the guarded functions returns an empty value on success.
+func fipsGuardTemplateFunc(name, hint string, delegate sproutFunc) sproutFunc {
+	return func(args ...any) (any, error) {
+		out, err := delegate(args...)
+		if err != nil || !emptyTemplateValue(out) || !templateFIPSEnforced() {
+			return out, err
+		}
+		return nil, fmt.Errorf("template function %s failed in FIPS 140-only mode: it uses an algorithm that mode does not allow (%s)", name, hint)
+	}
 }

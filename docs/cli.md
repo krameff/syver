@@ -27,19 +27,45 @@ GLOBAL OPTIONS:
    --version, -v                                                print the version
 ```
 
-!!! note "`--version` needs a version-stamped binary"
-    `--version`/`-v` exists only when the binary was built with a version
-    stamp: release binaries, `make build` and GoReleaser builds all have one. A
-    binary from a plain `go build ./cmd/syver` or `go install` has no version
-    set, so the flag is not registered, does not appear in `--help`, and
-    `syver --version` fails with `flag provided but not defined: -version`.
-
 !!! note
     Many flags can also be set with an environment variable, but not all of
     them: [Environment variables](#environment-variables) lists every flag,
     its variables and its default. `SYVER_*` variables are checked first; the
     legacy `GOSS_*` variables are still honored as a fallback, under the
     [compatibility policy](goss-vs-syver.md#compatibility-policy).
+
+### `--version`
+
+`syver --version` (or `-v`) prints three lines:
+
+```console
+$ syver --version
+syver version 0.22.0
+Krameff Solutions Ltd
+fips140: mode=off module=none
+```
+
+* Line 1 is the version. Scripts that read the version should read it from
+  this line; it always comes first.
+* Line 2 is unchanged from earlier releases.
+* Line 3 is the binary's [FIPS 140-3 state](installation.md#fips-140-3-mode),
+  as `key=value` pairs in a fixed order:
+    * `mode`: `off`, `on` or `only`, the FIPS 140-3 mode syver is running in;
+    * `module`: the frozen Go Cryptographic Module version the binary was
+      built with (for example `v1.26.0`), or `none`;
+    * `module-id`: the exact module build, present only when `module` is not
+      `none`.
+
+The version on line 1 comes from the build:
+
+* release binaries report the version of their release tag, and so do
+  `make build` and GoReleaser builds, which stamp it;
+* `go install github.com/krameff/syver/cmd/syver@vX.Y.Z` reports `X.Y.Z`;
+* a binary built yourself from a git checkout with `go build` or `go install`
+  reports `(devel)`.
+
+Earlier releases had no `--version` flag at all on a binary built with
+`go build` or `go install`.
 
 ## Global options
 
@@ -649,7 +675,7 @@ command line flag beats both variables. Variables added since the rename have a
 | global | `--vars-inline` | `SYVER_VARS_INLINE` | `GOSS_VARS_INLINE` | unset |
 | global | `--package` | none | none | detected from the system |
 | global | `--use-alpha` (macOS and Windows builds only) | `SYVER_USE_ALPHA` | `GOSS_USE_ALPHA` | `0` |
-| global | `--version`, `-v` (version-stamped builds only) | none | none | |
+| global | `--version`, `-v` | none | none | |
 | `validate` | `--format`, `-f` | `SYVER_FMT` | `GOSS_FMT` | `rspecish` |
 | `validate` | `--format-options`, `-o` | `SYVER_FMT_OPTIONS` | `GOSS_FMT_OPTIONS` | unset |
 | `validate` | `--color` | `SYVER_COLOR` | `GOSS_COLOR` | `false` |
