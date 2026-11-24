@@ -126,3 +126,45 @@ gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.rsa.sig syver_${SYVER_VER#v}_SHA256
 A `gpg --verify` output of `Good signature from "Krameff Solutions Limited..."`
 confirms the checksum file (and therefore every archive listed in it) came
 from this project and hasn't been tampered with.
+
+## FIPS 140-3 mode
+
+syver is pure Go, and its cryptography comes from Go's own FIPS 140-3
+module, the Go Cryptographic Module. `syver --version` reports how a binary
+uses it, on its third line (see [`--version`](cli.md#-version)):
+
+```console
+$ GODEBUG=fips140=on syver --version
+syver version 0.22.0
+Krameff Solutions Ltd
+fips140: mode=on module=none
+```
+
+* `module` is the frozen module version the binary was built with, or `none`
+  when it was built against the standard library's own copy, as a plain
+  `go build` or the standard release binaries are.
+* `mode` is the FIPS 140-3 mode the syver process is running in: `off`, `on`
+  or `only`. It is syver's own setting, not the host's. A host with FIPS mode
+  enabled does NOT switch syver into FIPS mode; check the host's setting with
+  a `file:` check on `/proc/sys/crypto/fips_enabled`.
+* `GODEBUG=fips140=on` and `GODEBUG=fips140=off` turn the mode on and off for
+  one run. `GODEBUG=fips140=debug` is the same as `on` (and reports
+  `mode=on`), and also prints Go's self-test messages to standard error.
+* `GODEBUG=fips140=only` makes algorithms that FIPS 140-3 does not approve
+  fail. Go documents it as an aid for finding them, not for production. In
+  syver, under `only`:
+    * a file check's `md5:` attribute fails with a message naming `sha256`
+      and `sha512`, which keep working, and the file's other checks still
+      run. In mode `on`, `md5:` works as before;
+    * the template functions `md5sum`, `md5Sum`, `sha1sum`, `sha1Sum`, and
+      `genPrivateKey` with a key type the mode refuses (`dsa`), fail the
+      render with an error naming the function;
+    * any other template function that uses a refused algorithm renders an
+      empty value;
+    * `bcrypt` and `htpasswd` are outside Go's enforcement and run normally.
+* TLS: in FIPS mode Go's `crypto/tls` negotiates only FIPS 140-3 approved
+  protocol versions, cipher suites, key exchanges and signature algorithms,
+  for the `http` resource and for [`serve` over HTTPS](cli.md#serve). An
+  `https` check against a server that offers none of them fails its
+  handshake. `allow-insecure: true` still skips certificate verification in
+  FIPS mode.
