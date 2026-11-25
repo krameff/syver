@@ -39,15 +39,19 @@ cleanup() {
     set +e
     { kill "$log_pid" && wait "$log_pid"; } 2> /dev/null
     [ "$DEBUG" ] || rm -rf "$tmp_parent"
-    # COMPOSE_BIN may still be unresolved here if cleanup() fires (via the
-    # EXIT trap) before Main ever reaches compose-provider detection --
-    # e.g. the "no compose file found" gate exits first. Guard on it being
-    # populated so that early-exit case doesn't try to run a bare "stop".
-    if [[ -n "$service" && ${#COMPOSE_BIN[@]} -gt 0 ]]; then
+    # cleanup() also fires (via the EXIT trap) on the early exits before
+    # anything is started, such as the "no compose file found" gate, when
+    # COMPOSE_BIN may be unresolved and "$service" may name a container this
+    # run never created. Only clean up once run() has started the service.
+    if [[ -n "$service_started" ]]; then
         info "Stopping container"
-        # Uses the v2 `docker compose` plugin by default, with a v1
-        # `docker-compose` fallback -- see FEAT-004 for the migration and
-        # the remote-host verification that confirmed it.
+        # The service runs as a one-off `compose run` container, which
+        # `compose stop` does not touch, so remove it by name. Without this it
+        # stays up after the wrapper exits.
+        $CONTAINER_RUNTIME rm -f "$service" > /dev/null 2>&1
+        # Stops anything compose started for the service, such as its
+        # depends_on services. Uses the v2 `docker compose` plugin by default,
+        # with a v1 `docker-compose` fallback.
         "${COMPOSE_BIN[@]}" stop > /dev/null
     fi
 }
@@ -90,6 +94,9 @@ run(){
 
     # Switch between mount or cp files strategy
     GOSS_FILES_STRATEGY=${GOSS_FILES_STRATEGY:="mount"}
+    # Set before `compose run`, so a run that fails part way, after compose has
+    # started depends_on services, is still cleaned up.
+    service_started=1
     case "$GOSS_FILES_STRATEGY" in
       mount)
         info "Starting $CONTAINER_RUNTIME container"
@@ -163,6 +170,7 @@ tmp_parent=$(mktemp -d /tmp/tmp.XXXXXXXXXX)
 tmp_dir="$tmp_parent/goss"
 mkdir "$tmp_dir"
 chmod 777 "$tmp_dir"
+service_started=""
 # shellcheck disable=SC2154
 trap 'ret=$?; cleanup; info "Test ran for a total of $SECONDS seconds"; exit $ret' EXIT
 service="$2"

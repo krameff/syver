@@ -1003,6 +1003,138 @@ echo edited > syver.yaml`
 	}
 }
 
+// composeRuntime stands in for docker under the compose wrappers. It records
+// every invocation and exits FAKE_VALIDATE_RC from the test run, so a failing
+// spec can be simulated. `inspect` answers "true" for every format, which the
+// wrappers read as "no stale container" before starting and "running" after.
+const composeRuntime = `#!/bin/bash
+echo "$*" >> "$FAKE_RUNTIME_LOG"
+case "$1" in
+  inspect) echo true ;;
+  exec) case "${@: -1}" in *goss.yaml\ render*) exit "${FAKE_VALIDATE_RC:-0}" ;; esac ;;
+esac
+exit 0
+`
+
+// TestComposeWrapperRemovesServiceContainer proves dcsyver and dcgoss remove
+// the service container on exit. They start it with `compose run`, a one-off
+// container that `compose stop` does not stop, so a cleanup that only ran
+// `compose stop` left it running after every run, passing or failing. The
+// early exit for a missing compose file must touch no container at all: with
+// COMPOSE_BIN set in the environment, a guard on COMPOSE_BIN being populated
+// let cleanup reach the runtime before the wrapper had started anything.
+//
+// REVERT-PROOF: dropping the `rm -f "$service"` from cleanup() in either script
+// fails its "passing run" and "failing run" cases; guarding cleanup on
+// COMPOSE_BIN instead of service_started fails "no compose file".
+func TestComposeWrapperRemovesServiceContainer(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("the wrappers are bash scripts driving a local container runtime")
+	}
+	bash, err := exec.LookPath("bash")
+	if err != nil {
+		t.Skip("bash not available")
+	}
+
+	tests := []struct {
+		name          string
+		validateRC    string
+		noComposeFile bool
+		wantOK        bool
+	}{
+		{name: "passing run", validateRC: "0", wantOK: true},
+		{name: "failing run", validateRC: "1"},
+		{name: "no compose file", validateRC: "0", noComposeFile: true},
+	}
+
+	for _, script := range []string{"dcsyver", "dcgoss"} {
+		scriptPath, err := filepath.Abs(filepath.Join("extras", "dcsyver", script))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, tc := range tests {
+			t.Run(script+"/"+tc.name, func(t *testing.T) {
+				dir := t.TempDir()
+				binDir := filepath.Join(dir, "bin")
+				specDir := filepath.Join(dir, "spec")
+				for _, d := range []string{binDir, specDir} {
+					if err := os.Mkdir(d, 0o755); err != nil {
+						t.Fatal(err)
+					}
+				}
+				if err := os.WriteFile(filepath.Join(binDir, "docker"), []byte(composeRuntime), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(filepath.Join(specDir, "goss.yaml"), []byte("file: {}\n"), 0o644); err != nil {
+					t.Fatal(err)
+				}
+				if !tc.noComposeFile {
+					if err := os.WriteFile(filepath.Join(specDir, "compose.yaml"), []byte("services: {}\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				fakeSyver := filepath.Join(dir, "syver")
+				if err := os.WriteFile(fakeSyver, []byte("#!/bin/sh\n"), 0o755); err != nil {
+					t.Fatal(err)
+				}
+				callLog := filepath.Join(dir, "calls.log")
+
+				cmd := exec.Command(bash, scriptPath, "run", "svc")
+				cmd.Dir = specDir
+				cmd.Env = append(os.Environ(),
+					"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+					"CONTAINER_RUNTIME=docker",
+					"COMPOSE_BIN=docker compose",
+					"GOSS_FILES_PATH="+specDir,
+					"GOSS_PATH="+fakeSyver,
+					"GOSS_SLEEP=0",
+					"FAKE_RUNTIME_LOG="+callLog,
+					"FAKE_VALIDATE_RC="+tc.validateRC,
+				)
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				runErr := cmd.Run()
+				calls := string(readCallLog(t, callLog))
+				detail := "stderr:\n" + stderr.String() + "\nruntime calls:\n" + calls
+
+				if tc.wantOK && runErr != nil {
+					t.Fatalf("wrapper failed: %v\n%s", runErr, detail)
+				}
+				if !tc.wantOK && runErr == nil {
+					t.Fatalf("wrapper succeeded, want failure\n%s", detail)
+				}
+
+				if tc.noComposeFile {
+					if calls != "" {
+						t.Errorf("runtime was called before the compose file check\n%s", detail)
+					}
+					return
+				}
+				// The removal must come after the service was started, so it is
+				// the cleanup doing it and not the stale-container check.
+				started, removed := false, false
+				for line := range strings.SplitSeq(calls, "\n") {
+					switch {
+					case strings.HasPrefix(line, "compose run "):
+						started = true
+					case started && line == "rm -f svc":
+						removed = true
+					}
+				}
+				if !started {
+					t.Fatalf("the service was never started\n%s", detail)
+				}
+				if !removed {
+					t.Errorf("the service container was not removed after the run\n%s", detail)
+				}
+				if !containsLinePrefix(calls, "compose stop") {
+					t.Errorf("compose stop no longer runs, so depends_on services stay up\n%s", detail)
+				}
+			})
+		}
+	}
+}
+
 // gossShimNotice is the compatibility notice each goss-named script prints. The
 // parity test removes it, after checking it names the script's syver twin.
 var gossShimNotice = regexp.MustCompile(`(?s)\n[ \t]*# The compatibility notice:.*?is maintained for compatibility but gets no new features; use (\w+)"\n\n`)
