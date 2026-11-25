@@ -44,44 +44,79 @@ export SYVER_PATH="${BIN}"
 
 cleanup() {
   local ret=$?
-  # dcsyver's own cleanup issues `compose stop`, which stops but does not
-  # remove. Reap explicitly so a failing run cannot leave a container behind on
-  # a shared test host.
+  # dcsyver removes its own service container and stops the rest, but nothing
+  # removes the stopped dependencies or the project network. Reap explicitly so
+  # no run, passing or failing, leaves anything behind on a shared test host.
   ( cd "${FIXTURE}" && "${CONTAINER_RUNTIME}" compose down -v --remove-orphans >/dev/null 2>&1 ) || true
+  [[ -n "${fail_dir:-}" ]] && rm -rf "${fail_dir}"
   exit "${ret}"
 }
 trap cleanup EXIT
 
-log "running dcsyver against ${FIXTURE}/compose.yaml (service: ${SERVICE})"
+# assert_no_leftover WRAPPER CASE fails if a container named for the service
+# survived the wrapper's exit. The wrapper starts the service with `compose run`,
+# a one-off container that `compose stop` does not stop, so a cleanup relying on
+# `compose stop` alone left it running. Each wrapper also removes a same-named
+# container before starting, which is why the leak never showed on a rerun.
+assert_no_leftover() {
+  local left
+  left="$("${CONTAINER_RUNTIME}" ps -a --filter "name=^/?${SERVICE}$" --format '{{.Names}} {{.Status}}')"
+  if [[ -n "${left}" ]]; then
+    log "FAIL: $1 ($2) left a container behind after exiting:"
+    log "  ${left}"
+    "${CONTAINER_RUNTIME}" rm -f "${SERVICE}" >/dev/null 2>&1 || true
+    exit 1
+  fi
+}
+
 cd "${FIXTURE}"
 
-out="$("${ROOT}/extras/dcsyver/dcsyver" run "${SERVICE}" 2>&1)" && rc=0 || rc=$?
-echo "${out}"
+for wrapper in dcsyver dcgoss; do
+  log "running ${wrapper} against ${FIXTURE}/compose.yaml (service: ${SERVICE})"
+  out="$("${ROOT}/extras/dcsyver/${wrapper}" run "${SERVICE}" 2>&1)" && rc=0 || rc=$?
+  echo "${out}"
 
-if [[ "${rc}" -ne 0 ]]; then
-  log "FAIL: dcsyver exited ${rc}"
-  # This specific error meant the stdin double-read bug, fixed
-  # 2026-08-17. If it reappears, that fix has regressed -- check readStdinOnce()
-  # in store.go before looking anywhere else.
-  if grep -q "found 0 tests, source: STDIN" <<<"${out}"; then
-    log "cause: REGRESSION of the stdin double-read fix. dcsyver's test"
-    log "       path is 'render | validate -g -'; reading a spec from a pipe is"
-    log "       returning zero tests again. See readStdinOnce() in store.go."
+  if [[ "${rc}" -ne 0 ]]; then
+    log "FAIL: ${wrapper} exited ${rc}"
+    # This specific error meant the stdin double-read bug, fixed
+    # 2026-08-17. If it reappears, that fix has regressed -- check readStdinOnce()
+    # in store.go before looking anywhere else.
+    if grep -q "found 0 tests, source: STDIN" <<<"${out}"; then
+      log "cause: REGRESSION of the stdin double-read fix. dcsyver's test"
+      log "       path is 'render | validate -g -'; reading a spec from a pipe is"
+      log "       returning zero tests again. See readStdinOnce() in store.go."
+    fi
+    exit "${rc}"
   fi
-  exit "${rc}"
-fi
 
-# Assert on outcome, not on an exact assertion count. An earlier version of this
-# script hardcoded "Count: 2" while the fixture defined 4, so editing the fixture
-# broke the script in a way that looked like a product failure. What actually
-# matters is that the spec was found, ran inside the container, and everything
-# passed -- a zero Count is the real failure mode, since that is what a spec that
-# never loaded looks like.
-if ! grep -qE "Count: [1-9][0-9]*, Failed: 0, Skipped: 0" <<<"${out}"; then
-  log "FAIL: expected a non-zero assertion count with no failures or skips, got:"
-  grep -E "^Count:" <<<"${out}" >&2 || log "  (no Count line at all -- the spec never ran)"
+  # Assert on outcome, not on an exact assertion count. An earlier version of this
+  # script hardcoded "Count: 2" while the fixture defined 4, so editing the fixture
+  # broke the script in a way that looked like a product failure. What actually
+  # matters is that the spec was found, ran inside the container, and everything
+  # passed -- a zero Count is the real failure mode, since that is what a spec that
+  # never loaded looks like.
+  if ! grep -qE "Count: [1-9][0-9]*, Failed: 0, Skipped: 0" <<<"${out}"; then
+    log "FAIL: expected a non-zero assertion count with no failures or skips, got:"
+    grep -E "^Count:" <<<"${out}" >&2 || log "  (no Count line at all -- the spec never ran)"
+    exit 1
+  fi
+
+  assert_no_leftover "${wrapper}" "passing run"
+done
+
+# A failing spec takes the same cleanup path through the EXIT trap, so it must
+# leave nothing behind either. GOSS_FILES_PATH points the wrapper at a spec
+# outside the fixture while the compose file is still read from here.
+fail_dir="$(mktemp -d)"
+printf 'file:\n  /syver-e2e-does-not-exist:\n    exists: true\n' >"${fail_dir}/syver.yaml"
+log "running dcsyver with a failing spec (service: ${SERVICE})"
+out="$(GOSS_FILES_PATH="${fail_dir}" "${ROOT}/extras/dcsyver/dcsyver" run "${SERVICE}" 2>&1)" && rc=0 || rc=$?
+echo "${out}"
+if [[ "${rc}" -eq 0 ]]; then
+  log "FAIL: dcsyver exited 0 on a spec that cannot pass"
   exit 1
 fi
+assert_no_leftover dcsyver "failing run"
 
 log "ok"
 

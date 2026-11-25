@@ -53,6 +53,8 @@ binary explicitly)
   `syver_wait.yaml`, `syver_wait.yml`, `goss_wait.yaml` and `goss_wait.yml`
 * Run syver with `$GOSS_OPTS` using the spec in `GOSS_FILES_PATH`: the first of `syver.yaml`,
   `syver.yml`, `goss.yaml` and `goss.yml`
+* On exit, pass or fail, remove the service container and stop any services Compose started for it.
+  Those stopped containers and the project network stay until `docker compose down`
 
 ### Edit
 
