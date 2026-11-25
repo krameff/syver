@@ -463,7 +463,9 @@ Service:
 Port:
 
 * Port state is read from `/proc/net/{tcp,udp,tcp6,udp6}` on Linux, where it is
-  fully supported. It is not implemented on macOS or Windows: measured on
+  fully supported. For a socket on `[::]`, Linux sock_diag says whether it
+  also accepts IPv4; if it does, it counts for `tcp:N` / `udp:N` with `ip`
+  `0.0.0.0`. It is not implemented on macOS or Windows: measured on
   Windows Server 2025, every assertion returns "not implemented yet". See
   [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md),
   which is the authoritative per-resource matrix.

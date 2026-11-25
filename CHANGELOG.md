@@ -21,6 +21,24 @@
     `panic:` result that hid the file's other checks, and the template
     functions rendered an empty value without an error. Outside that mode
     nothing changes
+- `port:` counts dual-stack IPv6 listeners for `tcp:` and `udp:` on Linux
+  - A `tcp:N` or `udp:N` check that says `listening: false` can now fail on a
+    Linux host, including one written by `syver add port` on an earlier
+    release, when the port's only listener is a socket on `[::]` that also
+    accepts IPv4 (dual-stack). IPv4 clients can connect to such a port, but
+    syver used to report it under `tcp6:N` / `udp6:N` only. Many servers open
+    this kind of socket when told to listen on `0.0.0.0` or on a bare port,
+    Go programs among them
+  - Such a port now counts as listening for `tcp:N` / `udp:N`, with `ip`
+    `0.0.0.0`, and is still reported under `tcp6:N` / `udp6:N` as before. So
+    `tcp:N listening: true` now passes for it, and an `ip:` naming a single
+    address, such as `127.0.0.1`, fails with `0.0.0.0`. `syver add port` now
+    writes `listening: true` and `ip: [0.0.0.0]` for it, and adding a process
+    that owns one writes both the `tcp:N` and the `tcp6:N` entry
+  - A socket on `[::]` that accepts IPv6 only is not counted for `tcp:N`.
+    Where the kernel cannot say which kind a socket is (some sandboxes and
+    older kernels, or when `HOST_PROC` is set), the result is the same as
+    before. macOS and Windows are unchanged: `port:` is not implemented there
 
 ## 0.21.0 based on krameff/goss v0.6.0 - serve over HTTPS, discovery under render and serve
 

@@ -1036,13 +1036,20 @@ See [`examples/pkg-baseline.yaml`](https://github.com/krameff/syver/blob/main/ex
 Validates the state of a local port.
 
 !!! note
-    Syver might consider your port to be listening on `tcp6` rather than `tcp`,
-    try running `syver add port ..` to see how syver detects it.
-    ([explanation](https://github.com/goss-org/goss/issues/149))
+    On Linux, a socket on `[::]:N` that also accepts IPv4 (dual-stack, the
+    default for many servers that listen on `0.0.0.0` or on a bare port) counts
+    for `tcp:N` / `udp:N`, with `ip` `0.0.0.0`; it is also reported under
+    `tcp6:N` / `udp6:N`. Where the kernel cannot say whether a socket is
+    dual-stack (some sandboxes and older kernels, or when `HOST_PROC` is set),
+    it is reported only under `tcp6:N` / `udp6:N`; check that key, or run
+    `syver add port ..` to see how syver detects it. A socket on `[::]:N` that
+    accepts IPv6 only is never counted for `tcp:N`.
+    ([background](https://github.com/goss-org/goss/issues/149))
 
 The key is `network:port`. The network is one of `tcp`, `tcp6`, `udp` or
 `udp6`, and `tcp4` and `udp4` are accepted as other names for `tcp` and `udp`,
-which already mean IPv4 only. A bare port number means `tcp`. Any other network,
+which mean IPv4 (including the dual-stack sockets above). A bare port number
+means `tcp`. Any other network,
 such as a typo, fails the check with an error naming the valid ones, and
 `syver add port` refuses it.
 
