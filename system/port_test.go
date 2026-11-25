@@ -1,7 +1,11 @@
 package system
 
 import (
+	"bytes"
 	"errors"
+	"log"
+	"strings"
+	"sync"
 	"testing"
 
 	"github.com/shirou/gopsutil/v4/net"
@@ -12,7 +16,10 @@ import (
 
 // fakeConnections stubs out connectionsByKind so tests never touch the real
 // OS connection table. errs, if non-nil, maps a kind ("tcp4", "tcp6", "udp4",
-// "udp6") to the error connectionsByKind should return for that kind.
+// "udp6") to the error connectionsByKind should return for that kind. It also
+// stubs wildcardV6OnlyFn to know no socket's IPV6_V6ONLY, so a fake [::]
+// entry is never matched against the host's real sockets; fakeV6Only
+// overrides that.
 func fakeConnections(t *testing.T, byKind map[string][]net.ConnectionStat, errs map[string]error) {
 	t.Helper()
 	orig := connectionsByKind
@@ -22,6 +29,233 @@ func fakeConnections(t *testing.T, byKind map[string][]net.ConnectionStat, errs 
 	t.Cleanup(func() {
 		connectionsByKind = orig
 	})
+	fakeV6Only(t, nil, nil, nil)
+}
+
+// fakeV6Only stubs wildcardV6OnlyFn: byProto maps protoTCP/protoUDP to the
+// states to return, err is returned for every call, and calls, if non-nil,
+// counts the calls per protocol.
+func fakeV6Only(t *testing.T, byProto map[uint8]map[uint32]v6onlyState, err error, calls map[uint8]int) {
+	t.Helper()
+	orig := wildcardV6OnlyFn
+	wildcardV6OnlyFn = func(proto uint8) (map[uint32]v6onlyState, error) {
+		if calls != nil {
+			calls[proto]++
+		}
+		return byProto[proto], err
+	}
+	t.Cleanup(func() { wildcardV6OnlyFn = orig })
+}
+
+// capturePortLog redirects the standard logger and forgets the DEBUG lines
+// already logged, so a test sees debugOnce's output.
+func capturePortLog(t *testing.T) *bytes.Buffer {
+	t.Helper()
+	var buf bytes.Buffer
+	prev := log.Writer()
+	log.SetOutput(&buf)
+	debugLogged = sync.Map{}
+	t.Cleanup(func() {
+		log.SetOutput(prev)
+		debugLogged = sync.Map{}
+	})
+	return &buf
+}
+
+// TestGetPortsDualStack covers the synthesis of a dual-stack [::] socket into
+// its IPv4 key, through the connection-table and sock_diag seams.
+func TestGetPortsDualStack(t *testing.T) {
+	ollama := net.ConnectionStat{Fd: 3, Family: 10, Status: "LISTEN", Laddr: net.Addr{IP: "::", Port: 11434}, Pid: 4242}
+	tcp6Wild := map[string][]net.ConnectionStat{"tcp6": {ollama}}
+
+	// Revert-proof: remove the addDualStack calls from GetPorts; tcp:11434
+	// is then absent.
+	t.Run("dual-stack tcp6 [::] counts for tcp with ip 0.0.0.0", func(t *testing.T) {
+		fakeConnections(t, tcp6Wild, nil)
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, nil)
+
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, len(ports["tcp:11434"]), 1)
+		got := ports["tcp:11434"][0]
+		assert.Equal(t, got.Laddr.IP, "0.0.0.0")
+		assert.Equal(t, got.Laddr.Port, uint32(11434))
+		assert.Equal(t, got.Pid, int32(4242))
+		assert.Equal(t, got.Family, uint32(10))
+		// The IPv6 key is unchanged.
+		assert.DeepEqual(t, ports["tcp6:11434"], []net.ConnectionStat{ollama})
+	})
+
+	// Revert-proof: synthesise for v6onlyUnknown as well as v6onlyOff; the
+	// unknown row then gains tcp:11434.
+	for _, st := range []struct {
+		name  string
+		state map[uint32]v6onlyState
+	}{
+		{"IPv6-only", map[uint32]v6onlyState{11434: v6onlyOn}},
+		{"unknown (attribute missing)", map[uint32]v6onlyState{11434: v6onlyUnknown}},
+		{"unknown (port not in the dump)", map[uint32]v6onlyState{}},
+	} {
+		t.Run(st.name+" [::] does not count for tcp", func(t *testing.T) {
+			fakeConnections(t, tcp6Wild, nil)
+			fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: st.state}, nil, nil)
+			ports, err := GetPorts()
+			assert.NilError(t, err)
+			_, ok := ports["tcp:11434"]
+			assert.Equal(t, ok, false)
+		})
+	}
+
+	// Revert-proof: drop the hasIP guard; tcp:11434 then holds two 0.0.0.0
+	// entries.
+	t.Run("an existing IPv4 0.0.0.0 entry suppresses the copy", func(t *testing.T) {
+		v4 := net.ConnectionStat{Family: 2, Status: "LISTEN", Laddr: net.Addr{IP: "0.0.0.0", Port: 11434}, Pid: 4242}
+		fakeConnections(t, map[string][]net.ConnectionStat{"tcp4": {v4}, "tcp6": {ollama}}, nil)
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, nil)
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.DeepEqual(t, ports["tcp:11434"], []net.ConnectionStat{v4})
+	})
+
+	// Revert-proof: make the guard any existing IPv4 entry
+	// (len(ports[v4key]) > 0); the copy is then suppressed.
+	t.Run("an IPv4 entry on another address does not suppress the copy", func(t *testing.T) {
+		v4 := net.ConnectionStat{Family: 2, Status: "LISTEN", Laddr: net.Addr{IP: "127.0.0.1", Port: 11434}}
+		fakeConnections(t, map[string][]net.ConnectionStat{"tcp4": {v4}, "tcp6": {ollama}}, nil)
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, nil)
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, len(ports["tcp:11434"]), 2)
+		assert.Equal(t, ports["tcp:11434"][1].Laddr.IP, "0.0.0.0")
+	})
+
+	// Revert-proof: drop the "::" filter that collects wild; the fake is then
+	// called for a [::1] entry.
+	t.Run("no [::] entry: sock_diag is not asked", func(t *testing.T) {
+		loop := net.ConnectionStat{Status: "LISTEN", Laddr: net.Addr{IP: "::1", Port: 11434}}
+		fakeConnections(t, map[string][]net.ConnectionStat{"tcp6": {loop}, "udp6": {loop}}, nil)
+		calls := map[uint8]int{}
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, calls)
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, len(calls), 0)
+		_, ok := ports["tcp:11434"]
+		assert.Equal(t, ok, false)
+	})
+
+	// Revert-proof: append the sock_diag error to errs in addDualStack;
+	// GetPorts then returns it.
+	t.Run("a sock_diag error is logged once at DEBUG, never returned", func(t *testing.T) {
+		buf := capturePortLog(t)
+		fakeConnections(t, tcp6Wild, nil)
+		fakeV6Only(t, nil, errors.New("no inet_diag"), nil)
+		for range 2 {
+			ports, err := GetPorts()
+			assert.NilError(t, err)
+			_, ok := ports["tcp:11434"]
+			assert.Equal(t, ok, false)
+			assert.DeepEqual(t, ports["tcp6:11434"], []net.ConnectionStat{ollama})
+		}
+		assert.Equal(t, strings.Count(buf.String(), "[DEBUG] port: could not read IPV6_V6ONLY for tcp sockets on [::]: no inet_diag; "+
+			"dual-stack listeners are not counted for tcp:N, so those results are unchanged (check tcp6:N)"), 1, buf.String())
+	})
+
+	// Revert-proof: drop the debugOnce call for v6onlyUnknown; the line is
+	// then missing.
+	t.Run("a [::] port sock_diag does not describe is logged once at DEBUG", func(t *testing.T) {
+		for _, st := range []map[uint32]v6onlyState{{11434: v6onlyUnknown}, {}} {
+			buf := capturePortLog(t)
+			fakeConnections(t, tcp6Wild, nil)
+			fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: st}, nil, nil)
+			for range 2 {
+				_, err := GetPorts()
+				assert.NilError(t, err)
+			}
+			assert.Equal(t, strings.Count(buf.String(), "[DEBUG] port: [::]:11434 has no IPV6_V6ONLY from sock_diag; "+
+				"not counted for tcp:11434 (check tcp6:11434)"), 1, buf.String())
+		}
+	})
+
+	// Revert-proof: log the unknown-port line for v6onlyOn too; this test
+	// then sees it.
+	t.Run("an IPv6-only [::] port logs nothing", func(t *testing.T) {
+		buf := capturePortLog(t)
+		fakeConnections(t, tcp6Wild, nil)
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOn}}, nil, nil)
+		_, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, buf.String(), "")
+	})
+
+	// Revert-proof: remove the HOST_PROC gate; the fake is then called and
+	// tcp:11434 appears.
+	t.Run("HOST_PROC set elsewhere: sock_diag is not asked", func(t *testing.T) {
+		buf := capturePortLog(t)
+		t.Setenv("HOST_PROC", "/some/other/proc")
+		fakeConnections(t, tcp6Wild, nil)
+		calls := map[uint8]int{}
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, calls)
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, len(calls), 0)
+		_, ok := ports["tcp:11434"]
+		assert.Equal(t, ok, false)
+		assert.Assert(t, strings.Contains(buf.String(), "[DEBUG] port: HOST_PROC is set"), buf.String())
+	})
+
+	// Revert-proof: compare HOST_PROC without filepath.Clean; "/proc/" is
+	// then gated and tcp:11434 is missing.
+	t.Run("HOST_PROC=/proc is no gate", func(t *testing.T) {
+		t.Setenv("HOST_PROC", "/proc/")
+		fakeConnections(t, tcp6Wild, nil)
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, nil)
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, len(ports["tcp:11434"]), 1)
+	})
+
+	// Revert-proof: pass protoTCP for udp in GetPorts; udp:5353 is then absent.
+	t.Run("dual-stack udp6 [::] counts for udp", func(t *testing.T) {
+		mdns := net.ConnectionStat{Family: 10, Status: "NONE", Laddr: net.Addr{IP: "::", Port: 5353}, Pid: 77}
+		fakeConnections(t, map[string][]net.ConnectionStat{"udp6": {mdns}}, nil)
+		calls := map[uint8]int{}
+		fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoUDP: {5353: v6onlyOff}}, nil, calls)
+		ports, err := GetPorts()
+		assert.NilError(t, err)
+		assert.Equal(t, len(ports["udp:5353"]), 1)
+		assert.Equal(t, ports["udp:5353"][0].Laddr.IP, "0.0.0.0")
+		assert.Equal(t, ports["udp:5353"][0].Pid, int32(77))
+		assert.DeepEqual(t, calls, map[uint8]int{protoUDP: 1})
+	})
+}
+
+// TestDefPortDualStack reads a synthesised entry back through DefPort, as a
+// spec does. Revert-proof: as the first row of TestGetPortsDualStack.
+func TestDefPortDualStack(t *testing.T) {
+	fakeConnections(t, map[string][]net.ConnectionStat{
+		"tcp6": {{Family: 10, Status: "LISTEN", Laddr: net.Addr{IP: "::", Port: 11434}, Pid: 4242}},
+	}, nil)
+	fakeV6Only(t, map[uint8]map[uint32]v6onlyState{protoTCP: {11434: v6onlyOff}}, nil, nil)
+	sys := &System{}
+
+	p := NewDefPort(t.Context(), "11434", sys, util.Config{})
+	listening, err := p.Listening()
+	assert.NilError(t, err)
+	assert.Equal(t, listening, true)
+	ips, err := p.IP()
+	assert.NilError(t, err)
+	assert.DeepEqual(t, ips, []string{"0.0.0.0"})
+	pids, err := p.PID()
+	assert.NilError(t, err)
+	assert.DeepEqual(t, pids, []int{4242})
+
+	p6 := NewDefPort(t.Context(), "tcp6:11434", sys, util.Config{})
+	listening, err = p6.Listening()
+	assert.NilError(t, err)
+	assert.Equal(t, listening, true)
+	ips, err = p6.IP()
+	assert.NilError(t, err)
+	assert.DeepEqual(t, ips, []string{"::"})
 }
 
 func TestGetPorts(t *testing.T) {

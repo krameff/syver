@@ -4,8 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/shirou/gopsutil/v4/net"
 
@@ -35,7 +39,8 @@ var ErrUnknownPortNetwork = errors.New("unknown port network")
 
 // portNetworks maps each network a spec may name to the GetPorts key prefix
 // that holds its listeners. "tcp4" and "udp4" are aliases, not approximations:
-// GetPorts fills "tcp" and "udp" from exactly those IPv4-only queries.
+// GetPorts fills "tcp" and "udp" from the IPv4-only queries, plus any
+// dual-stack [::] socket, which accepts IPv4 too (addDualStack).
 var portNetworks = map[string]string{
 	"tcp": "tcp", "tcp4": "tcp", "tcp6": "tcp6",
 	"udp": "udp", "udp4": "udp", "udp6": "udp6",
@@ -159,5 +164,107 @@ func GetPorts() (map[string][]net.ConnectionStat, error) {
 	addConns("udp4", "udp", false)
 	addConns("udp6", "udp6", false)
 
+	addDualStack(ports, "tcp", "tcp6", protoTCP)
+	addDualStack(ports, "udp", "udp6", protoUDP)
+
 	return ports, errors.Join(errs...)
+}
+
+// v6onlyState says whether a socket on the IPv6 unspecified address "::"
+// also accepts IPv4.
+type v6onlyState int
+
+const (
+	v6onlyUnknown v6onlyState = iota // the kernel could not say
+	v6onlyOff                        // dual-stack: accepts IPv4 too
+	v6onlyOn                         // IPv6 only
+)
+
+// IP protocol numbers passed to wildcardV6Only.
+const (
+	protoTCP uint8 = 6
+	protoUDP uint8 = 17
+)
+
+// wildcardV6OnlyFn is indirected through a package-level var so tests can
+// substitute canned states without asking the kernel.
+var wildcardV6OnlyFn = wildcardV6Only
+
+// addDualStack counts a dual-stack socket for its IPv4 key. On Linux a socket
+// on [::] with IPV6_V6ONLY=0 also accepts IPv4, but the kernel lists it only
+// in the IPv6 table. For every port in v6 with such a socket, a copy of each
+// [::] entry is added under v4 with the address 0.0.0.0, unless v4 already
+// holds a 0.0.0.0 entry for that port. Where the kernel cannot say whether a
+// socket is dual-stack, nothing is added and the reason is logged at DEBUG;
+// that is never an error.
+func addDualStack(ports map[string][]net.ConnectionStat, v4, v6 string, proto uint8) {
+	var wild []string
+	for key, entries := range ports {
+		if !strings.HasPrefix(key, v6+":") {
+			continue
+		}
+		for _, e := range entries {
+			if e.Laddr.IP == "::" {
+				wild = append(wild, key)
+				break
+			}
+		}
+	}
+	if len(wild) == 0 {
+		return
+	}
+	if hp := os.Getenv("HOST_PROC"); hp != "" && filepath.Clean(hp) != "/proc" {
+		// gopsutil reads that /proc, possibly another network namespace,
+		// while sock_diag answers for this process's own.
+		debugOnce("[DEBUG] port: HOST_PROC is set; dual-stack listeners are not counted for tcp:/udp:")
+		return
+	}
+	states, err := wildcardV6OnlyFn(proto)
+	if err != nil {
+		debugOnce(fmt.Sprintf("[DEBUG] port: could not read IPV6_V6ONLY for %s sockets on [::]: %v; "+
+			"dual-stack listeners are not counted for %s:N, so those results are unchanged (check %s:N)", v4, err, v4, v6))
+		return
+	}
+	for _, key := range wild {
+		port := strings.TrimPrefix(key, v6+":")
+		v4key := v4 + ":" + port
+		if hasIP(ports[v4key], "0.0.0.0") {
+			continue
+		}
+		for _, e := range ports[key] {
+			if e.Laddr.IP != "::" {
+				continue
+			}
+			switch states[e.Laddr.Port] {
+			case v6onlyOn:
+				continue
+			case v6onlyUnknown:
+				debugOnce(fmt.Sprintf("[DEBUG] port: [::]:%s has no IPV6_V6ONLY from sock_diag; not counted for %s (check %s)",
+					port, v4key, key))
+				continue
+			}
+			c := e
+			c.Laddr.IP = "0.0.0.0"
+			ports[v4key] = append(ports[v4key], c)
+		}
+	}
+}
+
+func hasIP(entries []net.ConnectionStat, ip string) bool {
+	for _, e := range entries {
+		if e.Laddr.IP == ip {
+			return true
+		}
+	}
+	return false
+}
+
+// debugLogged holds the DEBUG lines already written, so each is logged once
+// per process even when GetPorts runs more than once (add and autoadd).
+var debugLogged sync.Map
+
+func debugOnce(msg string) {
+	if _, dup := debugLogged.LoadOrStore(msg, true); !dup {
+		log.Print(msg)
+	}
 }
