@@ -219,15 +219,19 @@ other names for `tcp` and `udp`, which goss already reads as IPv4 only, and
 fails any other network with an error naming the valid ones. See
 [port](gossfile.md#port).
 
-A sixth: **on Linux, a dual-stack IPv6 listener counts for `tcp:` and
+A sixth: **on Linux, an IPv6 listener that accepts IPv4 counts for `tcp:` and
 `udp:`.** Many servers listening on `0.0.0.0` or on a bare port open one
 socket on `[::]` that also accepts IPv4. goss reads only the IPv4 table for
 `tcp:N`, so for such a service `tcp:N listening: false` passes even though
 IPv4 clients can connect, and `tcp:N listening: true` fails. Syver counts that
 socket for `tcp:N` / `udp:N` with `ip` `0.0.0.0`, and still reports it under
-`tcp6:N` / `udp6:N`. A `tcp:N listening: false` written against such a service,
-including one `goss add port` wrote, now fails: write `listening: true`, or
-bind the service to a specific address if it must not accept IPv4. A socket on
+`tcp6:N` / `udp6:N`. A socket on an IPv4-mapped address, such as
+`[::ffff:127.0.0.1]`, accepts IPv4 only; Syver counts it for `tcp:N` /
+`udp:N` with its IPv4 address and still lists it under `tcp6:N` / `udp6:N`.
+A `tcp:N listening: false` written against such a service, including one
+`goss add port` wrote, now fails: write `listening: true`, or bind it to an
+IPv6 address, or open it IPv6-only (`IPV6_V6ONLY`), if it must not accept
+IPv4. A socket on
 `[::]` that accepts IPv6 only is not counted. See [port](gossfile.md#port).
 
 ## Product identity

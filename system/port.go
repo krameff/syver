@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/netip"
 	"os"
 	"path"
 	"strconv"
@@ -39,8 +40,9 @@ var ErrUnknownPortNetwork = errors.New("unknown port network")
 
 // portNetworks maps each network a spec may name to the GetPorts key prefix
 // that holds its listeners. "tcp4" and "udp4" are aliases, not approximations:
-// GetPorts fills "tcp" and "udp" from the IPv4-only queries, plus any
-// dual-stack [::] socket, which accepts IPv4 too (addDualStack).
+// GetPorts fills "tcp" and "udp" from the IPv4-only queries, plus two kinds of
+// IPv6 socket that accept IPv4 too: a dual-stack [::] socket (addDualStack)
+// and a socket on an IPv4-mapped address, ::ffff:a.b.c.d (addMapped).
 var portNetworks = map[string]string{
 	"tcp": "tcp", "tcp4": "tcp", "tcp6": "tcp6",
 	"udp": "udp", "udp4": "udp", "udp6": "udp6",
@@ -135,14 +137,20 @@ func (p *DefPort) PID() ([]int, error) {
 var connectionsByKind = net.ConnectionsWithoutUids
 
 // GetPorts returns the set of listening TCP/UDP ports known to the OS's
-// connection-table backend. Failures from individual protocol lookups are
+// connection-table backend. The "tcp" and "udp" keys also hold the IPv6
+// sockets that accept IPv4: dual-stack [::] sockets, as 0.0.0.0, and sockets
+// on an IPv4-mapped address, as that IPv4 address. Failures from individual protocol lookups are
 // joined and returned rather than silently discarded: a missing/unreadable
 // /proc/net/{tcp,udp}{,6} file is treated as "no ports" with no error, but a
 // file that's readable yet contains a line that can't be parsed (e.g. an
 // unexpected IP/port encoding) does return an error, which would otherwise
 // present as every port on that protocol simply not listening. Each protocol
 // is queried separately (rather than via a single "all" call) specifically
-// to preserve this per-protocol error isolation.
+// to preserve this per-protocol error isolation. The separate queries also
+// keep an IPv4-mapped socket apart from a native IPv4 socket on the same
+// address: gopsutil prints both as "a.b.c.d" and drops duplicates within one
+// call by address string, not family, so a single "tcp" or "all" call would
+// silently lose one of the two.
 func GetPorts() (map[string][]net.ConnectionStat, error) {
 	ports := make(map[string][]net.ConnectionStat)
 	var errs []error
@@ -166,6 +174,8 @@ func GetPorts() (map[string][]net.ConnectionStat, error) {
 
 	addDualStack(ports, "tcp", "tcp6", protoTCP)
 	addDualStack(ports, "udp", "udp6", protoUDP)
+	addMapped(ports, "tcp", "tcp6")
+	addMapped(ports, "udp", "udp6")
 
 	return ports, errors.Join(errs...)
 }
@@ -249,6 +259,58 @@ func addDualStack(ports map[string][]net.ConnectionStat, v4, v6 string, proto ui
 			c.Laddr.IP = "0.0.0.0"
 			ports[v4key] = append(ports[v4key], c)
 		}
+	}
+}
+
+// mappedIPv4 reports whether ip, an address from the IPv6 connection table,
+// is IPv4-mapped (::ffff:a.b.c.d), and returns the IPv4 address. gopsutil
+// prints such an address in dotted form ("127.0.0.1"); the "::ffff:" form is
+// accepted too.
+func mappedIPv4(ip string) (string, bool) {
+	a, err := netip.ParseAddr(ip)
+	if err != nil || (!a.Is4() && !a.Is4In6()) {
+		return "", false
+	}
+	return a.Unmap().String(), true
+}
+
+// addMapped counts a socket on an IPv4-mapped address for its IPv4 key. On
+// Linux an IPv6 socket bound to ::ffff:a.b.c.d accepts IPv4 connections to
+// a.b.c.d (every IPv4 address for ::ffff:0.0.0.0) and no IPv6 ones, but the
+// kernel lists it only in the IPv6 table. The kernel refuses such a bind on
+// an IPV6_V6ONLY socket and refuses to set IPV6_V6ONLY once a socket is
+// bound, so no sock_diag read is needed. For every such entry in v6, a copy
+// with the IPv4 address is added under v4, unless v4 already holds an entry
+// for that address. It reads only the table gopsutil returned, so it runs
+// whether or not HOST_PROC is set, and it never logs.
+func addMapped(ports map[string][]net.ConnectionStat, v4, v6 string) {
+	type copyTo struct {
+		key string
+		c   net.ConnectionStat
+	}
+	var add []copyTo
+	for key, entries := range ports {
+		if !strings.HasPrefix(key, v6+":") {
+			continue
+		}
+		for _, e := range entries {
+			ip, ok := mappedIPv4(e.Laddr.IP)
+			if !ok {
+				continue
+			}
+			c := e
+			c.Laddr.IP = ip
+			add = append(add, copyTo{v4 + ":" + strings.TrimPrefix(key, v6+":"), c})
+		}
+	}
+	// Appended after the scan, so no key is added to ports while ranging it.
+	// The guard sees the copies already appended, so two mapped entries on
+	// one address give one copy.
+	for _, a := range add {
+		if hasIP(ports[a.key], a.c.Laddr.IP) {
+			continue
+		}
+		ports[a.key] = append(ports[a.key], a.c)
 	}
 }
 
