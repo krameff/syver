@@ -1327,6 +1327,33 @@ Each pattern is checked against the attribute output, the type of patterns are:
 !!! warning
     You will **need** the double backslash (`\\`) escape for Regex special entities, for example `\\s` for blank spaces.
 
+!!! note "A regex with a missing closing `/` is plain text"
+    A pattern is a regex only when it ends with `/`, optionally followed by
+    `i`, `m` or `s`. One that starts with `/` or `!/`, is not a regex, and
+    contains regex syntax such as a leading `^`, `\s`, `.*` in the middle,
+    `[...]`, `(?...)` or `a|b` is matched as plain text, which is almost
+    never what was meant: `/^PermitRootLogin\s+no` looks for that literal
+    text, so it never matches, and `!/^PermitRootLogin\s+yes` always passes.
+    syver logs a warning for each such pattern when it loads the spec:
+
+    ```text
+    [WARN] syver.yaml: file `/etc/issue` contents: `!/[Ll]inux` is matched as plain text: it starts like a regex but has no closing "/". To make it a regex, end it with "/" (optionally followed by i, m or s); to keep it as text, write `!\/[Ll]inux`, which also silences this warning
+    ```
+
+    When the closing `/` is there but is followed by something other than
+    flags (`/^x/g`, or a stray quote), the message says what follows it.
+
+    End the pattern with `/` to make it a regex, or put a `\` before the
+    leading `/` to keep it as text. The suggested escape is right as written
+    in a single-quoted or unquoted YAML value; in a double-quoted value the
+    backslash must be doubled, `"!\\/[Ll]inux"`, because YAML reads `\/`
+    there as `/`.
+
+    A plain path such as `/etc/passwd` never warns. The warning changes no
+    result and no exit code, `-L ERROR` hides it, and it is logged once per
+    command, so a `render | validate` pipeline, as `dcsyver` runs, shows it
+    twice.
+
 !!! example
     ```yaml
     file:
@@ -1541,6 +1568,9 @@ and the check passes only when every pattern is satisfied:
 * `"!foo"` - no line contains `foo`
 * `"/[Rr]egex/"` - some line matches the regex
 * `"!/[Rr]egex/"` - no line matches the regex
+
+A pattern here that reads like a regex but has no closing `/` logs the same
+warning as in [io.Readers](#ioreaders).
 
 !!! example
     ```yaml

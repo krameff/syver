@@ -75,6 +75,13 @@ type Descriptor struct {
 	// Empty for types every release understands.
 	Since string
 
+	// PatternAttrs names the attributes (yaml keys) whose list value is
+	// matched as text patterns, line by line: the attributes Validate passes
+	// an io.Reader for. Nil for types with none.
+	// TestPatternAttrsMatchSystemReaders derives which types must set it from
+	// system.System.
+	PatternAttrs []string
+
 	Source Source
 }
 
