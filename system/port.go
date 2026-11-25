@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"path/filepath"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -213,9 +213,11 @@ func addDualStack(ports map[string][]net.ConnectionStat, v4, v6 string, proto ui
 	if len(wild) == 0 {
 		return
 	}
-	if hp := os.Getenv("HOST_PROC"); hp != "" && filepath.Clean(hp) != "/proc" {
+	if hp := os.Getenv("HOST_PROC"); hp != "" && path.Clean(hp) != "/proc" {
 		// gopsutil reads that /proc, possibly another network namespace,
-		// while sock_diag answers for this process's own.
+		// while sock_diag answers for this process's own. HOST_PROC is a
+		// Linux path, so path.Clean: filepath.Clean turns "/proc/" into
+		// "\proc" on Windows.
 		debugOnce("[DEBUG] port: HOST_PROC is set; dual-stack listeners are not counted for tcp:/udp:")
 		return
 	}

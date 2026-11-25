@@ -203,8 +203,9 @@ func TestGetPortsDualStack(t *testing.T) {
 		assert.Assert(t, strings.Contains(buf.String(), "[DEBUG] port: HOST_PROC is set"), buf.String())
 	})
 
-	// Revert-proof: compare HOST_PROC without filepath.Clean; "/proc/" is
-	// then gated and tcp:11434 is missing.
+	// Revert-proof: compare HOST_PROC without path.Clean, or with
+	// filepath.Clean on Windows; "/proc/" is then gated and tcp:11434 is
+	// missing.
 	t.Run("HOST_PROC=/proc is no gate", func(t *testing.T) {
 		t.Setenv("HOST_PROC", "/proc/")
 		fakeConnections(t, tcp6Wild, nil)
