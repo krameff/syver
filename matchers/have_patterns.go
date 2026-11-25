@@ -261,6 +261,88 @@ func isRegexPattern(s string) bool {
 	return true
 }
 
+var (
+	// regexEscapeRe is a backslash before a regex class letter or a
+	// metacharacter: \s, \d, \b, \., \(, ...
+	regexEscapeRe = regexp.MustCompile(`\\[sSdDwWbB.\[\]()*+?{}|^$/]`)
+	// regexGroupRe is "(?", a group holding "|", or ")" followed by a
+	// quantifier. Parenthesised text such as "(rw,nosuid)" or "$(uname -r)"
+	// is none of these.
+	regexGroupRe = regexp.MustCompile(`\(\?|\([^)]*\|[^)]*\)|\)[?*+{]`)
+	// regexAltRe is a "|" with neither a space nor another "|" on either
+	// side, so a shell pipe or "||" is not alternation.
+	regexAltRe = regexp.MustCompile(`[^ |]\|[^ |]`)
+	// regexQuantRe is a bounded quantifier: {n} or {n,} or {n,m}.
+	regexQuantRe = regexp.MustCompile(`\{\d+(,\d*)?\}`)
+)
+
+// hasRegexSyntax reports whether body (a pattern without its leading "!" and
+// "/") contains syntax that is common in regexes and rare in paths and plain
+// text. A lone ".", "*", "+" or "?" does not count: paths and audit text use
+// them all the time.
+func hasRegexSyntax(body string) bool {
+	if strings.HasPrefix(body, "^") || strings.HasSuffix(body, "$") {
+		return true
+	}
+	if regexEscapeRe.MatchString(body) {
+		return true
+	}
+	// ".*" or ".+" anywhere but at the very end: a trailing one is how a
+	// glob-like path is often written ("/etc/cron.*", "/var/log/.*").
+	rest := body
+	if strings.HasSuffix(rest, ".*") || strings.HasSuffix(rest, ".+") {
+		rest = rest[:len(rest)-2]
+	}
+	if strings.Contains(rest, ".*") || strings.Contains(rest, ".+") {
+		return true
+	}
+	if i := strings.Index(body, "["); i >= 0 && strings.Contains(body[i+1:], "]") {
+		return true
+	}
+	return regexGroupRe.MatchString(body) || regexAltRe.MatchString(body) || regexQuantRe.MatchString(body)
+}
+
+// UnterminatedRegex reports whether s will be matched as plain text
+// although it reads as a regex whose closing "/" is missing or is followed
+// by something other than i, m, s flags. ok is false for everything else,
+// including every real regex and every plain path. trailing is the text
+// after the last "/" when there is one and it is not empty ("" when the
+// pattern has no later "/"), so the caller can say which mistake it is.
+//
+// The test is: s starts with "/" or "!/", isRegexPattern(s) is false (so
+// this can never disagree with how the pattern is matched), and the rest
+// contains regex syntax (see hasRegexSyntax). A slash-led pattern with no
+// such syntax, such as "/faillog_t", cannot be told from a path and is not
+// reported.
+func UnterminatedRegex(s string) (trailing string, ok bool) {
+	core := strings.TrimPrefix(s, "!")
+	if !strings.HasPrefix(core, "/") || isRegexPattern(s) {
+		return "", false
+	}
+	body := core[1:]
+	if !hasRegexSyntax(body) {
+		return "", false
+	}
+	if i := strings.LastIndex(body, "/"); i >= 0 {
+		trailing = body[i+1:]
+	}
+	return trailing, true
+}
+
+// EscapeAsText returns s with a "\" before its leading "/" ("!/x" -> "!\/x",
+// "/x" -> "\/x"): the same text pattern, written so it no longer warns. A
+// pattern that does not start with "/" or "!/" is returned unchanged.
+func EscapeAsText(s string) string {
+	switch {
+	case strings.HasPrefix(s, "!/"):
+		return `!\` + s[1:]
+	case strings.HasPrefix(s, "/"):
+		return `\` + s
+	default:
+		return s
+	}
+}
+
 func sliceToPatterns(slice []string) ([]patternMatcher, error) {
 	var patterns []patternMatcher
 	for _, s := range slice {

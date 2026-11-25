@@ -47,6 +47,7 @@ func init() {
 		New:          func() Resource { return &HTTP{} },
 		InValidation: true,
 		InDiscovery:  true,
+		PatternAttrs: []string{"body", "headers"},
 		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
 			r := &HTTP{}
 			if _, err := r.fromSystem(sys, key, config); err != nil {
