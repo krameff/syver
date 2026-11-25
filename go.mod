@@ -20,7 +20,7 @@ require (
 	github.com/samber/lo v1.53.0
 	github.com/shirou/gopsutil/v4 v4.26.10
 	github.com/stretchr/testify v1.12.1
-	github.com/tidwall/gjson v1.20.5
+	github.com/tidwall/gjson v1.20.6
 	github.com/urfave/cli/v3 v3.14.0
 	go.yaml.in/yaml/v2 v2.4.5
 	go.yaml.in/yaml/v3 v3.0.6
