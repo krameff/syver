@@ -39,6 +39,10 @@
     Where the kernel cannot say which kind a socket is (some sandboxes and
     older kernels, or when `HOST_PROC` is set), the result is the same as
     before. macOS and Windows are unchanged: `port:` is not implemented there
+- dependencies
+  - `tidwall/gjson` to 1.20.6, behind the `gjson:` matcher, which fixes
+    `@join` with `"preserve":true` producing invalid JSON when an element is
+    an empty object
 
 ## 0.21.0 based on krameff/goss v0.6.0 - serve over HTTPS, discovery under render and serve
 
