@@ -61,6 +61,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.22.0 - FIPS 140-3 mode reporting, IPv4 listeners and regex warnings](#v0220---fips-140-3-mode-reporting-ipv4-listeners-and-regex-warnings)
 * [v0.21.0 - Serve over HTTPS, discovery under render and serve](#v0210---serve-over-https-discovery-under-render-and-serve)
 * [v0.20.0 - Package baselines and syver-version](#v0200---package-baselines-and-syver-version)
 * [v0.16.1 - Text patterns and port networks](#v0161---text-patterns-and-port-networks)
@@ -87,6 +88,39 @@ artifacts and signatures always correspond to the tag as it now stands.
 * [v0.7.0 - Rename to Syver](#v070---rename-to-syver)
 * [v0.6.0 - Upstream baseline (krameff/goss)](#v060---upstream-baseline-krameffgoss)
 * [Lineage](#lineage)
+
+---
+
+## v0.22.0 - FIPS 140-3 mode reporting, IPv4 listeners and regex warnings
+
+| Field | Value |
+| --- | --- |
+| Released | pending |
+| Tag | pending |
+| Commit | pending |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), `docs/readme-refresh`, then `docs/0.22.0` |
+| Scope | 9 commits (excluding merges), 45 files, +4104 / -77, measured at `devel` `216450f` against `v0.21.0`, before `docs/0.22.0` |
+| Changelog | [0.22.0](CHANGELOG.md#0220-based-on-krameffgoss-v060---fips-140-3-mode-reporting-ipv4-listeners-and-regex-warnings) |
+
+A minor release with no new spec syntax: `docs/schema.yaml` changes only
+in two descriptions. `syver --version` prints a third line reporting the
+FIPS 140-3 mode and module, and `--version` now works on binaries built with
+`go build` or `go install`. Under `GODEBUG=fips140=only`, `md5:` and the md5,
+sha1 and DSA template functions fail with an error instead of a panic or an
+empty value. On Linux, `port:` counts IPv6 sockets that accept IPv4, both
+dual-stack sockets on `[::]` and IPv4-mapped addresses, for `tcp:N` and
+`udp:N`, so a `listening: false` check can now fail where it passed before.
+A text pattern that looks like a regex but has no closing `/` logs a warning.
+`dcsyver` and `dcgoss` remove the service container when they exit.
+The README is rewritten, and its reference sections moved to the docs
+home page. Dependency update: `tidwall/gjson` 1.20.6. The set of published binaries is
+unchanged.
+
+**Suites:** pending, recorded at the release gate.
+
+**Audit content:** pending. `port:` changed, so the ansible-lockdown `-Audit`
+repositories are compared against v0.21.0 before the tag.
 
 ---
 
