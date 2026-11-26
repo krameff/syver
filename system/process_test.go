@@ -1,11 +1,14 @@
 package system
 
 import (
+	"context"
 	"errors"
 	"testing"
 
 	"github.com/shirou/gopsutil/v4/process"
 	"gotest.tools/v3/assert"
+
+	"github.com/krameff/syver/util"
 )
 
 // fakeProcesses stubs out listProcesses/processName so tests never touch the
@@ -244,4 +247,26 @@ func TestDefProcessPids(t *testing.T) {
 		_, err := p.Pids()
 		assert.ErrorContains(t, err, "boom")
 	})
+}
+
+// A failed process snapshot must reach every caller, not only the one that ran
+// the sync.Once. Before the error was stored on System, the second and later
+// callers (every other worker in validateParallel) got a nil map and a nil
+// error, so `process: running: false` passed on a host where listing failed.
+func TestProcMapErrorReachesEveryCaller(t *testing.T) {
+	listErr := errors.New("process table unreadable")
+	fakeProcesses(t, nil, nil, listErr)
+	sys := &System{}
+
+	for i := 1; i <= 3; i++ {
+		_, err := sys.ProcMap()
+		assert.ErrorIs(t, err, listErr, "call %d", i)
+	}
+
+	// Through the resource constructor, as a second process: entry would be.
+	_ = NewDefProcess(context.Background(), "first", sys, util.Config{})
+	second := NewDefProcess(context.Background(), "second", sys, util.Config{})
+	running, err := second.Running()
+	assert.ErrorIs(t, err, listErr)
+	assert.Equal(t, running, false)
 }

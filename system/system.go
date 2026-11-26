@@ -40,6 +40,7 @@ type System struct {
 	portsErr       error
 	portsOnce      sync.Once
 	procMap        map[string][]*process.Process
+	procErr        error
 	procOnce       sync.Once
 
 	// NewPackageInventory resolves the host's package inventory backend. See
@@ -58,14 +59,16 @@ func (s *System) Ports() (map[string][]net.ConnectionStat, error) {
 	return s.ports, s.portsErr
 }
 
+// ProcMap returns the process snapshot, taken once per System. The error is
+// kept on the struct, as Ports does, so every caller sees a failed snapshot,
+// not only the one that ran it. A caller that got nil back would otherwise read
+// a failure as "no such process".
 func (s *System) ProcMap() (map[string][]*process.Process, error) {
-	var err error
-
 	s.procOnce.Do(func() {
-		s.procMap, err = GetProcs()
+		s.procMap, s.procErr = GetProcs()
 	})
 
-	return s.procMap, err
+	return s.procMap, s.procErr
 }
 
 func New(packageManager string) *System {
