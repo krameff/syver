@@ -14,10 +14,10 @@ require (
 	github.com/moby/sys/mountinfo v0.7.3
 	github.com/onsi/gomega v1.44.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
-	github.com/pmezard/go-difflib v1.0.0
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/common v0.74.0
 	github.com/samber/lo v1.53.0
+	github.com/sergi/go-diff v1.4.5
 	github.com/shirou/gopsutil/v4 v4.26.10
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.20.6
