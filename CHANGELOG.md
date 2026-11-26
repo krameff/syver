@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.22.0 based on krameff/goss v0.6.0 - FIPS 140-3 mode reporting
+## 0.22.0 based on krameff/goss v0.6.0 - FIPS 140-3 mode reporting, IPv4 listeners and regex warnings
 
 - FIPS 140-3 mode reporting and fixes
   - `syver --version` prints a third line, `fips140: mode=... module=...`,
@@ -21,24 +21,50 @@
     `panic:` result that hid the file's other checks, and the template
     functions rendered an empty value without an error. Outside that mode
     nothing changes
-- `port:` counts dual-stack IPv6 listeners for `tcp:` and `udp:` on Linux
+- `port:` counts IPv6 listeners that accept IPv4 for `tcp:` and `udp:` on Linux
   - A `tcp:N` or `udp:N` check that says `listening: false` can now fail on a
     Linux host, including one written by `syver add port` on an earlier
-    release, when the port's only listener is a socket on `[::]` that also
-    accepts IPv4 (dual-stack). IPv4 clients can connect to such a port, but
-    syver used to report it under `tcp6:N` / `udp6:N` only. Many servers open
-    this kind of socket when told to listen on `0.0.0.0` or on a bare port,
-    Go programs among them
-  - Such a port now counts as listening for `tcp:N` / `udp:N`, with `ip`
-    `0.0.0.0`, and is still reported under `tcp6:N` / `udp6:N` as before. So
-    `tcp:N listening: true` now passes for it, and an `ip:` naming a single
-    address, such as `127.0.0.1`, fails with `0.0.0.0`. `syver add port` now
-    writes `listening: true` and `ip: [0.0.0.0]` for it, and adding a process
-    that owns one writes both the `tcp:N` and the `tcp6:N` entry
+    release, when the port's only listener is an IPv6 socket that accepts
+    IPv4. IPv4 clients can connect to such a port, but syver used to report
+    it under `tcp6:N` / `udp6:N` only. Two kinds of socket do this
+  - A socket on `[::]` that also accepts IPv4 (dual-stack). Many servers
+    open this kind of socket when told to listen on `0.0.0.0` or on a bare
+    port, Go programs among them. Such a port now counts as listening for
+    `tcp:N` / `udp:N`, with `ip` `0.0.0.0`, and is still reported under
+    `tcp6:N` / `udp6:N` as before. So `tcp:N listening: true` now passes for
+    it, and an `ip:` naming a single address, such as `127.0.0.1`, fails
+    with `0.0.0.0`
+  - A socket on an IPv4-mapped address, such as `::ffff:127.0.0.1`, which
+    accepts IPv4 only. For example, a Java program listening on
+    `127.0.0.1` on a host with IPv6 enabled opens one. It now counts for
+    `tcp:N` / `udp:N` with its IPv4 address, so `tcp:N listening: true` and
+    `ip: [127.0.0.1]` now pass for it. It is still listed under `tcp6:N` /
+    `udp6:N`, although it accepts no IPv6 connections
+  - `syver add port` now writes `listening: true` and the `ip` for both
+    kinds, and adding a process that owns one writes both the `tcp:N` and
+    the `tcp6:N` entry
   - A socket on `[::]` that accepts IPv6 only is not counted for `tcp:N`.
-    Where the kernel cannot say which kind a socket is (some sandboxes and
-    older kernels, or when `HOST_PROC` is set), the result is the same as
-    before. macOS and Windows are unchanged: `port:` is not implemented there
+    Where the kernel cannot say whether a socket on `[::]` is dual-stack
+    (some sandboxes and older kernels, or when `HOST_PROC` is set), the
+    result for it is the same as before; IPv4-mapped sockets are counted
+    either way. macOS and Windows are unchanged: `port:` is not implemented
+    there
+- warning for a pattern that looks like a regex but has no closing `/`
+  - A text pattern is a regex only when it ends with `/` (optionally
+    followed by `i`, `m` or `s`). One such as `/^PermitRootLogin\s+no`, with
+    no closing `/`, is matched as plain text, slash and all, so it never
+    matches, and `!/^PermitRootLogin\s+yes` always passes. syver now logs a
+    `[WARN]` for each pattern that starts with `/` or `!/`, is not a regex,
+    and contains regex syntax such as a leading `^`, `\s`, `.*`, `[...]`,
+    `(?...)` or `a|b`. It names the file, resource and attribute, prints the
+    pattern as written, and says how to make it a regex or keep it as text
+  - It covers `file` `contents:` and `contains:`, `command` `stdout:` and
+    `stderr:`, `http` `body:` and `headers:`, and any `have-patterns:`
+    matcher, including under `matching:`. A plain path such as `/etc/passwd`
+    never warns. Results and exit codes are unchanged, and `-L ERROR` hides
+    the warning
+- `dcsyver` and `dcgoss` now remove the service container when they exit,
+  pass or fail. Before, it stayed running until the next run removed it
 - dependencies
   - `tidwall/gjson` to 1.20.6, behind the `gjson:` matcher, which fixes
     `@join` with `"preserve":true` producing invalid JSON when an element is
