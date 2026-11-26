@@ -100,7 +100,7 @@ need no changes. What changes is the product's own name.
 | Verify release checksums by filename | It is now `syver_<version>_SHA256SUMS` |
 | Nothing above | Nothing. Install the new binary and carry on |
 
-The third-party integrations listed in the README (`goss-ansible`,
+The third-party integrations listed on the [documentation home page](index.md#community-contributions) (`goss-ansible`,
 `kitchen-goss`, `packer-provisioner-goss` and the rest) all invoke a binary
 named `goss`, and `install.sh` installs `syver`, `dsyver` and `dgoss` but no
 `goss`. One symlink covers all of them:
