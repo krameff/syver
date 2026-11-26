@@ -65,6 +65,10 @@
     the warning
 - `dcsyver` and `dcgoss` now remove the service container when they exit,
   pass or fail. Before, it stayed running until the next run removed it
+- `process:` checks report an error when the process list cannot be read.
+  Before, only the first `process:` check in a run saw the error; the others
+  saw no processes at all, so `running: false` passed on a host where the
+  list could not be read
 - documentation
   - The README is rewritten around what Syver checks and what it does not,
     with a demo, a quick start and a FIPS 140-3 section. The list of
