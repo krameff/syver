@@ -99,7 +99,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 | Tag | pending |
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), then `docs/0.22.0` |
+| Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), `docs/readme-refresh`, then `docs/0.22.0` |
 | Scope | 9 commits (excluding merges), 45 files, +4104 / -77, measured at `devel` `216450f` against `v0.21.0`, before `docs/0.22.0` |
 | Changelog | [0.22.0](CHANGELOG.md#0220-based-on-krameffgoss-v060---fips-140-3-mode-reporting-ipv4-listeners-and-regex-warnings) |
 
@@ -113,7 +113,8 @@ dual-stack sockets on `[::]` and IPv4-mapped addresses, for `tcp:N` and
 `udp:N`, so a `listening: false` check can now fail where it passed before.
 A text pattern that looks like a regex but has no closing `/` logs a warning.
 `dcsyver` and `dcgoss` remove the service container when they exit.
-Dependency update: `tidwall/gjson` 1.20.6. The set of published binaries is
+The README is rewritten, and its reference sections moved to the docs
+home page. Dependency update: `tidwall/gjson` 1.20.6. The set of published binaries is
 unchanged.
 
 **Suites:** pending, recorded at the release gate.

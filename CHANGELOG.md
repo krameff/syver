@@ -65,6 +65,11 @@
     the warning
 - `dcsyver` and `dcgoss` now remove the service container when they exit,
   pass or fail. Before, it stayed running until the next run removed it
+- documentation
+  - The README is rewritten around what Syver checks and what it does not,
+    with a demo, a quick start and a FIPS 140-3 section. The list of
+    supported resources, the output formats, the community integrations and
+    the limitations moved to the docs home page
 - dependencies
   - `tidwall/gjson` to 1.20.6, behind the `gjson:` matcher, which fixes
     `@join` with `"preserve":true` producing invalid JSON when an element is
