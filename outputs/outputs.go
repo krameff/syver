@@ -15,7 +15,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/krameff/syver/resource"
 	"github.com/krameff/syver/util"
-	"github.com/pmezard/go-difflib/difflib"
 )
 
 type formatOption struct {
@@ -149,15 +148,7 @@ func maybeAddDiff(ss []string, expected, actual any, compact bool) []string {
 		return ss
 	}
 	ss = append(ss, "diff")
-	diff, _ := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-		A:        difflib.SplitLines(want),
-		B:        difflib.SplitLines(got),
-		FromFile: "test",
-		FromDate: "",
-		ToFile:   "actual",
-		ToDate:   "",
-		Context:  1,
-	})
+	diff := unifiedDiff(want, got)
 	ss = append(ss, indentLines(diff))
 	return ss
 }

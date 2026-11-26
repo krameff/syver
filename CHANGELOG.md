@@ -78,6 +78,9 @@
   - `tidwall/gjson` to 1.20.6, behind the `gjson:` matcher, which fixes
     `@join` with `"preserve":true` producing invalid JSON when an element is
     an empty object
+  - `pmezard/go-difflib`, which is no longer maintained, is replaced by
+    `sergi/go-diff` for the diff shown when a matcher fails. The diff output
+    is unchanged
 
 ## 0.21.0 based on krameff/goss v0.6.0 - serve over HTTPS, discovery under render and serve
 
