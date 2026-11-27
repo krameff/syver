@@ -99,8 +99,8 @@ artifacts and signatures always correspond to the tag as it now stands.
 | Tag | pending |
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), `docs/readme-refresh`, then `docs/0.22.0` |
-| Scope | 9 commits (excluding merges), 45 files, +4104 / -77, measured at `devel` `216450f` against `v0.21.0`, before `docs/0.22.0` |
+| Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), `docs/readme-refresh` (PR #163), `docs/0.22.0` (PR #164), `fix/procmap-error` (PR #165), `deps/sergi-go-diff` (PR #166), `deps/trivy-gjson` (PR #167), then `docs/0.22.0-gate` |
+| Scope | 15 commits (excluding merges), 56 files, +4719 / -506, measured at `devel` `9531290` against `v0.21.0`, before `docs/0.22.0-gate` |
 | Changelog | [0.22.0](CHANGELOG.md#0220-based-on-krameffgoss-v060---fips-140-3-mode-reporting-ipv4-listeners-and-regex-warnings) |
 
 A minor release with no new spec syntax: `docs/schema.yaml` changes only
@@ -113,16 +113,34 @@ dual-stack sockets on `[::]` and IPv4-mapped addresses, for `tcp:N` and
 `udp:N`, so a `listening: false` check can now fail where it passed before.
 A text pattern that looks like a regex but has no closing `/` logs a warning.
 `dcsyver` and `dcgoss` remove the service container when they exit.
-The README is rewritten, and its reference sections moved to the docs
+When the process list cannot be read, every `process:` check now reports the
+error, not only the first. The README is rewritten, and its reference sections moved to the docs
 home page. Dependency updates: `tidwall/gjson` 1.20.7, `tidwall/pretty` 1.3.1
 (it changes `@pretty` output for objects on one line), and `sergi/go-diff`
 replacing `pmezard/go-difflib`; CI scans with Trivy 0.76.2. The set of
 published binaries is unchanged.
 
-**Suites:** pending, recorded at the release gate.
+**Suites run on 2026-11-27**, on go-builder, on the tree of `devel` at
+`9531290` with no local changes, under go1.27.4: Linux unit tests under
+`-race`, `make check`, golangci-lint for linux, windows and darwin, coverage,
+yamllint, `mkdocs --strict`, the trivy suppression check, the schema check,
+a second test pass under `GODEBUG=fips140=only`, `make build`, the 64-bit
+integration tests, the dcsyver end-to-end test, and the Windows unit tests
+(`make test`) on a Windows Server 2025 guest. 1765 tests passed, none failed;
+every test passed in the FIPS-only pass too. All 252 goldens are
+byte-identical to v0.21.0. The vulnerability scan, govulncheck for linux,
+windows and darwin plus trivy, found nothing, and the one trivy suppression
+still has no fixed version. Every check on PR #167, whose tree is identical
+to `devel` at `9531290`, was green, including the per-distro integration
+tests, `macos-latest` and `windows-latest`.
 
-**Audit content:** pending. `port:` changed, so the ansible-lockdown `-Audit`
-repositories are compared against v0.21.0 before the tag.
+**Audit content compared against v0.21.0** on the same tree, over every
+Linux ansible-lockdown `-Audit` repository, run as root as in production.
+In the 19 audits that run, every check gave the same result. Five audits do
+not load under v0.21.0 either (duplicate YAML keys, or a variable missing
+from `vars/`) and fail the same way under 0.22.0; in one of them the new
+unterminated-regex warning names three patterns. One repository has no spec
+yet.
 
 ---
 
