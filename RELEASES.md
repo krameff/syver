@@ -114,8 +114,10 @@ dual-stack sockets on `[::]` and IPv4-mapped addresses, for `tcp:N` and
 A text pattern that looks like a regex but has no closing `/` logs a warning.
 `dcsyver` and `dcgoss` remove the service container when they exit.
 The README is rewritten, and its reference sections moved to the docs
-home page. Dependency update: `tidwall/gjson` 1.20.6. The set of published binaries is
-unchanged.
+home page. Dependency updates: `tidwall/gjson` 1.20.7, `tidwall/pretty` 1.3.1
+(it changes `@pretty` output for objects on one line), and `sergi/go-diff`
+replacing `pmezard/go-difflib`; CI scans with Trivy 0.76.2. The set of
+published binaries is unchanged.
 
 **Suites:** pending, recorded at the release gate.
 
