@@ -234,7 +234,7 @@ func logLevelFromCLI(c *cli.Command) string {
 func newApp() *cli.Command {
 	return &cli.Command{
 		EnableShellCompletion: true,
-		Version:               util.Version,
+		Version:               appVersion(),
 		Name:                  "syver",
 		Usage:                 "Quick and Easy server validation",
 		Flags: []cli.Flag{
@@ -470,10 +470,6 @@ func newApp() *cli.Command {
 }
 
 func main() {
-	cli.VersionPrinter = func(cmd *cli.Command) {
-		fmt.Fprintf(cmd.Root().Writer, "%v version %v\nKrameff Solutions Ltd\n", cmd.Name, cmd.Version)
-	}
-
 	app := newApp()
 
 	addAlphaFlagIfNeeded(app)

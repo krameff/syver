@@ -4,8 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"net/netip"
+	"os"
+	"path"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/shirou/gopsutil/v4/net"
 
@@ -35,7 +40,9 @@ var ErrUnknownPortNetwork = errors.New("unknown port network")
 
 // portNetworks maps each network a spec may name to the GetPorts key prefix
 // that holds its listeners. "tcp4" and "udp4" are aliases, not approximations:
-// GetPorts fills "tcp" and "udp" from exactly those IPv4-only queries.
+// GetPorts fills "tcp" and "udp" from the IPv4-only queries, plus two kinds of
+// IPv6 socket that accept IPv4 too: a dual-stack [::] socket (addDualStack)
+// and a socket on an IPv4-mapped address, ::ffff:a.b.c.d (addMapped).
 var portNetworks = map[string]string{
 	"tcp": "tcp", "tcp4": "tcp", "tcp6": "tcp6",
 	"udp": "udp", "udp4": "udp", "udp6": "udp6",
@@ -130,14 +137,20 @@ func (p *DefPort) PID() ([]int, error) {
 var connectionsByKind = net.ConnectionsWithoutUids
 
 // GetPorts returns the set of listening TCP/UDP ports known to the OS's
-// connection-table backend. Failures from individual protocol lookups are
+// connection-table backend. The "tcp" and "udp" keys also hold the IPv6
+// sockets that accept IPv4: dual-stack [::] sockets, as 0.0.0.0, and sockets
+// on an IPv4-mapped address, as that IPv4 address. Failures from individual protocol lookups are
 // joined and returned rather than silently discarded: a missing/unreadable
 // /proc/net/{tcp,udp}{,6} file is treated as "no ports" with no error, but a
 // file that's readable yet contains a line that can't be parsed (e.g. an
 // unexpected IP/port encoding) does return an error, which would otherwise
 // present as every port on that protocol simply not listening. Each protocol
 // is queried separately (rather than via a single "all" call) specifically
-// to preserve this per-protocol error isolation.
+// to preserve this per-protocol error isolation. The separate queries also
+// keep an IPv4-mapped socket apart from a native IPv4 socket on the same
+// address: gopsutil prints both as "a.b.c.d" and drops duplicates within one
+// call by address string, not family, so a single "tcp" or "all" call would
+// silently lose one of the two.
 func GetPorts() (map[string][]net.ConnectionStat, error) {
 	ports := make(map[string][]net.ConnectionStat)
 	var errs []error
@@ -159,5 +172,163 @@ func GetPorts() (map[string][]net.ConnectionStat, error) {
 	addConns("udp4", "udp", false)
 	addConns("udp6", "udp6", false)
 
+	addDualStack(ports, "tcp", "tcp6", protoTCP)
+	addDualStack(ports, "udp", "udp6", protoUDP)
+	addMapped(ports, "tcp", "tcp6")
+	addMapped(ports, "udp", "udp6")
+
 	return ports, errors.Join(errs...)
+}
+
+// v6onlyState says whether a socket on the IPv6 unspecified address "::"
+// also accepts IPv4.
+type v6onlyState int
+
+const (
+	v6onlyUnknown v6onlyState = iota // the kernel could not say
+	v6onlyOff                        // dual-stack: accepts IPv4 too
+	v6onlyOn                         // IPv6 only
+)
+
+// IP protocol numbers passed to wildcardV6Only.
+const (
+	protoTCP uint8 = 6
+	protoUDP uint8 = 17
+)
+
+// wildcardV6OnlyFn is indirected through a package-level var so tests can
+// substitute canned states without asking the kernel.
+var wildcardV6OnlyFn = wildcardV6Only
+
+// addDualStack counts a dual-stack socket for its IPv4 key. On Linux a socket
+// on [::] with IPV6_V6ONLY=0 also accepts IPv4, but the kernel lists it only
+// in the IPv6 table. For every port in v6 with such a socket, a copy of each
+// [::] entry is added under v4 with the address 0.0.0.0, unless v4 already
+// holds a 0.0.0.0 entry for that port. Where the kernel cannot say whether a
+// socket is dual-stack, nothing is added and the reason is logged at DEBUG;
+// that is never an error.
+func addDualStack(ports map[string][]net.ConnectionStat, v4, v6 string, proto uint8) {
+	var wild []string
+	for key, entries := range ports {
+		if !strings.HasPrefix(key, v6+":") {
+			continue
+		}
+		for _, e := range entries {
+			if e.Laddr.IP == "::" {
+				wild = append(wild, key)
+				break
+			}
+		}
+	}
+	if len(wild) == 0 {
+		return
+	}
+	if hp := os.Getenv("HOST_PROC"); hp != "" && path.Clean(hp) != "/proc" {
+		// gopsutil reads that /proc, possibly another network namespace,
+		// while sock_diag answers for this process's own. HOST_PROC is a
+		// Linux path, so path.Clean: filepath.Clean turns "/proc/" into
+		// "\proc" on Windows.
+		debugOnce("[DEBUG] port: HOST_PROC is set; dual-stack listeners are not counted for tcp:/udp:")
+		return
+	}
+	states, err := wildcardV6OnlyFn(proto)
+	if err != nil {
+		debugOnce(fmt.Sprintf("[DEBUG] port: could not read IPV6_V6ONLY for %s sockets on [::]: %v; "+
+			"dual-stack listeners are not counted for %s:N, so those results are unchanged (check %s:N)", v4, err, v4, v6))
+		return
+	}
+	for _, key := range wild {
+		port := strings.TrimPrefix(key, v6+":")
+		v4key := v4 + ":" + port
+		if hasIP(ports[v4key], "0.0.0.0") {
+			continue
+		}
+		for _, e := range ports[key] {
+			if e.Laddr.IP != "::" {
+				continue
+			}
+			switch states[e.Laddr.Port] {
+			case v6onlyOn:
+				continue
+			case v6onlyUnknown:
+				debugOnce(fmt.Sprintf("[DEBUG] port: [::]:%s has no IPV6_V6ONLY from sock_diag; not counted for %s (check %s)",
+					port, v4key, key))
+				continue
+			}
+			c := e
+			c.Laddr.IP = "0.0.0.0"
+			ports[v4key] = append(ports[v4key], c)
+		}
+	}
+}
+
+// mappedIPv4 reports whether ip, an address from the IPv6 connection table,
+// is IPv4-mapped (::ffff:a.b.c.d), and returns the IPv4 address. gopsutil
+// prints such an address in dotted form ("127.0.0.1"); the "::ffff:" form is
+// accepted too.
+func mappedIPv4(ip string) (string, bool) {
+	a, err := netip.ParseAddr(ip)
+	if err != nil || (!a.Is4() && !a.Is4In6()) {
+		return "", false
+	}
+	return a.Unmap().String(), true
+}
+
+// addMapped counts a socket on an IPv4-mapped address for its IPv4 key. On
+// Linux an IPv6 socket bound to ::ffff:a.b.c.d accepts IPv4 connections to
+// a.b.c.d (every IPv4 address for ::ffff:0.0.0.0) and no IPv6 ones, but the
+// kernel lists it only in the IPv6 table. The kernel refuses such a bind on
+// an IPV6_V6ONLY socket and refuses to set IPV6_V6ONLY once a socket is
+// bound, so no sock_diag read is needed. For every such entry in v6, a copy
+// with the IPv4 address is added under v4, unless v4 already holds an entry
+// for that address. It reads only the table gopsutil returned, so it runs
+// whether or not HOST_PROC is set, and it never logs.
+func addMapped(ports map[string][]net.ConnectionStat, v4, v6 string) {
+	type copyTo struct {
+		key string
+		c   net.ConnectionStat
+	}
+	var add []copyTo
+	for key, entries := range ports {
+		if !strings.HasPrefix(key, v6+":") {
+			continue
+		}
+		for _, e := range entries {
+			ip, ok := mappedIPv4(e.Laddr.IP)
+			if !ok {
+				continue
+			}
+			c := e
+			c.Laddr.IP = ip
+			add = append(add, copyTo{v4 + ":" + strings.TrimPrefix(key, v6+":"), c})
+		}
+	}
+	// Appended after the scan, so no key is added to ports while ranging it.
+	// The guard sees the copies already appended, so two mapped entries on
+	// one address give one copy.
+	for _, a := range add {
+		if hasIP(ports[a.key], a.c.Laddr.IP) {
+			continue
+		}
+		ports[a.key] = append(ports[a.key], a.c)
+	}
+}
+
+func hasIP(entries []net.ConnectionStat, ip string) bool {
+	for _, e := range entries {
+		if e.Laddr.IP == ip {
+			return true
+		}
+	}
+	return false
+}
+
+// debugLogged holds the DEBUG lines already written, so each is logged once
+// per process even when GetPorts runs more than once (add and autoadd).
+var debugLogged sync.Map
+
+func debugOnce(msg string) {
+	if _, dup := debugLogged.LoadOrStore(msg, true); !dup {
+		log.Print(msg)
+	}
 }

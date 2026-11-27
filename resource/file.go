@@ -53,7 +53,8 @@ func init() {
 			}
 			return r, nil
 		},
-		AutoAdd: &AutoAddSpec{Order: 1},
+		AutoAdd:      &AutoAddSpec{Order: 1},
+		PatternAttrs: []string{"contains", "contents"},
 	})
 }
 

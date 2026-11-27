@@ -1,482 +1,214 @@
-# Syver - Quick and Easy server validation
+# Syver: server, container and AI host validation in YAML
 
 <!-- markdownlint-disable no-inline-html -->
 <p align="center">
-  <img src="images/syver-logo.svg" alt="Syver - by Krameff Solutions Ltd" width="200">
+  <img src="images/syver-logo.svg" alt="Syver logo: SYstem VERification, by Krameff Solutions Ltd" width="280">
 </p>
 <!-- markdownlint-enable no-inline-html -->
 
-> **Note:** This is a fork of the original [goss-org/goss](https://github.com/goss-org/goss) project created and
-> maintained by [@aelsabbahy](https://github.com/aelsabbahy). All original work remains under the Apache 2.0 license
-> and full credit goes to the original author for building such a solid foundation. This fork exists to enable newer
-> features and fixes to be developed and released. We are deeply grateful for the effort and care that went into the
-> original project and aim to continue it in the same spirit.
->
-> **Syver has since diverged from upstream.** The work here is driven by client requirements rather than by tracking
-> `goss-org/goss`, so the two projects will continue to differ and Syver does not aim for release-for-release parity
-> with upstream. Compatibility with the *gossfile format* is a separate matter and is maintained deliberately: existing
-> gossfiles, environment variables and wrapper scripts keep working. See
-> [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md) for exactly what differs.
-
+[![Golang ci](https://github.com/krameff/syver/actions/workflows/golangci.yaml/badge.svg?branch=main)](https://github.com/krameff/syver/actions/workflows/golangci.yaml)
+[![License: Apache-2.0](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Latest release](https://img.shields.io/github/v/release/krameff/syver)](https://github.com/krameff/syver/releases/latest)
 [![Documentation](https://img.shields.io/badge/docs-syver.readthedocs.io-blue)](https://syver.readthedocs.io/)
 
 <!-- --8<-- [start:intro] -->
 
-**Note:** For testing containers see the [dsyver](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) wrapper.
-There are also wrapper scripts for Kubernetes ([ksyver](https://github.com/krameff/syver/blob/main/extras/ksyver/README.md))
-and Docker Compose ([dcsyver](https://github.com/krameff/syver/blob/main/extras/dcsyver/README.md)), and for
-Docker Sandboxes, the `sbx` microVMs coding agents run in
-([sbxsyver](https://github.com/krameff/syver/blob/main/extras/sbxsyver/README.md)). The goss-named
-`dgoss`, `kgoss` and `dcgoss` still ship alongside them and work unchanged.
+Syver (SYstem VERification) runs pass or fail checks against servers, containers and AI tool hosts. Describe the
+state you expect in YAML, run it, and get a result you can put in CI, an image build or an audit pack. It is a
+YAML-based alternative to serverspec, and the continuation of the krameff fork of goss: a single static Go binary
+for Linux, with alpha support for macOS and Windows.
 
-**Note:** For some Docker/Kubernetes healthcheck, health endpoint, and
-container ordering examples, see the
-[Docker/Kubernetes simplified health checks blog post][kubernetes-simplified-health-checks].
+Syver checks that the machines and sandboxes running your AI tools are set up the way you think they are. It does
+not secure models, prompts or agent behaviour.
 
-## Introduction
+<!-- --8<-- [end:intro] -->
 
-### What is Syver?
-
-Syver is a YAML based [serverspec](http://serverspec.org/) alternative tool for validating a server's configuration.
-It eases the process of writing tests by allowing the user to generate tests from the current system state.
-Once the test suite is written it can be run once, retried until it passes or times out, or served as a health
-endpoint.
+![Syver demo: a file permission check fails with exit code 1, then passes with exit code 0 after chmod](docs/images/syver-demo.gif)
 
 See it running: the [demo videos](https://krameff.com/syver.html#demos) show `autoadd` catching drift, `dsyver`
 testing a Docker image and `dcsyver` checking a Docker Compose service.
 
-Syver is maintained by [Krameff Solutions](https://krameff.com).
+**[Read the documentation](https://syver.readthedocs.io/)** for the full spec reference, every command and flag,
+and platform notes.
 
-### Why use Syver?
+## What it checks
 
-* Syver is EASY!
-* Syver is FAST! - small-medium test suites are near instantaneous
-* Syver is SMALL! - <20MB single self-contained binary
+* Ports and whether they listen on the right address
+* Files, including their contents, owners and permissions
+* Processes, services, users and groups
+* Installed packages, and package baselines
+* Kernel parameters and mounts
+* Whether the host is in FIPS mode, and whether Syver itself is (see [FIPS 140-3](#fips-140-3))
+* Commands and their output
+* HTTP endpoints, DNS records, addresses and network interfaces
+* Windows registry keys and values
 
-### Coming from goss?
+## What it does not check
 
-Syver is the renamed continuation of the `krameff/goss` fork. **Your gossfiles do not
-need to change.** `gossfile:`, `goss.yaml`, `GOSS_*` env vars, the `dgoss`/`dcgoss`/`kgoss`
-wrappers and the `-g` flag all keep working.
+* Model weights, prompts or what an agent does at runtime
+* Application code or known vulnerabilities in software
+* Anything outside the host or sandbox where Syver runs
+* Hosts you have not given it access to
 
-See [goss vs Syver](https://github.com/krameff/syver/blob/main/docs/goss-vs-syver.md)
-for the full side-by-side comparison and the upgrade steps,
-including the breaking changes, all of which are names rather than spec syntax.
-
-## Installation
-
-**Note:** For macOS and Windows, see [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md).
-
-Build from source or install release binaries — see [installation](https://github.com/krameff/syver/blob/main/docs/installation.md).
-
-This installs `syver`, the [dsyver](https://github.com/krameff/syver/blob/main/extras/dsyver/README.md) container wrapper,
-and `dgoss` as a compatibility shim.
-
-<!-- --8<-- [end:intro] -->
-<!-- --8<-- [start:install] -->
-
-### Manual installation
-
-Download pre-built binaries and install wrappers as described in [installation](https://github.com/krameff/syver/blob/main/docs/installation.md).
-
-### Build it yourself
-
-```bash
-make build
-```
-
-Alternatively, you can build it with [goreleaser](https://goreleaser.com/). To
-build a binary, use `goreleaser build`, and to only build for the same OS and
-architecture as the machine you're building on, include the `--single-target`
-flag. The `--clean` flag will clean up any existing builds, and `--snapshot`
-will allow you to build against something other than a tag.
-
-Here's an example:
-
-```console
-$ goreleaser build --clean --single-target --snapshot
-  • skipping validate...
-  • cleaning distribution directory
-  • loading environment variables
-  • getting and validating git state
-  • ignoring errors because this is a snapshot error=git doesn't contain any tags - either add a tag or use --snapshot
-  • using tags previous= current=v0.0.0
-  • pipe skipped or partially skipped reason=disabled during snapshot mode
-  • parsing tag
-  • setting defaults
-  • partial
-  • snapshotting
-  • building snapshot... version=0.0.1-next
-  • running before hooks
-  • running hook=go mod tidy
-  • ensuring distribution directory
-  • setting up metadata
-  • writing release metadata
-  • loading go mod information
-  • build prerequisites
-  • building binaries
-  • partial build match=target=linux_arm64_v8.0
-  • building paths=cmd/syver binaries=syver target=linux_arm64_v8.0
-  • took: 31s
-  • writing artifacts metadata
-  • build succeeded after 31s
-  • thanks for using GoReleaser!
-$ tree dist
-dist
-├── artifacts.json
-├── binaries_linux_arm64_v8.0
-│   └── syver <- your binary
-├── config.yaml
-└── metadata.json
-
-2 directories, 4 files
-```
-
-<!-- --8<-- [end:install] -->
-
-## Full Documentation
-
-Published at **[syver.readthedocs.io](https://syver.readthedocs.io/)**, built
-from [`docs/`](docs/index.md) in this repository. The site is built from `main`,
-so it reflects the latest release rather than unreleased work on `devel`.
-
-## Releases
-
-[Release history](RELEASES.md) records every release and the commit it points
-at. [CHANGELOG.md](CHANGELOG.md) has the detail of what changed in each.
-
-## Using the container image
-
-[Using the Syver container image](docs/container_image.md)
+Say what you need checked, and Syver tells you whether it is true. It does not decide what is safe for you.
 
 ## Quick start
 
-<!-- --8<-- [start:quickstart] -->
+Install the release binary on Linux or macOS. The script checks the download against the release's checksum file:
 
-### Writing a simple sshd test
-
-An initial set of tests can be derived from the system state by using the [add](https://github.com/krameff/syver/blob/main/docs/cli.md#add)
-or [autoadd](https://github.com/krameff/syver/blob/main/docs/cli.md#autoadd) commands.
-
-Let's write a simple sshd test using autoadd. To see the same workflow catch a
-real change, watch
-[Catching drift with an auto-generated spec](https://krameff.com/videos/syver/autoadd-drift.mp4).
-
-```txt
-# Running it as root will allow it to also detect ports
-$ sudo syver autoadd sshd
+```bash
+curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/install.sh | sh
 ```
 
-**On spec filenames:** syver looks for `syver.yaml`, `syver.yml`, `goss.yaml`
-and `goss.yml`, in that order, and writes to whichever it found. When none
-exist it creates `syver.yaml`. The goss-named files keep working indefinitely,
-so an existing `goss.yaml` needs no migration; `syver.yaml` is simply the
-preferred name for new work. Note this is the *filename* only. Inside the file
-the import key stays `gossfile:` (`syverfile:` is accepted as an input alias).
+On Windows, download `syver-windows-amd64.exe` from the
+[releases page](https://github.com/krameff/syver/releases/latest). Other options, including building from source,
+are in [installation](docs/installation.md).
 
-Generated `syver.yaml`:
+Write a spec, then validate:
 
 ```yaml
+# syver.yaml
 port:
   tcp:22:
     listening: true
-    ip:
-    - 0.0.0.0
-    pid:
-    - 1234
-  tcp6:22:
-    listening: true
-    ip:
-    - '::'
-    pid:
-    - 1234
-service:
-  sshd:
-    enabled: true
-    running: true
-user:
-  sshd:
-    exists: true
-    uid: 74
-    gid: 74
-    groups:
-    - sshd
-    home: /var/empty/sshd
-    shell: /sbin/nologin
-group:
-  sshd:
-    exists: true
-    gid: 74
-process:
-  sshd:
-    running: true
-    status:
-    - sleep
-    user:
-    - root
 ```
-
-Now that we have a test suite, we can:
-
-* Run it once
-
-```console
-$ syver validate
-...............
-
-Total Duration: 0.021s # <- yeah, it's that fast..
-Count: 15, Failed: 0
-```
-
-* Edit it to use [templates](https://github.com/krameff/syver/blob/main/docs/gossfile.md#templates),
-  and run with a vars file
-
-```console
-syver --vars vars.yaml validate
-```
-
-* keep running it until the system enters a valid state or we timeout
-
-```console
-syver validate --retry-timeout 30s --sleep 1s
-```
-
-* serve the tests as a health endpoint
-
-```console
-$ syver serve &
-$ curl localhost:8080/healthz
-
-# JSON endpoint
-$ syver serve --format json &
-$ curl localhost:8080/healthz
-
-# rspecish response via content negotiation
-$ syver serve --format json &
-$ curl -H "Accept: application/vnd.goss-rspecish" localhost:8080/healthz
-
-# HTTPS, see docs/cli.md#serve
-$ syver serve --tls-cert server.crt --tls-key server.key &
-$ curl --cacert ca.crt https://localhost:8080/healthz
-```
-
-### Manually editing Syver files
-
-Syver files can be manually edited to improve readability and expressiveness of tests.
-
-A [Json draft 7 schema](https://github.com/json-schema-org/json-schema-spec/blob/draft-07/schema.json) in
-[docs/schema.yaml](https://github.com/krameff/syver/blob/main/docs/schema.yaml)
-makes it easier to edit simple `syver.yaml` /
-`goss.yaml` files in IDEs,
-providing usual coding assistance such as inline documentation, completion and static analysis.
-See [goss-org/goss#793](https://github.com/goss-org/goss/issues/793) for screenshots.
-
-For example, to configure the Json schema in JetBrains intellij IDEA,
-follow [documented instructions](https://www.jetbrains.com/help/idea/json.html#ws_json_schema_add_custom),
-with arguments such as:
-* `schema url=docs/schema.yaml` (path from the repository root)
-* `schema version=Json schema version 7`
-* `file path pattern=*/syver.yaml` (add a second pattern for `*/goss.yaml` if
-  you still have goss-named specs)
-
-In addition, Syver files can also be further manually edited (without yet full json support) to use:
-
-* [Matchers and patterns](https://github.com/krameff/syver/blob/main/docs/gossfile.md#matchers)
-* [Advanced Matchers](https://github.com/krameff/syver/blob/main/docs/gossfile.md#advanced-matchers)
-* [Templates](https://github.com/krameff/syver/blob/main/docs/gossfile.md#templates)
-* `title` and `meta` (arbitrary data) attributes are persisted when adding other resources with `syver add`
-
-A typo'd top-level key (writing `prot:` instead of `port:`, for example) no
-longer validates silently: syver logs a `[WARN]` for it, with a suggestion
-when it can make one. A spec that declares `syver-version:` turns that warning
-into an error, and also names the oldest Syver release it needs. See
-[Unknown top-level keys](https://github.com/krameff/syver/blob/main/docs/gossfile.md#unknown-top-level-keys).
-
-Some examples:
-
-```yaml+jinja
-user:
-  sshd:
-    title: UID must be between 50-100, GID doesn't matter. home is flexible
-    meta:
-      desc: Ensure sshd is enabled and running since it's needed for system management
-      sev: 5
-    exists: true
-    uid:
-      # Validate that UID is between 50 and 100
-      and:
-        gt: 50
-        lt: 100
-    home:
-      # Home can be any of the following
-      or:
-      - /var/empty/sshd
-      - /var/run/sshd
-
-package:
-  kernel:
-    installed: true
-    versions:
-      # Must have 3 kernels and none of them can be 4.4.0
-      and:
-      - have-len: 3
-      - not:
-          contain-element: 4.4.0
-
-  # Loaded from --vars YAML/JSON file
-  {{.Vars.package}}:
-    installed: true
-
-{{if eq .Env.OS "centos"}}
-  # This test is only when $OS environment variable is set to "centos"
-  libselinux:
-    installed: true
-{{end}}
-```
-
-Spec files with templates can still be validated through the Json schema after being rendered
-using the `syver render` command. See example below
-
-```console
-$ cd docs
-$ syver --vars ./vars.yaml render > rendered_syver.yaml
-# proceed with json schema validation of rendered_syver.yaml in your favorite IDE
-# or in one of the Json schema validator listed in https://json-schema.org/implementations.html
-# The following example is for a Linux AMD64 host
-$ curl -LO https://github.com/neilpa/yajsv/releases/download/v1.4.1/yajsv.linux.amd64
-$ chmod a+x yajsv.linux.amd64
-$ sudo mv yajsv.linux.amd64 /usr/sbin/yajsv
-
-$ yajsv -s schema.yaml rendered_syver.yaml
-rendered_syver.yaml: pass
-```
-
-Full list of available Json schema validators can be found in <https://json-schema.org/implementations.html#validator-command%20line>
-
-### Discovery and test dependencies
-
-Run lightweight discovery checks before the main suite and use the results in templates, or declare
-`depends-on` to skip dependents when a prerequisite fails. See
-[Discovery](https://github.com/krameff/syver/blob/main/docs/gossfile.md#discovery) and
-[Test dependencies](https://github.com/krameff/syver/blob/main/docs/gossfile.md#test-dependencies).
 
 ```bash
-# Pre-run discovery, then validate main gossfile (preferred)
-syver validate -g goss.yml --discover discovery.yaml
-
-# Or inline discovery: in the same gossfile
-syver validate -g goss-inline.yml
-
-# Export discovery results for external tooling (unchanged)
-syver validate -g discovery.yaml --format discovery
+syver -g syver.yaml validate
 ```
 
-These examples pass goss-named files because that is what the checked-in
-fixtures are called. **`goss.yaml` and `goss.yml` are still accepted, and
-always will be**. `-g` takes any path, and a spec found by name is resolved
-across all four of `syver.yaml`, `syver.yml`, `goss.yaml`, `goss.yml`.
+Exit code 0 means every check passed. Exit code 1 means at least one failed, which makes it easy to use as a CI
+gate.
 
-Fixtures: [`integration-tests/syver/examples/discovery/`](https://github.com/krameff/syver/tree/main/integration-tests/syver/examples/discovery/)
-
-<!-- --8<-- [end:quickstart] -->
-<!-- --8<-- [start:about] -->
-
-## Supported resources
-
-* package - add new package
-* pkg-baseline - record every installed package, to check the host still has exactly that set (Linux)
-* file - add new file
-* addr - add new remote address:port - ex: google.com:80
-* port - add new listening [protocol]:port - ex: 80 or udp:123
-* service - add new service
-* user - add new user
-* group - add new group
-* command - add new command
-* dns - add new dns
-* process - add new process name
-* registry - add new Windows registry key or value (Windows only)
-* kernel-param - add new kernel-param
-* mount - add new mount
-* interface - add new network interface
-* http - add new network http url with proxy support
-* syver (alias: goss) - add new syver file, it will be imported from this one
-* matching - test for matches in supplied content
-
-## Supported output formats
-
-* rspecish - **(default)** Similar to rspec output
-* documentation - Verbose test results
-* json - JSON, detailed test result
-* structured - JSON like `json`, plus a `summary` object and a human-readable `summary-line` on every result
-* tap - TAP style
-* junit - JUnit style
-* nagios - Nagios/Sensu compatible output /w exit code 2 for failures.
-* prometheus - Prometheus compatible output.
-* silent - No output. Avoids exposing system information (e.g. when serving tests as a healthcheck endpoint).
-
-## Community Contributions
-
-These are third-party integrations written for upstream goss. They are listed
-because they still work, but **each one invokes a binary named `goss`**, and
-`install.sh` installs `syver`, `dsyver` and `dgoss`, but no `goss`. To use any of
-them, put a `goss` on your `PATH` pointing at syver:
+Run a spec once, retry it until it passes or times out, or serve it as a health endpoint:
 
 ```bash
-sudo ln -s "$(command -v syver)" /usr/local/bin/goss
+syver -g syver.yaml validate --retry-timeout 60s   # wait for a service to come up
+syver -g syver.yaml serve                          # results at http://localhost:8080/healthz
+syver -g syver.yaml serve --tls-cert server.crt --tls-key server.key   # the same over HTTPS
 ```
 
-The gossfiles these tools generate and consume need no changes; only the
-binary name differs. None of them are maintained by this project.
+Don't want to write a spec by hand? `syver autoadd sshd` writes one from the current state of the host.
 
-<!-- markdownlint-disable line-length -->
-* [goss-ansible](https://github.com/indusbox/goss-ansible) - Ansible module for Goss.
-* [degoss](https://github.com/naftulikay/ansible-role-degoss) - Ansible role for installing, running, and removing Goss in a single go.
-* [ansible-goss-install](https://github.com/marcinpraczko/ansible-goss-install) - Ansible role for installing Goss (option for install as user or root)
-* [kitchen-goss](https://github.com/ahelal/kitchen-goss) - A test-kitchen verifier plugin for Goss.
-* [goss-fpm-files](https://github.com/deanwilson/unixdaemon-fpm-cookery-recipes) - Might be useful for building goss system packages.
-* [packer-provisioner-goss](https://github.com/YaleUniversity/packer-provisioner-goss) - A packer plugin to run Goss as a provision step.
-* [gossboss](https://github.com/mdb/gossboss) - Collect and view aggregated Goss test results from multiple remote Goss servers.
-<!-- markdownlint-enable line-length -->
+Output formats: rspecish (the default), documentation, JSON, structured JSON, JUnit, TAP, Prometheus, Nagios, and
+silent for health checks that should not expose system details.
 
-## Limitations
+## Containers, Compose and Kubernetes
 
-`syver` works well on Linux, but support on Windows & macOS is alpha. See [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md).
+Wrapper scripts run a spec against a container image ([dsyver](extras/dsyver/README.md)), a Docker Compose service
+([dcsyver](extras/dcsyver/README.md)), a Kubernetes pod ([ksyver](extras/ksyver/README.md)) or a Docker Sandboxes
+microVM ([sbxsyver](extras/sbxsyver/README.md)). The goss-named `dgoss`, `dcgoss` and `kgoss` still ship alongside
+them and work unchanged. Syver is also published as a [container image](docs/container_image.md).
 
-The following tests have limitations.
+## Coming from goss?
 
-Package:
+Your gossfiles do not need to change. `gossfile:`, `goss.yaml`, `GOSS_*` environment variables, the `-g` flag and
+the `dgoss`, `dcgoss` and `kgoss` wrappers all keep working. [goss vs Syver](docs/goss-vs-syver.md) lists what
+differs and the upgrade steps.
 
-* rpm
-* deb
-* Alpine apk
-* pacman
+## Documentation
 
-Service:
+Full documentation is at [syver.readthedocs.io](https://syver.readthedocs.io/), built from `docs/` in this
+repository. It tracks the latest release.
 
-* systemd
-* sysV init
-* OpenRC init
-* Upstart
-* Windows Service Control Manager (alpha, with six Windows-only attributes --
-  see [windows](https://github.com/krameff/syver/blob/main/docs/windows.md))
+* [Quick start](docs/quickstart.md): write and run your first spec
+* [Spec reference](docs/gossfile.md): every resource and attribute, templates and variables
+* [Command line](docs/cli.md): `validate`, `serve`, `add`, `autoadd`, `render` and their flags
+* [Installation](docs/installation.md): install, verify signatures, FIPS 140-3 mode
+* [Coming from goss](docs/goss-vs-syver.md): what differs, and the upgrade steps
+* [Platform support](docs/platforms.md): Linux, macOS and Windows
+* [Releases](RELEASES.md) and [changelog](CHANGELOG.md)
 
-Port:
+## AI tool hosts
 
-* Port state is read from `/proc/net/{tcp,udp,tcp6,udp6}` on Linux, where it is
-  fully supported. It is not implemented on macOS or Windows: measured on
-  Windows Server 2025, every assertion returns "not implemented yet". See
-  [platform support](https://github.com/krameff/syver/blob/main/docs/platforms.md),
-  which is the authoritative per-resource matrix.
-* On Linux, if one of those files exists but contains a line syver can't parse
-  (an unexpected IP/port/uid encoding, typically from a non-standard procfs,
-  e.g. inside certain containers or network namespaces), the affected `port`
-  resource now fails with an explicit `Error:` block in the output instead of
-  silently reporting the port as not listening. To investigate: note which
-  protocol failed from the resource id (`tcp`, `tcp6`, `udp`, `udp6`), then
-  inspect the corresponding file directly, e.g. `cat /proc/net/tcp6`, and
-  compare its columns against a working host. A missing or unreadable file is
-  *not* an error case -- it's treated as "no ports" for that protocol.
+### Agent sandboxes (Docker Sandboxes, sbx)
 
-[kubernetes-simplified-health-checks]: https://medium.com/@aelsabbahy/docker-1-12-kubernetes-simplified-health-checks-and-container-ordering-with-goss-fa8debbe676c
+Docker Sandboxes run coding agents without approval prompts by default, so the sandbox boundary is the main
+control. `sbxsyver` runs a spec inside a sandbox from the host, and checks that:
 
-<!-- --8<-- [end:about] -->
+* the checks are running inside the sandbox and the tools the agent needs are present
+* the workspace is mounted and writable, and the Docker daemon is the sandbox's own
+* API keys hold only placeholders, and cloud and source-control tokens are not set
+* no SSH, cloud or Git credential directories were mounted in
+* the agent can reach the model API and GitHub, and cannot reach the cloud metadata address or your internal hosts
+
+```bash
+sbx create --name my-sandbox claude ~/src/my-project
+cd examples/agent-sandbox-sbx    # after editing vars.yaml
+SYVER_VARS=vars.yaml sbxsyver run my-sandbox
+```
+
+A pass shows the sandbox was configured safely when the check ran. Run the check after the agent has started and a
+pass proves much less, because the agent can change the sandbox.
+
+The profile is in [`examples/agent-sandbox-sbx/`](examples/agent-sandbox-sbx/), and
+[what it cannot see](extras/sbxsyver/README.md#what-it-cannot-see) is listed in the sbxsyver docs.
+
+## Platform support
+
+Syver works well on Linux. Support on Windows and macOS is alpha, and some resources behave differently there: see
+[platform support](docs/platforms.md). Release binaries cover Linux (amd64, arm64, s390x, ppc64le), macOS (amd64,
+arm64) and Windows (amd64).
+
+## Signed releases
+
+Each release is signed, and ships with a signed SBOM (software bill of materials), so you can confirm what you are
+running and who released it.
+
+```bash
+SYVER_VER=v0.22.0   # the release you downloaded
+curl -fsSL https://raw.githubusercontent.com/krameff/syver/main/krameff-syver-key.asc | gpg --import
+# download syver_<version>_SHA256SUMS and its .sig from the release page, then:
+gpg --verify syver_${SYVER_VER#v}_SHA256SUMS.sig syver_${SYVER_VER#v}_SHA256SUMS
+sha256sum --ignore-missing -c syver_${SYVER_VER#v}_SHA256SUMS
+```
+
+gpg in FIPS mode rejects the Ed25519 key. On those hosts, import `krameff-syver-key-rsa.asc` and verify the
+`.rsa.sig` file instead. Key fingerprints are in [RELEASES.md](RELEASES.md).
+
+## FIPS 140-3
+
+Syver is pure Go, and its cryptography comes from Go's FIPS 140-3 module. `syver --version` says, on its third
+line, whether Syver is running in FIPS 140-3 mode and which module version it was built with:
+
+```console
+$ syver --version
+syver version 0.22.0
+Krameff Solutions Ltd
+fips140: mode=off module=none
+```
+
+Turn the mode on for a run with `GODEBUG=fips140=on`. A host in FIPS mode does not switch Syver into FIPS mode, so
+check the host as part of your spec:
+
+```yaml
+file:
+  /proc/sys/crypto/fips_enabled:
+    exists: true
+    contents: ["/^1$/"]
+```
+
+To find checks that use algorithms FIPS 140-3 does not approve, run with `GODEBUG=fips140=only`: an `md5:` check
+then fails with a message pointing to `sha256`, and the file's other checks still run.
+
+Details: [FIPS 140-3 mode](docs/installation.md#fips-140-3-mode).
+
+## Background
+
+Syver is a fork of [goss](https://github.com/goss-org/goss), the YAML-based server validation tool created by
+[@aelsabbahy](https://github.com/aelsabbahy), and has diverged from upstream. Syver releases are signed, ship a
+signed SBOM, and take fixes on their own schedule. The gossfile format stays compatible on purpose. Full credit goes
+to the goss authors for the foundation this builds on.
+
+Syver is licensed under Apache-2.0. See [LICENSE](LICENSE).
+
+## Contributing
+
+Issues and pull requests are welcome: see [CONTRIBUTING.md](.github/CONTRIBUTING.md). Profiles for other AI tools
+are especially welcome. Each profile needs a spec, a vars file with an example, a short docs page that says what it
+checks and what it does not, and an integration test that deliberately misconfigures a test host and expects a
+failure.
+
+## Maintainers
+
+Built and maintained by [Krameff Solutions](https://krameff.com).

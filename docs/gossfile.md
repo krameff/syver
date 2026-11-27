@@ -487,7 +487,7 @@ file:
     gid: 0
     filetype: file # file, symlink, directory, socket, character-device, block-device
     contents: [] # Check file content for these patterns
-    md5: 7c9bb14b3bf178e82c00c2a4398c93cd # md5 checksum of file
+    md5: 7c9bb14b3bf178e82c00c2a4398c93cd # md5 checksum of file; fails in FIPS 140-only mode, use sha256 or sha512 there
     # A stronger checksum alternatives to md5 (recommended)
     sha256: 7f78ce27859049f725936f7b52c6e25d774012947d915e7b394402cfceb70c4c
     sha512: cb71b1940dc879a3688bd502846bff6316dd537bbe917484964fe0f098e9245d80958258dc3bd6297bf42d5bd978cbe2c03d077d4ed45b2b1ed9cd831ceb1bd0
@@ -1036,13 +1036,26 @@ See [`examples/pkg-baseline.yaml`](https://github.com/krameff/syver/blob/main/ex
 Validates the state of a local port.
 
 !!! note
-    Syver might consider your port to be listening on `tcp6` rather than `tcp`,
-    try running `syver add port ..` to see how syver detects it.
-    ([explanation](https://github.com/goss-org/goss/issues/149))
+    On Linux, a socket on `[::]:N` that also accepts IPv4 (dual-stack, the
+    default for many servers that listen on `0.0.0.0` or on a bare port) counts
+    for `tcp:N` / `udp:N`, with `ip` `0.0.0.0`; it is also reported under
+    `tcp6:N` / `udp6:N`. A socket on an IPv4-mapped address
+    (`[::ffff:a.b.c.d]:N`; for example, a Java program listening on
+    `127.0.0.1` on a host with IPv6 enabled) accepts IPv4 connections only. It
+    counts for `tcp:N` / `udp:N` with `ip` `a.b.c.d`, and is also listed under
+    `tcp6:N` / `udp6:N` with that `ip`, although it accepts no IPv6
+    connections. Where the kernel cannot say whether a socket on `[::]` is
+    dual-stack (some sandboxes and older kernels, or when `HOST_PROC` is set),
+    it is reported only under `tcp6:N` / `udp6:N`; check that key, or run
+    `syver add port ..` to see how syver detects it. IPv4-mapped sockets are
+    counted either way. A socket on `[::]:N` that accepts IPv6 only is never
+    counted for `tcp:N`.
+    ([background](https://github.com/goss-org/goss/issues/149))
 
 The key is `network:port`. The network is one of `tcp`, `tcp6`, `udp` or
 `udp6`, and `tcp4` and `udp4` are accepted as other names for `tcp` and `udp`,
-which already mean IPv4 only. A bare port number means `tcp`. Any other network,
+which mean IPv4 (including the sockets above). A bare port number
+means `tcp`. Any other network,
 such as a typo, fails the check with an error naming the valid ones, and
 `syver add port` refuses it.
 
@@ -1314,6 +1327,33 @@ Each pattern is checked against the attribute output, the type of patterns are:
 !!! warning
     You will **need** the double backslash (`\\`) escape for Regex special entities, for example `\\s` for blank spaces.
 
+!!! note "A regex with a missing closing `/` is plain text"
+    A pattern is a regex only when it ends with `/`, optionally followed by
+    `i`, `m` or `s`. One that starts with `/` or `!/`, is not a regex, and
+    contains regex syntax such as a leading `^`, `\s`, `.*` in the middle,
+    `[...]`, `(?...)` or `a|b` is matched as plain text, which is almost
+    never what was meant: `/^PermitRootLogin\s+no` looks for that literal
+    text, so it never matches, and `!/^PermitRootLogin\s+yes` always passes.
+    syver logs a warning for each such pattern when it loads the spec:
+
+    ```text
+    [WARN] syver.yaml: file `/etc/issue` contents: `!/[Ll]inux` is matched as plain text: it starts like a regex but has no closing "/". To make it a regex, end it with "/" (optionally followed by i, m or s); to keep it as text, write `!\/[Ll]inux`, which also silences this warning
+    ```
+
+    When the closing `/` is there but is followed by something other than
+    flags (`/^x/g`, or a stray quote), the message says what follows it.
+
+    End the pattern with `/` to make it a regex, or put a `\` before the
+    leading `/` to keep it as text. The suggested escape is right as written
+    in a single-quoted or unquoted YAML value; in a double-quoted value the
+    backslash must be doubled, `"!\\/[Ll]inux"`, because YAML reads `\/`
+    there as `/`.
+
+    A plain path such as `/etc/passwd` never warns. The warning changes no
+    result and no exit code, `-L ERROR` hides it, and it is logged once per
+    command, so a `render | validate` pipeline, as `dcsyver` runs, shows it
+    twice.
+
 !!! example
     ```yaml
     file:
@@ -1528,6 +1568,9 @@ and the check passes only when every pattern is satisfied:
 * `"!foo"` - no line contains `foo`
 * `"/[Rr]egex/"` - some line matches the regex
 * `"!/[Rr]egex/"` - no line matches the regex
+
+A pattern here that reads like a regex but has no closing `/` logs the same
+warning as in [io.Readers](#ioreaders).
 
 !!! example
     ```yaml

@@ -61,6 +61,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ## Contents
 
+* [v0.22.0 - FIPS 140-3 mode reporting, IPv4 listeners and regex warnings](#v0220---fips-140-3-mode-reporting-ipv4-listeners-and-regex-warnings)
 * [v0.21.0 - Serve over HTTPS, discovery under render and serve](#v0210---serve-over-https-discovery-under-render-and-serve)
 * [v0.20.0 - Package baselines and syver-version](#v0200---package-baselines-and-syver-version)
 * [v0.16.1 - Text patterns and port networks](#v0161---text-patterns-and-port-networks)
@@ -90,7 +91,7 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 ---
 
-## v0.21.0 - Serve over HTTPS, discovery under render and serve
+## v0.22.0 - FIPS 140-3 mode reporting, IPv4 listeners and regex warnings
 
 | Field | Value |
 | --- | --- |
@@ -98,7 +99,60 @@ artifacts and signatures always correspond to the tag as it now stands.
 | Tag | pending |
 | Commit | pending |
 | Base | krameff/goss v0.6.0 |
-| Integration branch | `devel`, in this merge order: the 0.20.0 release record (PR #146), `fix/render-serve-discovery` (PR #147), `feature/serve-https` (PR #148), `deps/gjson-xnet` (PR #149), Dependabot's actions/setup-go 7.1.0 (PR #151), `fix/integration-http-local` (PR #152), then `docs/0.21.0` |
+| Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), `docs/readme-refresh` (PR #163), `docs/0.22.0` (PR #164), `fix/procmap-error` (PR #165), `deps/sergi-go-diff` (PR #166), `deps/trivy-gjson` (PR #167), then `docs/0.22.0-gate` |
+| Scope | 15 commits (excluding merges), 56 files, +4719 / -506, measured at `devel` `9531290` against `v0.21.0`, before `docs/0.22.0-gate` |
+| Changelog | [0.22.0](CHANGELOG.md#0220-based-on-krameffgoss-v060---fips-140-3-mode-reporting-ipv4-listeners-and-regex-warnings) |
+
+A minor release with no new spec syntax: `docs/schema.yaml` changes only
+in two descriptions. `syver --version` prints a third line reporting the
+FIPS 140-3 mode and module, and `--version` now works on binaries built with
+`go build` or `go install`. Under `GODEBUG=fips140=only`, `md5:` and the md5,
+sha1 and DSA template functions fail with an error instead of a panic or an
+empty value. On Linux, `port:` counts IPv6 sockets that accept IPv4, both
+dual-stack sockets on `[::]` and IPv4-mapped addresses, for `tcp:N` and
+`udp:N`, so a `listening: false` check can now fail where it passed before.
+A text pattern that looks like a regex but has no closing `/` logs a warning.
+`dcsyver` and `dcgoss` remove the service container when they exit.
+When the process list cannot be read, every `process:` check now reports the
+error, not only the first. The README is rewritten, and its reference sections moved to the docs
+home page. Dependency updates: `tidwall/gjson` 1.20.7, `tidwall/pretty` 1.3.1
+(it changes `@pretty` output for objects on one line), and `sergi/go-diff`
+replacing `pmezard/go-difflib`; CI scans with Trivy 0.76.2. The set of
+published binaries is unchanged.
+
+**Suites run on 2026-11-27**, on go-builder, on the tree of `devel` at
+`9531290` with no local changes, under go1.27.4: Linux unit tests under
+`-race`, `make check`, golangci-lint for linux, windows and darwin, coverage,
+yamllint, `mkdocs --strict`, the trivy suppression check, the schema check,
+a second test pass under `GODEBUG=fips140=only`, `make build`, the 64-bit
+integration tests, the dcsyver end-to-end test, and the Windows unit tests
+(`make test`) on a Windows Server 2025 guest. 1765 tests passed, none failed;
+every test passed in the FIPS-only pass too. All 252 goldens are
+byte-identical to v0.21.0. The vulnerability scan, govulncheck for linux,
+windows and darwin plus trivy, found nothing, and the one trivy suppression
+still has no fixed version. Every check on PR #167, whose tree is identical
+to `devel` at `9531290`, was green, including the per-distro integration
+tests, `macos-latest` and `windows-latest`.
+
+**Audit content compared against v0.21.0** on the same tree, over every
+Linux ansible-lockdown `-Audit` repository, run as root as in production.
+In the 19 audits that run, every check gave the same result. Five audits do
+not load under v0.21.0 either (duplicate YAML keys, or a variable missing
+from `vars/`) and fail the same way under 0.22.0; in one of them the new
+unterminated-regex warning names three patterns. One repository has no spec
+yet.
+
+---
+
+## v0.21.0 - Serve over HTTPS, discovery under render and serve
+
+| Field | Value |
+| --- | --- |
+| Released | 2026-11-23 |
+| Tag | `v0.21.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT keys `CD218D52...CABE5092` (`.sig`) and `AC1C7F6F...3E62F866` (`.rsa.sig`) |
+| Commit | `d57ce4c`, the `devel` -> `main` merge commit from PR #154 |
+| Base | krameff/goss v0.6.0 |
+| Integration branch | `devel`, in this merge order: the 0.20.0 release record (PR #146), `fix/render-serve-discovery` (PR #147), `feature/serve-https` (PR #148), `deps/gjson-xnet` (PR #149), Dependabot's actions/setup-go 7.1.0 (PR #151), `fix/integration-http-local` (PR #152), then `docs/0.21.0` (PR #153). Merged to `main` through PR #154 |
 | Scope | 7 commits (excluding merges), 37 files, +2165 / -102, measured at `devel` `bbb6c93` against `v0.20.0` |
 | Changelog | [0.21.0](CHANGELOG.md#0210-based-on-krameffgoss-v060---serve-over-https-discovery-under-render-and-serve) |
 
@@ -132,6 +186,23 @@ both negotiated, HTTP/2 was offered, and curl fetched the health endpoint.
 **Not compared on audit content.** No matcher, resource or skip rule
 changed and `validate` is untouched; the one dependency on a check path is
 gjson, which none of the ansible-lockdown `-Audit` repositories uses.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `d57ce4c` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`167b284`. The goldens on `d57ce4c` show the same single intended change
+against v0.20.0, and were re-captured from it as the new baseline. The
+release carries 47 assets, the same names as 0.20.0. With each project key
+imported alone into an empty keyring, the checksum file and all seven SBOMs
+verify against the Ed25519 key through `.sig` and against the RSA key
+through `.rsa.sig`, and the `.rsa.sig` does not verify against the Ed25519
+key. The RSA key in the release assets is byte-identical to the one in the
+tag. The checksum for `syver-linux-amd64` matches, its embedded build
+information shows go1.27.4, revision `d57ce4c`, an unmodified tree,
+`tidwall/gjson` 1.20.5 and `golang.org/x/net` 0.63.0, and it reports `syver
+version 0.21.0`. `ghcr.io/krameff/syver:v0.21.0` and `:latest` resolve to the
+same image index, for linux/amd64 and linux/arm64, labelled with revision
+`d57ce4c` and version `0.21.0`.
 
 ---
 

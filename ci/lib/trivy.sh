@@ -10,7 +10,7 @@
 
 # Pinned, not latest: scan findings fail the build, so a floating scanner can
 # turn a build red with no repo change.
-SYVER_TRIVY_VERSION=0.76.1
+SYVER_TRIVY_VERSION=0.76.2
 
 # The container fallback, for machines with docker or podman but no trivy
 # binary. CI has the binary (setup-trivy) and never takes this path.
@@ -22,7 +22,7 @@ SYVER_TRIVY_VERSION=0.76.1
 #   curl -sI -H "Authorization: Bearer $(curl -s 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:aquasec/trivy:pull' | jq -r .token)" \
 #     -H 'Accept: application/vnd.oci.image.index.v1+json' \
 #     https://registry-1.docker.io/v2/aquasec/trivy/manifests/<version> | grep -i docker-content-digest
-SYVER_TRIVY_IMAGE="${SYVER_TRIVY_IMAGE:-docker.io/aquasec/trivy@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c}"  # 0.76.1
+SYVER_TRIVY_IMAGE="${SYVER_TRIVY_IMAGE:-docker.io/aquasec/trivy@sha256:8f6bb947dbc528902e11f2f5be52f7b519f6a39d5d148f41166f2040499768fb}"  # 0.76.2
 
 TRIVY_SKIP_DIRS="${TRIVY_SKIP_DIRS:-integration-tests,release,site,.venv,.git}"
 # trivy's own default is [vuln,secret]. Naming just "vuln" is not a no-op, it

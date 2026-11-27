@@ -392,6 +392,9 @@ func TestServeOverTLS(t *testing.T) {
 // Revert-proof: set the server's MinVersion to tls.VersionTLS10 in
 // serveTLSConfig (the handshake then succeeds at TLS 1.1).
 func TestServeRefusesTLS11(t *testing.T) {
+	if fips140.Enabled() {
+		t.Skip("in FIPS mode the test client cannot offer TLS 1.0/1.1; the refusal is crypto/tls's own FIPS policy and is covered by the non-FIPS run")
+	}
 	certPath, keyPath, cert := writeSelfSignedPair(t, false)
 	c := newTLSServeConfig(t, certPath, keyPath)
 	ctx, cancel := context.WithCancel(context.Background())

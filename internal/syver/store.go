@@ -412,6 +412,16 @@ func readJSONData(data []byte, detectFormat bool, path, strictOrigin string) (Sy
 	}
 	syverConfig.SyverfileAlias = nil
 
+	// Text patterns that read like a regex with a missing or malformed
+	// closing "/": a WARN each, on the real load only, for the same reason
+	// as the two warnings above. The check reads the decoded config and
+	// changes nothing in it.
+	if !quietDecode {
+		for _, w := range checkPatternsFn(syverConfig, path) {
+			log.Printf("[WARN] %s", w)
+		}
+	}
+
 	return *syverConfig, origin, nil
 }
 

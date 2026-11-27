@@ -38,6 +38,7 @@ func init() {
 		New:          func() Resource { return &Command{} },
 		InValidation: true,
 		InDiscovery:  true,
+		PatternAttrs: []string{"stdout", "stderr"},
 		AppendSys: func(sys *system.System, key string, config util.Config) (Resource, error) {
 			r := &Command{}
 			if _, err := r.fromSystem(sys, key, config); err != nil {

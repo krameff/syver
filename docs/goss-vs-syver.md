@@ -100,7 +100,7 @@ need no changes. What changes is the product's own name.
 | Verify release checksums by filename | It is now `syver_<version>_SHA256SUMS` |
 | Nothing above | Nothing. Install the new binary and carry on |
 
-The third-party integrations listed in the README (`goss-ansible`,
+The third-party integrations listed on the [documentation home page](index.md#community-contributions) (`goss-ansible`,
 `kitchen-goss`, `packer-provisioner-goss` and the rest) all invoke a binary
 named `goss`, and `install.sh` installs `syver`, `dsyver` and `dgoss` but no
 `goss`. One symlink covers all of them:
@@ -153,6 +153,7 @@ None of the following are required. Leave them out and nothing changes.
 | [`glob`](gossfile.md#glob) template function | Ranges over the files matching a pattern, as requested in [goss-org/goss#1141](https://github.com/goss-org/goss/issues/1141) |
 | JUnit [`<properties>`](cli.md#validate) | A resource's `meta:` is carried on each of its JUnit test cases |
 | [`serve` over HTTPS](cli.md#serve) | `--tls-cert` and `--tls-key` serve the health endpoint and `/metrics` over HTTPS, following the proposal in [goss-org/goss#1160](https://github.com/goss-org/goss/pull/1160) |
+| [FIPS 140-3 state](installation.md#fips-140-3-mode) | `syver --version` reports whether the binary was built with a frozen Go Cryptographic Module and whether it is running in FIPS 140-3 mode; goss reports neither |
 
 Process and port lookups moved from two unmaintained libraries
 (`goss-org/go-ps` and `goss-org/GOnetstat`) to the maintained `gopsutil`. Specs
@@ -217,6 +218,21 @@ is never found: `listening: false` passes without checking anything, and
 other names for `tcp` and `udp`, which goss already reads as IPv4 only, and
 fails any other network with an error naming the valid ones. See
 [port](gossfile.md#port).
+
+A sixth: **on Linux, an IPv6 listener that accepts IPv4 counts for `tcp:` and
+`udp:`.** Many servers listening on `0.0.0.0` or on a bare port open one
+socket on `[::]` that also accepts IPv4. goss reads only the IPv4 table for
+`tcp:N`, so for such a service `tcp:N listening: false` passes even though
+IPv4 clients can connect, and `tcp:N listening: true` fails. Syver counts that
+socket for `tcp:N` / `udp:N` with `ip` `0.0.0.0`, and still reports it under
+`tcp6:N` / `udp6:N`. A socket on an IPv4-mapped address, such as
+`[::ffff:127.0.0.1]`, accepts IPv4 only; Syver counts it for `tcp:N` /
+`udp:N` with its IPv4 address and still lists it under `tcp6:N` / `udp6:N`.
+A `tcp:N listening: false` written against such a service, including one
+`goss add port` wrote, now fails: write `listening: true`, or bind it to an
+IPv6 address, or open it IPv6-only (`IPV6_V6ONLY`), if it must not accept
+IPv4. A socket on
+`[::]` that accepts IPv6 only is not counted. See [port](gossfile.md#port).
 
 ## Product identity
 
