@@ -35,7 +35,7 @@ workflows:
     '.github/workflows/release.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-go@v7.1.0'
-        - 'anchore/sbom-action@v0.24.3'
+        - 'anchore/sbom-action@v0.24.4'
         - 'aquasecurity/setup-trivy@v0.3.1'
         - 'crazy-max/ghaction-import-gpg@v7.0.0'
         - 'docker/login-action@v4.8.0'
@@ -80,9 +80,9 @@ dependencies:
         commit: 'sha1-6d4fd22b20465ccc0f7354476588e8df7c9ca0e0'
         owner_id: 44036562
         repo_id: 192625525
-    'anchore/sbom-action@v0.24.3':
-        ref: 'v0.24.3'
-        commit: 'sha1-66cbf4bc1f1c0d2edc94016e65bc221b6bb0ad6c'
+    'anchore/sbom-action@v0.24.4':
+        ref: 'v0.24.4'
+        commit: 'sha1-dfcb83b97731532d72be422cbc51ee64adb6fd56'
         owner_id: 16208487
         repo_id: 399925381
     'aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514':

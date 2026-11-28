@@ -222,7 +222,7 @@ jobs:
       # so an upstream change cannot turn a tag push red with no repository
       # change -- the rule the Trivy installer comment in golangci.yaml states.
       - name: Install syft (SBOM generator for goreleaser)
-        uses: anchore/sbom-action/download-syft@v0.24.3
+        uses: anchore/sbom-action/download-syft@v0.24.4
 
       - name: Verify syft is on PATH before the release runs
         run: |
