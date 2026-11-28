@@ -95,9 +95,9 @@ artifacts and signatures always correspond to the tag as it now stands.
 
 | Field | Value |
 | --- | --- |
-| Released | pending |
-| Tag | pending |
-| Commit | pending |
+| Released | 2026-11-27 |
+| Tag | `v0.22.0`, annotated and signed with the MAINTAINER key `5154CE6E...D4E84F77`. Artifacts are signed with the PROJECT keys `CD218D52...CABE5092` (`.sig`) and `AC1C7F6F...3E62F866` (`.rsa.sig`) |
+| Commit | `0d9d95a`, the `devel` -> `main` merge commit from PR #169 |
 | Base | krameff/goss v0.6.0 |
 | Integration branch | `devel`, in this merge order: the 0.21.0 release record (PR #155), `feature/fips-state` (PR #156), `feature/port-dual-stack` (PR #157), `fix/port-host-proc-windows` (PR #158), `deps/gjson-1.20.6` (PR #159), `fix/dcsyver-leaves-container` (PR #160), `feature/port-mapped-ipv4` (PR #161), `feature/unterminated-regex-warning` (PR #162), `docs/readme-refresh` (PR #163), `docs/0.22.0` (PR #164), `fix/procmap-error` (PR #165), `deps/sergi-go-diff` (PR #166), `deps/trivy-gjson` (PR #167), then `docs/0.22.0-gate` |
 | Scope | 15 commits (excluding merges), 56 files, +4719 / -506, measured at `devel` `9531290` against `v0.21.0`, before `docs/0.22.0-gate` |
@@ -140,7 +140,29 @@ In the 19 audits that run, every check gave the same result. Five audits do
 not load under v0.21.0 either (duplicate YAML keys, or a variable missing
 from `vars/`) and fail the same way under 0.22.0; in one of them the new
 unterminated-regex warning names three patterns. One repository has no spec
-yet.
+yet. After the release, two audits were rerun on their newer upstream
+content: RHEL10-CIS-Audit at `6c478d7` (944 checks) and UBUNTU24-CIS-Audit
+at `64b5e3b` (1042 checks, its missing-option fault fixed upstream), with
+every check giving the same result. RHEL7 audits are end of life and are no
+longer part of the comparison.
+
+**Verified after the push**, against the published release rather than the
+build log. The tag is an annotated tag object on `0d9d95a` with a good
+signature from the maintainer key, and its tree is identical to `devel` at
+`0bae5c5`, which differs from the tested `9531290` only by this file. The
+goldens on that tree are byte-identical to v0.21.0, and were captured from it
+as the new baseline. The release carries 47 assets, the same names as
+0.21.0. With each project key imported alone into an empty keyring, the
+checksum file and all seven SBOMs verify against the Ed25519 key through
+`.sig` and against the RSA key through `.rsa.sig`; neither signature
+verifies with the other key. Both key files in the release assets are
+byte-identical to the ones in the tag. The checksum for `syver-linux-amd64`
+matches, its embedded build information shows go1.27.4, revision `0d9d95a`,
+an unmodified tree, `tidwall/gjson` 1.20.7, `tidwall/pretty` 1.3.1 and
+`sergi/go-diff` 1.4.5, and it reports `syver version 0.22.0` with
+`fips140: mode=off module=none`. `ghcr.io/krameff/syver:v0.22.0` and
+`:latest` resolve to the same image index, for linux/amd64 and linux/arm64,
+annotated with revision `0d9d95a` and version `0.22.0`.
 
 ---
 
