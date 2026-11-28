@@ -25,7 +25,7 @@ workflows:
     '.github/workflows/docs.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-python@v7.1.0'
-        - 'davidanson/markdownlint-cli2-action@v25.0.0'
+        - 'davidanson/markdownlint-cli2-action@v25.1.0'
     '.github/workflows/golangci.yaml':
         - 'actions/checkout@v7.0.1'
         - 'actions/setup-go@v7.1.0'
@@ -114,9 +114,9 @@ dependencies:
         commit: 'sha1-2dc316deee8e90f13e1a351ab510b4d5bc0c82cd'
         owner_id: 1951866
         repo_id: 260488959
-    'davidanson/markdownlint-cli2-action@v25.0.0':
-        ref: 'v25.0.0'
-        commit: 'sha1-696eb3f2509270d7b882d2aa68347bc676e7af34'
+    'davidanson/markdownlint-cli2-action@v25.1.0':
+        ref: 'v25.1.0'
+        commit: 'sha1-3ce8f712b5d8f31acd8e201be6d97e3d2bb23eb7'
         owner_id: 1828270
         repo_id: 329203602
     'docker/build-push-action@v7.4.0':
